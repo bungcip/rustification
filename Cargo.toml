@@ -1,0 +1,37 @@
+[workspace]
+members = [
+    # "analysis/runtime",
+    "c2rust",
+    # "c2rust-analyze",
+    # "c2rust-asm-casts",
+    "c2rust-ast-builder",
+    "c2rust-ast-exporter",
+    "c2rust-ast-printer",
+    "c2rust-bitfields",
+    "c2rust-bitfields-derive",
+    # "c2rust-build-paths",
+    "c2rust-transpile",
+    # "dynamic_instrumentation",
+    # "pdg",
+]
+exclude = [
+    # "analysis/tests",
+    "c2rust-macros",
+    "c2rust-refactor",
+    "examples",
+    "tests",
+]
+
+[workspace.package]
+version = "0.18.0"
+authors = ["The C2Rust Project Developers <c2rust@immunant.com>"]
+edition = "2021"
+readme = "README.md"
+homepage = "https://c2rust.com/"
+repository = "https://github.com/immunant/c2rust/"
+license = "BSD-3-Clause"
+keywords = ["transpiler", "migration", "translation", "c"]
+categories = ["development-tools", "development-tools::ffi", "command-line-utilities"]
+
+[profile.dev.package."*"]
+opt-level = 3

@@ -1,0 +1,44 @@
+[package]
+name = "c2rust-transpile"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "C2Rust transpiler implementation"
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+c2rust-ast-builder = { version = "0.18.0", path = "../c2rust-ast-builder" }
+c2rust-ast-exporter = { version = "0.18.0", path = "../c2rust-ast-exporter" }
+c2rust-ast-printer = { version = "0.18.0", path = "../c2rust-ast-printer" }
+c2rust-bitfields = { version = "0.18.0", path = "../c2rust-bitfields" }
+colored = "2.0"
+dtoa = "1.0"
+failure = "0.1.5"
+fern = { version = "0.6", features = ["colored"] }
+handlebars = "4.2"
+indexmap = { version = "1.0.1", features = ["serde-1"] }
+itertools = "0.10"
+libc = "0.2"
+log = "0.4"
+log-reroute = "0.1"
+pathdiff = "0.2"
+proc-macro2 = "1.0"
+regex = "1"
+serde = { version = "1.0", features = ["rc"] }
+serde_bencode = "0.2"
+serde_bytes = "0.11"
+serde_derive = "1.0.80"
+serde_json = "1.0"
+smallvec = "1.0"
+strum = "0.24"
+strum_macros = "0.24"
+syn = { version = "1.0", features = ["full", "extra-traits", "parsing", "printing"]}
+
+[features]
+# Force static linking of LLVM
+llvm-static = ["c2rust-ast-exporter/llvm-static"]

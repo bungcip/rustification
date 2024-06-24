@@ -1,0 +1,16 @@
+[package]
+name = "c2rust-ast-builder"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "Rust AST builder support crate for the C2Rust project"
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+proc-macro2 = { version = "1.0", features = ["span-locations"]}
+syn = { version = "1.0", features = ["full", "extra-traits", "printing", "clone-impls"]}

@@ -1,0 +1,27 @@
+[submodule "examples/snudown/repo"]
+	path = examples/snudown/repo
+	url = https://github.com/immunant/snudown.git
+[submodule "examples/xzoom/xzoom"]
+	path = examples/xzoom/repo
+	url = git://r-36.net/xzoom
+[submodule "examples/grabc/repo"]
+	path = examples/grabc/repo
+	url = https://github.com/immunant/grabc.git
+[submodule "examples/urlparser/repo"]
+	path = examples/urlparser/repo
+	url = https://github.com/jwerle/url.h.git
+[submodule "examples/genann/repo"]
+	path = examples/genann/repo
+	url = https://github.com/codeplea/genann.git
+[submodule "examples/lil/repo"]
+	path = examples/lil/repo
+	url = https://github.com/immunant/lil.git
+[submodule "examples/libxml2/repo"]
+	path = examples/libxml2/repo
+	url = https://github.com/immunant/libxml2-rs.git
+[submodule "examples/tmux/repo"]
+	path = examples/tmux/repo
+	url = https://github.com/immunant/tmux-rs.git
+[submodule "examples/tinycc/repo"]
+	path = examples/tinycc/repo
+	url = https://github.com/immunant/tinycc-rs.git

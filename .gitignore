@@ -1,0 +1,52 @@
+*.tar.xz
+*.tar.xz.sig
+*.tar.gz
+.idea
+.vscode
+*.log
+# ignore rust build dirs everywhere
+**/target/
+**/instrument.target/
+**/tests/
+/build
+*.pyc
+.vagrant
+**/compile_commands.json
+**/Cargo.lock
+!/Cargo.lock
+.python-version
+.clangd
+# ignore Clion build dirs
+**/cmake-build-debug
+**/cmake-build-release
+
+# xcode-project
+c2rust-ast-exporter/xcode/
+
+# cross-checks
+/cross-checks/c-checks/clang-plugin/build
+/cross-checks/libfakechecks/*.o
+/cross-checks/libfakechecks/*.so
+
+# tests
+!tests
+tests/*.rs
+tests/*.a
+tests/*.json
+tests/*.cbor
+tests/*_c
+tests/*_rust
+tests/*_c.txt
+tests/*_rust.txt
+tests/**/*.o
+
+/book
+
+# Outputs of `c2rust refactor -r json,marks`
+rewrites.*.json
+marks.*.json
+
+# Outputs of `c2rust-analyze`
+inspect/
+*.analysis.txt
+analysis.txt
