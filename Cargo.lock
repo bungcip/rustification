@@ -116,7 +116,7 @@ dependencies = [
 
 [[package]]
 name = "c2rust"
-version = "0.18.0"
+version = "0.20.0"
 dependencies = [
  "anyhow",
  "c2rust-build-paths",
@@ -133,7 +133,7 @@ dependencies = [
 
 [[package]]
 name = "c2rust-ast-builder"
-version = "0.18.0"
+version = "0.20.0"
 dependencies = [
  "proc-macro2",
  "syn 1.0.109",
@@ -141,7 +141,7 @@ dependencies = [
 
 [[package]]
 name = "c2rust-ast-exporter"
-version = "0.18.0"
+version = "0.20.0"
 dependencies = [
  "bindgen",
  "c2rust-build-paths",
@@ -156,7 +156,7 @@ dependencies = [
 
 [[package]]
 name = "c2rust-ast-printer"
-version = "0.18.0"
+version = "0.20.0"
 dependencies = [
  "log",
  "prettyplease 0.1.25",
@@ -166,7 +166,7 @@ dependencies = [
 
 [[package]]
 name = "c2rust-bitfields"
-version = "0.18.0"
+version = "0.20.0"
 dependencies = [
  "c2rust-bitfields-derive",
  "libc",
@@ -174,7 +174,7 @@ dependencies = [
 
 [[package]]
 name = "c2rust-bitfields-derive"
-version = "0.18.0"
+version = "0.20.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -183,14 +183,14 @@ dependencies = [
 
 [[package]]
 name = "c2rust-build-paths"
-version = "0.18.0"
+version = "0.20.0"
 dependencies = [
  "print_bytes",
 ]
 
 [[package]]
 name = "c2rust-transpile"
-version = "0.18.0"
+version = "0.20.0"
 dependencies = [
  "c2rust-ast-builder",
  "c2rust-ast-exporter",
