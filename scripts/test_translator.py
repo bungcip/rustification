@@ -151,7 +151,7 @@ def build_static_library(c_files: Iterable[CFile],
     os.chdir(output_path)
 
     # create .o files
-    args = ["-c", "-fPIC", "-Wno-error=int-conversion"]
+    args = ["-c", "-fPIC", "-Wno-error=int-conversion", "-Wno-implicit-int", "-Wno-incompatible-function-pointer-types"]
     args += target_args(target)
     paths = [c_file.path for c_file in c_files]
 
@@ -392,12 +392,12 @@ class TestDirectory:
 
         rust_file_builder = RustFileBuilder()
         rust_file_builder.add_features([
-            "libc",
-            "extern_types",
-            "simd_ffi",
-            "stdsimd",
-            "nll",
-            "linkage",
+#            "libc",
+#            "extern_types",
+#            "simd_ffi",
+#            "stdsimd",
+#            "nll",
+#            "linkage",
             "register_tool",
         ])
         rust_file_builder.add_pragma("register_tool", ["c2rust"])
