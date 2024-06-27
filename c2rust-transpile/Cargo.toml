@@ -27,7 +27,7 @@ libc = "0.2"
 log = "0.4"
 log-reroute = "0.1"
 pathdiff = "0.2"
-proc-macro2 = "1.0"
+proc-macro2 = "1.0.86"
 regex = "1"
 serde = { version = "1.0", features = ["rc"] }
 serde_bencode = "0.2"
