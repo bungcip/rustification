@@ -392,12 +392,10 @@ class TestDirectory:
 
         rust_file_builder = RustFileBuilder()
         rust_file_builder.add_features([
-#            "libc",
-#            "extern_types",
-#            "simd_ffi",
-#            "stdsimd",
-#            "nll",
-#            "linkage",
+            "libc",
+            "extern_types",
+            "simd_ffi",
+            "linkage",
             "register_tool",
         ])
         rust_file_builder.add_pragma("register_tool", ["c2rust"])
