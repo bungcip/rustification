@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "c2rust",
+    "c2rust-asm-casts",
     "c2rust-ast-builder",
     "c2rust-ast-exporter",
     "c2rust-ast-printer",

@@ -12,4 +12,4 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-print_bytes = "1.1"
+print_bytes = { version = "2.0", features = ["os_str_bytes"] }
