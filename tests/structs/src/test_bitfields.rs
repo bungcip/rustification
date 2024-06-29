@@ -122,7 +122,7 @@ pub fn test_static_bitfield() {
 
         assert_eq!(static_date.day(), 15);
 
-        rust_write_three_byte_date(&mut static_date, 2, 4, 23);
+        rust_write_three_byte_date(addr_of_mut!(static_date), 2, 4, 23);
 
         assert_eq!(static_date.day(), 2);
         assert_eq!(static_date.month(), 4);
@@ -137,7 +137,7 @@ pub fn test_static_bitfield() {
 
         assert_eq!(rust_static_date.day(), 15);
 
-        rust_write_three_byte_date(&mut rust_static_date, 2, 4, 23);
+        rust_write_three_byte_date(addr_of_mut!(static_date), 2, 4, 23);
 
         assert_eq!(rust_static_date.day(), 2);
         assert_eq!(rust_static_date.month(), 4);

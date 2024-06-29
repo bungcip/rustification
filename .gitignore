@@ -50,3 +50,5 @@ marks.*.json
 inspect/
 *.analysis.txt
 analysis.txt
+*.o
+*.a

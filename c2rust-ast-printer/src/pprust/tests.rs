@@ -1,3 +1,5 @@
+use syn::token::Semi;
+
 use super::*;
 
 /// These tests mostly verify that we strip the right context from the
@@ -28,6 +30,6 @@ fn test_path_to_string() {
 
 #[test]
 fn test_stmt_to_string() {
-    let stmt = syn::Stmt::Semi(ret_expr(), Default::default());
+    let stmt = syn::Stmt::Expr(ret_expr(), Some(Semi::default()));
     assert_eq!(stmt_to_string(&stmt), "return;");
 }

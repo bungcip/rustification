@@ -132,7 +132,7 @@ dependencies = [
  "lazy_static",
  "lazycell",
  "log",
- "prettyplease 0.2.20",
+ "prettyplease",
  "proc-macro2",
  "quote",
  "regex",
@@ -188,7 +188,7 @@ name = "c2rust-ast-builder"
 version = "0.20.0"
 dependencies = [
  "proc-macro2",
- "syn 1.0.109",
+ "syn 2.0.68",
 ]
 
 [[package]]
@@ -211,9 +211,9 @@ name = "c2rust-ast-printer"
 version = "0.20.0"
 dependencies = [
  "log",
- "prettyplease 0.1.25",
+ "prettyplease",
  "proc-macro2",
- "syn 1.0.109",
+ "syn 2.0.68",
 ]
 
 [[package]]
@@ -230,7 +230,7 @@ version = "0.20.0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.68",
 ]
 
 [[package]]
@@ -269,7 +269,7 @@ dependencies = [
  "smallvec",
  "strum",
  "strum_macros",
- "syn 1.0.109",
+ "syn 2.0.68",
 ]
 
 [[package]]
@@ -867,16 +867,6 @@ name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
-
-[[package]]
-name = "prettyplease"
-version = "0.1.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c8646e95016a7a6c4adea95bafa8a16baab64b583356217f2c85db4a39d9a86"
-dependencies = [
- "proc-macro2",
- "syn 1.0.109",
-]
 
 [[package]]
 name = "prettyplease"

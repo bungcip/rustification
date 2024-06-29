@@ -21,6 +21,7 @@ use crate::diagnostics::TranslationResult;
 use crate::rust_ast::SpanExt;
 use c2rust_ast_printer::pprust;
 use proc_macro2::Span;
+use syn::Lit;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::BTreeSet;
 use std::fs::File;
@@ -91,6 +92,18 @@ impl Label {
 
     fn to_string_expr(&self) -> Box<Expr> {
         mk().lit_expr(self.debug_print())
+    }
+
+    fn to_int_lit(&self) -> Lit {
+        let mut s = DefaultHasher::new();
+        self.hash(&mut s);
+        let as_num = s.finish();
+
+        mk().int_lit(as_num as u128, "")
+    }
+
+    fn to_string_lit(&self) -> Lit {
+        mk().str_lit(&self.debug_print())
     }
 }
 
@@ -1835,7 +1848,8 @@ impl CfgBuilder {
                             .to_pure_expr()
                         {
                             Some(expr) => match *expr {
-                                Expr::Lit(..) | Expr::Path(..) => Some(expr),
+                                Expr::Lit(lit) => Some(mk().lit_pat(lit.lit)),
+                                Expr::Path(path) => Some(mk().path_pat(path.path, path.qself)),
                                 _ => None,
                             },
                             _ => None,
@@ -1843,9 +1857,12 @@ impl CfgBuilder {
                     }
                     _ => None,
                 };
-                let branch = match branch {
-                    Some(expr) => expr,
-                    None => translator.convert_constant(cie)?,
+                let pat = match branch {
+                    Some(pat) => pat,
+                    None => match cie {
+                        ConstIntExpr::U(n) => mk().lit_pat(mk().int_unsuffixed_lit(n)),
+                        ConstIntExpr::I(n) => mk().lit_pat(mk().int_unsuffixed_lit(n)),
+                    },
                 };
                 self.switch_expr_cases
                     .last_mut()
@@ -1856,7 +1873,7 @@ impl CfgBuilder {
                         )
                     })?
                     .cases
-                    .push((mk().lit_pat(branch), this_label.clone()));
+                    .push((pat, this_label.clone()));
 
                 // Sub stmt
                 let sub_stmt_next =

@@ -16,6 +16,7 @@ use proc_macro2::{Punct, Spacing::*, Span, TokenStream, TokenTree};
 use syn::spanned::Spanned as _;
 use syn::*;
 use syn::{BinOp, UnOp}; // To override c_ast::{BinOp,UnOp} from glob import
+use syn::__private::ToTokens;
 
 use crate::diagnostics::TranslationResult;
 use crate::rust_ast::comment_store::CommentStore;
@@ -278,28 +279,18 @@ pub struct Translation<'c> {
     cur_file: RefCell<Option<FileId>>,
 }
 
-fn simple_metaitem(name: &str) -> NestedMeta {
-    let meta_item = mk().meta_path(name);
-
-    mk().nested_meta_item(NestedMeta::Meta(meta_item))
+fn simple_metaitem(name: &str) -> Meta {
+    mk().meta_path(name)
 }
 
-fn int_arg_metaitem(name: &str, arg: u128) -> NestedMeta {
-    let lit = mk().int_unsuffixed_lit(arg);
-    let inner = Meta::List(MetaList {
-        path: mk().path(name),
-        paren_token: Default::default(),
-        nested: FromIterator::from_iter(
-            vec![mk().nested_meta_item(NestedMeta::Lit(lit))].into_iter(),
-        ),
-    });
-    NestedMeta::Meta(inner)
+fn int_arg_metaitem(name: &str, arg: u64) -> Meta {
+    mk().meta_list(name, vec![arg])
 }
 
 fn cast_int(val: Box<Expr>, name: &str, need_lit_suffix: bool) -> Box<Expr> {
     let opt_literal_val = match &*val {
         Expr::Lit(ref l) => match &l.lit {
-            Lit::Int(i) => Some(i.base10_digits().parse().unwrap()),
+            Lit::Int(i) => Some(i.base10_digits().parse::<u128>().unwrap()),
             _ => None,
         },
         _ => None,
@@ -372,10 +363,10 @@ pub fn stmts_block(mut stmts: Vec<Stmt>) -> Block {
         None => {}
         Some(Stmt::Expr(Expr::Block(ExprBlock {
             block, label: None, ..
-        }))) if stmts.is_empty() => return block,
+        }), _semi)) if stmts.is_empty() => return block,
         Some(mut s) => {
-            if let Stmt::Expr(e) = s {
-                s = Stmt::Semi(e, Default::default());
+            if let Stmt::Expr(e, _semi) = s {
+                s = Stmt::Expr(e, _semi);
             }
             stmts.push(s);
         }
@@ -899,7 +890,6 @@ fn item_ident(i: &Item) -> Option<&Ident> {
         ForeignMod(_ifm) => return None,
         Impl(_ii) => return None,
         Macro(im) => return im.ident.as_ref(),
-        Macro2(im2) => &im2.ident,
         Mod(im) => &im.ident,
         Static(is) => &is.ident,
         Struct(is) => &is.ident,
@@ -930,7 +920,6 @@ fn item_vis(i: &Item) -> Option<Visibility> {
             ForeignMod(_ifm) => return None,
             Impl(_ii) => return None,
             Macro(_im) => return None,
-            Macro2(im2) => &im2.vis,
             Mod(im) => &im.vis,
             Static(is) => &is.vis,
             Struct(is) => &is.vis,
@@ -1053,21 +1042,15 @@ fn arrange_header(t: &Translation, is_binary: bool) -> (Vec<syn::Attribute>, Vec
         for (key, mut values) in pragmas {
             values.sort_unstable();
             // generate #[key(values)]
-            let value_attr_vec = values
-                .into_iter()
-                .map(|value| mk().nested_meta_item(mk().meta_path(value)))
-                .collect::<Vec<_>>();
-            let item = mk().meta_list(vec![key], value_attr_vec);
-            for attr in mk()
-                .meta_item_attr(AttrStyle::Inner(Default::default()), item)
-                .as_inner_attrs()
-            {
-                out_attrs.push(attr);
-            }
+            let meta = mk().meta_list(vec![key], values);
+            let attr = mk().attribute(AttrStyle::Inner(Default::default()), meta);
+            out_attrs.push(attr);
         }
 
         if t.tcfg.emit_no_std {
-            out_attrs.push(mk().single_attr("no_std").as_inner_attrs()[0].clone());
+            let meta = mk().meta_path("no_std");
+            let attr = mk().attribute(AttrStyle::Inner(Default::default()), meta);
+            out_attrs.push(attr);
         }
 
         if is_binary {
@@ -1099,8 +1082,8 @@ fn add_src_loc_attr(attrs: &mut Vec<syn::Attribute>, src_loc: &Option<SrcLoc>) {
     if let Some(src_loc) = src_loc.as_ref() {
         let loc_str = format!("{}:{}", src_loc.line, src_loc.column);
         let meta = mk().meta_namevalue(vec!["c2rust", "src_loc"], loc_str);
-        let prepared = mk().prepare_meta(meta);
-        let attr = mk().attribute(AttrStyle::Outer, prepared.path, prepared.tokens);
+        // let prepared = mk().prepare_meta(meta);
+        let attr = mk().attribute(AttrStyle::Outer, meta);
         attrs.push(attr);
     }
 }
@@ -1129,7 +1112,6 @@ fn item_attrs(item: &mut Item) -> Option<&mut Vec<syn::Attribute>> {
         ForeignMod(ItemForeignMod { ref mut attrs, .. }) => attrs,
         Impl(ItemImpl { ref mut attrs, .. }) => attrs,
         Macro(ItemMacro { ref mut attrs, .. }) => attrs,
-        Macro2(ItemMacro2 { ref mut attrs, .. }) => attrs,
         Mod(ItemMod { ref mut attrs, .. }) => attrs,
         Static(ItemStatic { ref mut attrs, .. }) => attrs,
         Struct(ItemStruct { ref mut attrs, .. }) => attrs,
@@ -1525,8 +1507,8 @@ impl<'c> Translation<'c> {
                 mk().meta_list(
                     "cfg_attr",
                     vec![
-                        mk().nested_meta_item(mk().meta_namevalue("target_os", "linux")),
-                        mk().nested_meta_item(mk().meta_namevalue("link_section", ".init_array")),
+                        mk().meta_namevalue("target_os", "linux"),
+                        mk().meta_namevalue("link_section", ".init_array"),
                     ],
                 ),
             )
@@ -1535,8 +1517,8 @@ impl<'c> Translation<'c> {
                 mk().meta_list(
                     "cfg_attr",
                     vec![
-                        mk().nested_meta_item(mk().meta_namevalue("target_os", "windows")),
-                        mk().nested_meta_item(mk().meta_namevalue("link_section", ".CRT$XIB")),
+                        mk().meta_namevalue("target_os", "windows"),
+                        mk().meta_namevalue("link_section", ".CRT$XIB"),
                     ],
                 ),
             )
@@ -1545,10 +1527,8 @@ impl<'c> Translation<'c> {
                 mk().meta_list(
                     "cfg_attr",
                     vec![
-                        mk().nested_meta_item(mk().meta_namevalue("target_os", "macos")),
-                        mk().nested_meta_item(
-                            mk().meta_namevalue("link_section", "__DATA,__mod_init_func"),
-                        ),
+                        mk().meta_namevalue("target_os", "macos"),
+                        mk().meta_namevalue("link_section", "__DATA,__mod_init_func"),
                     ],
                 ),
             );
@@ -1658,7 +1638,7 @@ impl<'c> Translation<'c> {
                 };
                 match max_field_alignment {
                     Some(1) => reprs.push(simple_metaitem("packed")),
-                    Some(mf) if mf > 1 => reprs.push(int_arg_metaitem("packed", mf as u128)),
+                    Some(mf) if mf > 1 => reprs.push(int_arg_metaitem("packed", mf)),
                     _ => {}
                 }
 
@@ -1692,10 +1672,11 @@ impl<'c> Translation<'c> {
                     let outer_ty = mk().path_ty(vec![name.clone()]);
                     let outer_reprs = vec![
                         simple_metaitem("C"),
-                        int_arg_metaitem("align", alignment as u128),
+                        int_arg_metaitem("align", alignment),
                         // TODO: copy others from `reprs` above
                     ];
                     let repr_attr = mk().meta_list("repr", outer_reprs);
+
                     let outer_field = mk().pub_().enum_field(mk().ident_ty(inner_name));
                     let outer_struct = mk()
                         .span(span)
@@ -3749,7 +3730,7 @@ impl<'c> Translation<'c> {
                             };
                             let bare_ty = (
                                 vec![mk().bare_arg(mk().infer_ty(), None::<Box<Ident>>); args.len()],
-                                None::<Variadic>,
+                                None::<BareVariadic>,
                                 ret_ty
                             );
                             mk().barefn_ty(bare_ty)
@@ -4051,7 +4032,7 @@ impl<'c> Translation<'c> {
         compound_stmt_id: CStmtId,
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
         fn as_semi_break_stmt(stmt: &Stmt, lbl: &cfg::Label) -> Option<Option<Box<Expr>>> {
-            if let Stmt::Semi(
+            if let Stmt::Expr(
                 Expr::Break(ExprBreak {
                     label: Some(blbl),
                     expr: ret_val,

@@ -143,7 +143,7 @@ fn ret_expr() -> syn::Expr {
 }
 
 pub fn expr_to_string(e: &syn::Expr) -> String {
-    let s = to_string(move || minimal_file(syn::Stmt::Expr(e.clone())));
+    let s = to_string(move || minimal_file(syn::Stmt::Expr(e.clone(), None)));
     strip_main_fn(&s).trim_end_matches(';').to_owned()
 }
 
@@ -161,7 +161,7 @@ pub fn pat_to_string(p: &syn::Pat) -> String {
     let e = syn::Expr::Let(syn::ExprLet {
         attrs: vec![],
         let_token: Default::default(),
-        pat: p.clone(),
+        pat: Box::new(p.clone()),
         eq_token: Default::default(),
         expr: ret_expr,
     });

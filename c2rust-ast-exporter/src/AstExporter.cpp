@@ -424,6 +424,10 @@ class TypeEncoder final : public TypeVisitor<TypeEncoder> {
             case BuiltinType::SveBoolx2: return TagSveBoolx2;
             case BuiltinType::SveBoolx4: return TagSveBoolx4;
 #endif
+
+#if CLANG_VERSION_MAJOR >= 18
+            case BuiltinType::Dependent: return TagDependent;
+#endif
             default:
                 auto pol = clang::PrintingPolicy(Context->getLangOpts());
                 auto warning = std::string("Encountered unsupported BuiltinType kind ") +
