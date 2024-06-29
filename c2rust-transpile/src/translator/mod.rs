@@ -2263,21 +2263,22 @@ impl<'c> Translation<'c> {
                 args.push(mk().arg(ty, pat))
             }
 
-            if is_variadic {
+            let variadic = if is_variadic {
                 // function definitions
-                if let Some(body_id) = body {
-                    let arg_va_list_name = self.register_va_decls(body_id);
-
+                let mut builder = mk();
+                let arg_va_list_name = if let Some(body_id) = body {
                     // FIXME: detect mutability requirements.
-                    let pat = mk()
-                        .set_mutbl(Mutability::Mutable)
-                        .ident_pat(arg_va_list_name);
-                    args.push(mk().arg(mk().cvar_args_ty(), pat));
+                    builder = builder.set_mutbl(Mutability::Mutable);
+
+                    Some(self.register_va_decls(body_id))
                 } else {
-                    // function declarations
-                    args.push(mk().arg(mk().cvar_args_ty(), mk().wild_pat()));
-                }
-            }
+                    None
+                };
+                
+                Some(builder.variadic_arg(arg_va_list_name))
+            } else {
+                None
+            };
 
             // handle return type
             let ret = match return_type {
@@ -2299,7 +2300,7 @@ impl<'c> Translation<'c> {
             let decl = mk().fn_decl(
                 new_name,
                 args,
-                is_variadic.then(|| mk().variadic_arg(vec![])),
+                variadic,
                 ret,
             );
 

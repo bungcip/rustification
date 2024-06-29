@@ -1577,11 +1577,19 @@ impl Builder {
         }))
     }
 
-    pub fn variadic_arg(self, variadic_attrs: Vec<Attribute>) -> Variadic {
+    pub fn variadic_arg(self, name: Option<String>) -> Variadic {
+        let pat = if let Some(name) = name {
+            let pat = Box::new(self.clone().ident_pat(name));
+            Some((pat, Token![:](self.span)))
+        } else {
+            None
+        };
+
+
         Variadic {
             dots: Token![...](self.span),
-            attrs: variadic_attrs,
-            pat: None,
+            attrs: self.attrs,
+            pat,
             comma: None,
         }
     }
