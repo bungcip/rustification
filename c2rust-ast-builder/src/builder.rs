@@ -2,17 +2,11 @@
 
 use std::str;
 
-use proc_macro2::{extra::DelimSpan, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
-use spanned::Spanned;
+use proc_macro2::{Literal, Punct, Spacing, Span, TokenStream, TokenTree};
 use std::default::Default;
 use std::iter::FromIterator;
 use syn::{__private::ToTokens, punctuated::Punctuated, *};
 
-/// a MetaItem that has already been turned into tokens in preparation for being added as an attribute
-pub struct PreparedMetaItem {
-    pub path: Path,
-    pub tokens: TokenStream,
-}
 
 pub mod properties {
     use proc_macro2::Span;
@@ -140,12 +134,6 @@ pub enum Extern {
     Explicit(String),
 }
 
-//const Async : IsAsync = Some(Default::default());
-
-pub enum SelfKind {
-    Value(Mutability),
-    Region(Lifetime, Mutability),
-}
 
 fn use_tree_with_prefix(prefix: Path, leaf: UseTree) -> UseTree {
     let mut out = leaf;
@@ -219,9 +207,6 @@ impl<'a> Make<Visibility> for &'a str {
         match self {
             "pub" => Visibility::Public(Token![pub](mk_.span)),
             "priv" | "" | "inherit" => Visibility::Inherited,
-            // "crate" => Visibility::Crate(VisCrate {
-            //     crate_token: Token![crate](mk_.span),
-            // }),
             "pub(crate)" => Visibility::Restricted(VisRestricted {
                 pub_token: Token![pub](mk_.span),
                 paren_token: token::Paren(mk_.span),
@@ -443,17 +428,6 @@ impl Make<GenericArgument> for Lifetime {
     }
 }
 
-// impl Make<NestedMeta> for Meta {
-//     fn make(self, _mk: &Builder) -> NestedMeta {
-//         NestedMeta::Meta(self)
-//     }
-// }
-
-// impl Make<NestedMeta> for Lit {
-//     fn make(self, _mk: &Builder) -> NestedMeta {
-//         NestedMeta::Lit(self)
-//     }
-// }
 
 impl Make<Lit> for String {
     fn make(self, mk: &Builder) -> Lit {
@@ -630,53 +604,6 @@ impl Builder {
         self
     }
 
-    // pub fn prepare_meta_namevalue(&self, mnv: MetaNameValue) -> PreparedMetaItem {
-    //     let mut tokens = TokenStream::new();
-    //     mnv.eq_token.to_tokens(&mut tokens);
-    //     mnv.value.to_tokens(&mut tokens);
-
-    //     PreparedMetaItem {
-    //         path: mnv.path,
-    //         tokens,
-    //     }
-    // }
-
-    // pub fn prepare_meta_list(&self, list: MetaList) -> PreparedMetaItem {
-    //     PreparedMetaItem {
-    //         path: list.path,
-    //         tokens: list.tokens,
-    //     }
-    // }
-
-    // pub fn prepare_meta_path<I>(&self, path: I) -> PreparedMetaItem
-    // where
-    //     I: Make<Path>,
-    // {
-    //     let path = path.make(self);
-    //     PreparedMetaItem {
-    //         path,
-    //         tokens: TokenStream::new(),
-    //     }
-    // }
-
-    // pub fn prepare_meta(&self, kind: Meta) -> PreparedMetaItem {
-    //     match kind {
-    //         Meta::List(ml) => self.prepare_meta_list(ml),
-    //         Meta::NameValue(mnv) => self.prepare_meta_namevalue(mnv),
-    //         Meta::Path(path) => self.prepare_meta_path(path),
-    //     }
-    // }
-
-    // pub fn prepare_nested_meta_item<I>(&self, path: I, kind: Meta) -> PreparedMetaItem
-    // where
-    //     I: Make<Path>,
-    // {
-    //     let path = path.make(self);
-    //     PreparedMetaItem {
-    //         path,
-    //         tokens: kind.to_token_stream(),
-    //     }
-    // }
 
     pub fn prepared_attr(self, meta: Meta) -> Self {
         let attr = self
@@ -930,15 +857,6 @@ impl Builder {
             ty: t,
         })))
     }
-
-    // pub fn type_expr(self, e: Box<Expr>, t: Box<Type>) -> Box<Expr> {
-    //     // Box::new(Expr::Type(ExprType {
-    //     //     attrs: self.attrs,
-    //     //     colon_token: Token![:](self.span),
-    //     //     expr: e,
-    //     //     ty: t,
-    //     // }))
-    // }
 
     pub fn unsafe_block_expr(self, unsafe_blk: ExprUnsafe) -> Box<Expr> {
         Box::new(Expr::Unsafe(unsafe_blk))
@@ -2093,24 +2011,6 @@ impl Builder {
         })
     }
 
-    // pub fn self_arg(self, kind: SelfKind) -> FnArg {
-    //     // let (reference, mutability) = match kind {
-    //     //     SelfKind::Value(mutability) => (None, mutability),
-    //     //     SelfKind::Region(lt, mutability) => {
-    //     //         (Some((Token![&](self.span), Some(lt))), mutability)
-    //     //     }
-    //     // };
-    //     // let attrs = Vec::new();
-    //     // FnArg::Receiver(Receiver {
-    //     //     attrs,
-    //     //     reference,
-    //     //     mutability: mutability.to_token(),
-    //     //     self_token: Token![self](self.span),
-    //     //     colon_token: None,
-    //     //     ty: Box::new(Type::),
-    //     // })
-    // }
-
     pub fn ty_param<I>(self, ident: I) -> GenericParam
     where
         I: Make<Ident>,
@@ -2209,13 +2109,6 @@ impl Builder {
             value,
         })
     }
-
-    // pub fn nested_meta_item<K>(self, kind: K) -> String
-    // where
-    //     K: Make<String>,
-    // {
-    //     kind.make(&self)
-    // }
 
     // Convert the current internal list of outer attributes
     // into a vector of inner attributes, e.g.:

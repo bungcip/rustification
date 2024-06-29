@@ -1,6 +1,5 @@
 pub use c2rust_ast_printer::pprust::BytePos;
-use proc_macro2::{extra::DelimSpan, Group, Span};
-use spanned::Spanned;
+use proc_macro2::Span;
 use syn::*;
 
 /// Set the span of an AST node.

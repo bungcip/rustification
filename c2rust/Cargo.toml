@@ -10,7 +10,7 @@ repository.workspace = true
 license.workspace = true
 keywords.workspace = true
 categories.workspace = true
-default-run = "c2rust"
+default-run = "c2rust-transpile"
 
 [badges]
 travis-ci = { repository = "immunant/c2rust" }
