@@ -85,7 +85,7 @@ struct Args {
     debug_labels: bool,
 
     /// Path to compile_commands.json, or a list of source files
-    #[clap(parse(from_os_str), multiple_values = true)]
+    #[clap(value_parser, num_args=1..)]
     compile_commands: Vec<PathBuf>,
 
     /// How to handle violated invariants or invalid code
@@ -113,7 +113,7 @@ struct Args {
     fail_on_error: bool,
 
     /// Emit Rust build files for a binary using the main function in the specified translation unit (implies -e/--emit-build-files)
-    #[clap(short = 'b', long = "binary", multiple = true, number_of_values = 1)]
+    #[clap(short = 'b', long = "binary", num_args=1..)]
     binary: Option<Vec<String>>,
 
     /// Emit files even if it causes existing files to be overwritten
@@ -129,7 +129,7 @@ struct Args {
     reorganize_definitions: bool,
 
     /// Extra arguments to pass to clang frontend during parsing the input C file
-    #[clap(multiple = true, last(true))]
+    #[clap(num_args=0.., last(true))]
     extra_clang_args: Vec<String>,
 
     /// Enable the specified warning (all enables all warnings)
