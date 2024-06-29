@@ -34,7 +34,7 @@ from rust_file import (
 from typing import Any, Dict, Generator, List, Optional, Set, Iterable
 
 # Tools we will need
-clang = get_cmd_or_die("clang")
+clang = get_cmd_or_die("clang-18")
 rustc = get_cmd_or_die("rustc")
 diff = get_cmd_or_die("diff")
 ar = get_cmd_or_die("ar")
@@ -151,7 +151,7 @@ def build_static_library(c_files: Iterable[CFile],
     os.chdir(output_path)
 
     # create .o files
-    args = ["-c", "-fPIC", "-Wno-error=int-conversion", "-Wno-implicit-int", "-Wno-incompatible-function-pointer-types"]
+    args = ["-c", "-fPIC", "-Wno-error=int-conversion", "-Wno-error=implicit-int", "-Wno-error=incompatible-function-pointer-types"]
     args += target_args(target)
     paths = [c_file.path for c_file in c_files]
 
@@ -323,7 +323,7 @@ class TestDirectory:
         compile_commands = """ \
         [
           {{
-            "arguments": [ "cc", "-D_FORTIFY_SOURCE=0",{3} "-c", {2}"{0}" ],
+            "arguments": [ "cc", "-D_FORTIFY_SOURCE=0", "-Wno-incompatible-pointer-types", "-Wno-error=implicit-int", "-Wno-error=incompatible-function-pointer-types", "-Wno-int-conversion", "-Wno-pointer-sign", {3} "-c", {2}"{0}" ],
             "directory": "{1}",
             "file": "{0}"
           }}

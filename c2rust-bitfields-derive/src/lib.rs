@@ -6,7 +6,7 @@ use syn::parse::Error;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::{
-    parse_macro_input, Attribute, Field, Fields, Ident, ItemStruct, Lit, LitStr, Meta, MetaNameValue, Path, PathArguments, PathSegment, Token
+    parse_macro_input, Attribute, Field, Fields, Ident, ItemStruct, LitStr, Path, PathArguments, PathSegment, Token
 };
 
 #[cfg(target_endian = "big")]
