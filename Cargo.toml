@@ -29,5 +29,8 @@ license = "BSD-3-Clause"
 keywords = ["transpiler", "migration", "translation", "c"]
 categories = ["development-tools", "development-tools::ffi", "command-line-utilities"]
 
+[workspace.lints.clippy]
+bool_comparison = "allow" # reason: ' == false' is better than '!expr' suggested by clippy
+
 [profile.dev.package."*"]
 opt-level = 3

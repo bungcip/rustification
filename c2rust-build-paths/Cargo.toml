@@ -11,5 +11,8 @@ license.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 print_bytes = { version = "2.0", features = ["os_str_bytes"] }

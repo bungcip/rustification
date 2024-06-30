@@ -11,6 +11,9 @@ license = "MIT OR Apache-2.0"
 keywords.workspace = true
 categories.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 log = "0.4"
 syn = { version = "2.0", features = ["full", "proc-macro", "printing", "clone-impls"] }

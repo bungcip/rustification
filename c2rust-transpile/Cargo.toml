@@ -11,6 +11,9 @@ license.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 c2rust-ast-builder = { version = "0.20.0", path = "../c2rust-ast-builder" }
 c2rust-ast-exporter = { version = "0.20.0", path = "../c2rust-ast-exporter" }

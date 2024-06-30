@@ -12,6 +12,9 @@ keywords.workspace = true
 categories.workspace = true
 links = "clangAstExporter"
 
+[lints]
+workspace = true
+
 [dependencies]
 libc = "0.2"
 serde = "1.0"

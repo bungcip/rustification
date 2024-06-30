@@ -12,6 +12,9 @@ keywords.workspace = true
 categories.workspace = true
 default-run = "c2rust-transpile"
 
+[lints]
+workspace = true
+
 [badges]
 travis-ci = { repository = "immunant/c2rust" }
 azure-devops = { project = "immunant/c2rust", pipeline = "immunant.c2rust", build="1" }
