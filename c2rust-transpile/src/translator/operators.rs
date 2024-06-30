@@ -110,14 +110,14 @@ impl<'c> Translation<'c> {
                     .kind
                     .get_qual_type()
                     .ok_or_else(|| {
-                        format_translation_err!(
+                        generic_loc_err!(
                             self.ast_context.display_loc(lhs_loc),
                             "bad lhs type for assignment"
                         )
                     })?;
                 let rhs_kind = &self.ast_context.index(rhs).kind;
                 let rhs_type_id = rhs_kind.get_qual_type().ok_or_else(|| {
-                    format_translation_err!(
+                    generic_loc_err!(
                         self.ast_context.display_loc(rhs_loc),
                         "bad rhs type for assignment"
                     )
@@ -248,7 +248,7 @@ impl<'c> Translation<'c> {
             .index(rhs)
             .kind
             .get_qual_type()
-            .ok_or_else(|| format_err!("bad assignment rhs type"))?;
+            .ok_or_else(|| generic_err!("bad assignment rhs type"))?;
         let rhs_translation = self.convert_expr(ctx.used(), rhs)?;
         self.convert_assignment_operator_with_rhs(
             ctx,
@@ -281,7 +281,7 @@ impl<'c> Translation<'c> {
         let initial_lhs = &self.ast_context.index(lhs).kind;
         let initial_lhs_type_id = initial_lhs
             .get_qual_type()
-            .ok_or_else(|| format_err!("bad initial lhs type"))?;
+            .ok_or_else(|| generic_err!("bad initial lhs type"))?;
 
         let bitfield_id = match initial_lhs {
             CExprKind::Member(_, _, decl_id, _, _) => {
@@ -697,7 +697,7 @@ impl<'c> Translation<'c> {
         let arg_type = self.ast_context[arg]
             .kind
             .get_qual_type()
-            .ok_or_else(|| format_err!("bad arg type"))?;
+            .ok_or_else(|| generic_err!("bad arg type"))?;
         self.convert_assignment_operator_with_rhs(
             ctx.used(),
             op,
@@ -727,7 +727,7 @@ impl<'c> Translation<'c> {
             .index(arg)
             .kind
             .get_qual_type()
-            .ok_or_else(|| format_err!("bad post inc type"))?;
+            .ok_or_else(|| generic_err!("bad post inc type"))?;
 
         self.name_reference_write_read(ctx, arg)?.and_then(
             |NamedReference {
@@ -845,7 +845,7 @@ impl<'c> Translation<'c> {
                         self.ast_context
                             .get_pointee_qual_type(ctype)
                             .ok_or_else(|| {
-                                TranslationError::generic("Address-of should return a pointer")
+                                generic_err!("Address-of should return a pointer")
                             })?;
 
                     let mutbl = if pointee_ty.qualifiers.is_const {

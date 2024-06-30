@@ -9,6 +9,7 @@ use super::named_references::NamedReference;
 use super::TranslationError;
 use crate::c_ast::{BinOp, CDeclId, CDeclKind, CExprId, CRecordId, CTypeId};
 use crate::diagnostics::TranslationResult;
+use crate::generic_err;
 use crate::translator::{ExprContext, Translation, PADDING_SUFFIX};
 use crate::with_stmts::WithStmts;
 use c2rust_ast_builder::mk;
@@ -416,7 +417,7 @@ impl<'a> Translation<'a> {
             } => (fields, platform_byte_size),
 
             CDeclKind::Struct { fields: None, .. } => {
-                return Err(TranslationError::generic(
+                return Err(generic_err!(
                     "Attempted to zero-initialize forward-declared struct",
                 ))
             }
@@ -516,7 +517,7 @@ impl<'a> Translation<'a> {
 
                     let mut init = self.implicit_default_expr(ty.ctype, ctx.is_static)?;
                     if !init.is_pure() {
-                        return Err(TranslationError::generic(
+                        return Err(generic_err!(
                             "Expected no statements in field expression",
                         ));
                     }
@@ -533,7 +534,7 @@ impl<'a> Translation<'a> {
                     let mut expr = self.convert_expr(ctx.used(), *field_id)?;
 
                     if !expr.is_pure() {
-                        return Err(TranslationError::generic(
+                        return Err(generic_err!(
                             "Expected no statements in field expression",
                         ));
                     }
@@ -656,7 +657,7 @@ impl<'a> Translation<'a> {
                 } => {
                     let mut field_init = self.implicit_default_expr(ctype, is_static)?;
                     if !field_init.is_pure() {
-                        return Err(TranslationError::generic(
+                        return Err(generic_err!(
                             "Expected no statements in field expression",
                         ));
                     }
@@ -703,7 +704,7 @@ impl<'a> Translation<'a> {
                     .type_converter
                     .borrow()
                     .resolve_field_name(None, field_id)
-                    .ok_or("Could not find bitfield name")?;
+                    .ok_or(generic_err!("Could not find bitfield name"))?;
                 let setter_name = format!("set_{}", field_name);
                 let lhs_expr_read = mk().method_call_expr(lhs_expr.clone(), field_name, Vec::new());
                 // Allow the value of this assignment to be used as the RHS of other assignments
@@ -766,7 +767,7 @@ impl<'a> Translation<'a> {
 
                         let last_expr = match block.stmts[last] {
                             Stmt::Expr(ref expr, _semi) => expr.clone(),
-                            _ => return Err(TranslationError::generic("Expected Expr Stmt")),
+                            _ => return Err(generic_err!("Expected Expr Stmt")),
                         };
                         let method_call =
                             mk().method_call_expr(lhs_expr, setter_name, vec![Box::new(last_expr)]);

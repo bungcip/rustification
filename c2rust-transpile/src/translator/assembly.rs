@@ -1,7 +1,7 @@
 #![deny(missing_docs)]
 //! This module provides basic support for converting inline assembly statements.
 
-use crate::diagnostics::TranslationResult;
+use crate::{diagnostics::TranslationResult, generic_err};
 
 use super::*;
 use log::warn;
@@ -82,13 +82,7 @@ fn parse_constraints(
     arch: Arch,
 ) -> TranslationResult<(ArgDirSpec, bool, String)> {
     let parse_error = |constraints| {
-        Err(TranslationError::new(
-            None,
-            failure::err_msg(
-                "Inline assembly constraints could not be parsed: ".to_owned() + constraints,
-            )
-            .context(TranslationErrorKind::Generic),
-        ))
+        Err(generic_err!("Inline assembly constraints could not be parsed: {}", constraints))
     };
     use ArgDirSpec::*;
     let mut is_input = match constraints.chars().next() {
@@ -563,7 +557,7 @@ fn rewrite_asm<F: Fn(&str) -> bool, M: Fn(usize) -> usize>(
                     let idx: usize = before_mods
                         .trim_matches(|c: char| !c.is_ascii_digit())
                         .parse()
-                        .map_err(|_| TranslationError::generic("could not parse operand idx"))?;
+                        .map_err(|_| generic_err!("could not parse operand idx"))?;
                     out.push_str(input_op_mapper(idx).to_string().as_str());
                     out.push(':');
                     let modifiers = ref_str[colon_idx + 1..].chars();
@@ -611,7 +605,7 @@ fn rewrite_asm<F: Fn(&str) -> bool, M: Fn(usize) -> usize>(
             out.push_str(if mem_only { "[{" } else { "{" });
             let idx: usize = index_str
                 .parse()
-                .map_err(|_| TranslationError::generic("could not parse operand idx"))?;
+                .map_err(|_| generic_err!("could not parse operand idx"))?;
             out.push_str(input_op_mapper(idx).to_string().as_str());
             if !new_modifiers.is_empty() {
                 out.push(':');
@@ -648,7 +642,7 @@ impl<'c> Translation<'c> {
         clobbers: &[String],
     ) -> TranslationResult<Vec<Stmt>> {
         if !self.tcfg.translate_asm {
-            return Err(TranslationError::generic(
+            return Err(generic_err!(
                 "Inline assembly translation not enabled.",
             ));
         }
@@ -656,7 +650,7 @@ impl<'c> Translation<'c> {
         let arch = match parse_arch(&self.ast_context.target) {
             Some(arch) => arch,
             None => {
-                return Err(TranslationError::generic(
+                return Err(generic_err!(
                     "Cannot translate inline assembly for unfamiliar architecture",
                 ))
             }

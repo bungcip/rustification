@@ -8,7 +8,6 @@ use std::result::Result; // To override syn::Result from glob import
 
 use dtoa;
 
-use failure::{err_msg, format_err, Fail};
 use indexmap::indexmap;
 use indexmap::{IndexMap, IndexSet};
 use log::{error, info, trace, warn};
@@ -27,12 +26,12 @@ use c2rust_ast_builder::{mk, properties::*, Builder};
 use c2rust_ast_printer::pprust::{self};
 
 use crate::c_ast::iterators::{DFExpr, SomeId};
-use crate::c_ast::*;
+use crate::{c_ast::*, generic_err, old_llvm_simd_err};
 use crate::cfg;
 use crate::convert_type::TypeConverter;
 use crate::renamer::Renamer;
 use crate::with_stmts::WithStmts;
-use crate::{c_ast, format_translation_err};
+use crate::{c_ast, generic_loc_err};
 use crate::{ExternCrate, ExternCrateDetails, TranspilerConfig};
 use c2rust_ast_exporter::clang_ast::LRValue;
 
@@ -1546,7 +1545,7 @@ impl<'c> Translation<'c> {
         let decl = self
             .ast_context
             .get_decl(&decl_id)
-            .ok_or_else(|| format_err!("Missing decl {:?}", decl_id))?;
+            .ok_or_else(|| generic_err!("Missing decl {:?}", decl_id))?;
 
         let mut span = self
             .get_span(SomeId::Decl(decl_id))
@@ -1748,7 +1747,7 @@ impl<'c> Translation<'c> {
                             field_syns.push(mk().pub_().struct_field(name, typ))
                         }
                         _ => {
-                            return Err(TranslationError::generic(
+                            return Err(generic_err!(
                                 "Found non-field in record field list",
                             ));
                         }
@@ -1780,7 +1779,7 @@ impl<'c> Translation<'c> {
                 })
             }
 
-            Field { .. } => Err(TranslationError::generic(
+            Field { .. } => Err(generic_err!(
                 "Field declarations should be handled inside structs/unions",
             )),
 
@@ -1855,7 +1854,7 @@ impl<'c> Translation<'c> {
                             (if is_noreturn { None } else { Some(ret) }, is_var)
                         }
                         ref k => {
-                            return Err(format_err!(
+                            return Err(generic_err!(
                                 "Type of function {:?} was not a function type, got {:?}",
                                 decl_id,
                                 k
@@ -1871,7 +1870,7 @@ impl<'c> Translation<'c> {
                     {
                         args.push((*param_id, ident.clone(), typ))
                     } else {
-                        return Err(TranslationError::generic(
+                        return Err(generic_err!(
                             "Parameter is not variable declaration",
                         ));
                     }
@@ -2063,7 +2062,7 @@ impl<'c> Translation<'c> {
                         init.set_unsafe()
                     }
                     let init = init.to_unsafe_pure_expr().ok_or_else(|| {
-                        format_err!("Expected no side-effects in static initializer")
+                        generic_err!("Expected no side-effects in static initializer")
                     })?;
 
                     (ty, init)
@@ -2100,7 +2099,7 @@ impl<'c> Translation<'c> {
                 ))
             }
 
-            Variable { .. } => Err(TranslationError::generic(
+            Variable { .. } => Err(generic_err!(
                 "This should be handled in 'convert_decl_stmt'",
             )),
 
@@ -2172,7 +2171,7 @@ impl<'c> Translation<'c> {
                 let ty = self.ast_context[*id]
                     .kind
                     .get_type()
-                    .ok_or_else(|| format_err!("Invalid expression type"))?;
+                    .ok_or_else(|| generic_err!("Invalid expression type"))?;
                 let (expr_id, ty) = self
                     .ast_context
                     .resolve_expr_type_id(*id)
@@ -2193,17 +2192,17 @@ impl<'c> Translation<'c> {
                             Ok(Some((expr, ty)))
                         }
                     } else {
-                        Err(format_err!("Not all macro expansions are compatible types"))
+                        Err(generic_err!("Not all macro expansions are compatible types"))
                     }
                 } else {
                     Ok(Some((expr, ty)))
                 }
             })?
-            .ok_or_else(|| format_err!("Could not find a valid type for macro"))?;
+            .ok_or_else(|| generic_err!("Could not find a valid type for macro"))?;
 
         val.to_unsafe_pure_expr()
             .map(|val| (val, ty))
-            .ok_or_else(|| TranslationError::generic("Macro expansion is not a pure expression"))
+            .ok_or_else(|| generic_err!("Macro expansion is not a pure expression"))
 
         // TODO: Validate that all replacements are equivalent and pick the most
         // common type to minimize casts.
@@ -2513,7 +2512,7 @@ impl<'c> Translation<'c> {
         let ty_id = self.ast_context[cond_id]
             .kind
             .get_type()
-            .ok_or_else(|| format_err!("bad condition type"))?;
+            .ok_or_else(|| generic_err!("bad condition type"))?;
 
         let null_pointer_case =
             |negated: bool, ptr: CExprId| -> TranslationResult<WithStmts<Box<Expr>>> {
@@ -2521,7 +2520,7 @@ impl<'c> Translation<'c> {
                 let ptr_type = self.ast_context[ptr]
                     .kind
                     .get_type()
-                    .ok_or_else(|| format_err!("bad pointer type for condition"))?;
+                    .ok_or_else(|| generic_err!("bad pointer type for condition"))?;
                 Ok(val.map(|e| {
                     if self.ast_context.is_function_pointer(ptr_type) {
                         if negated {
@@ -2625,7 +2624,7 @@ impl<'c> Translation<'c> {
                     .borrow_mut()
                     .insert_root(decl_id, ident)
                     .ok_or_else(|| {
-                        TranslationError::generic(
+                        generic_err!(
                             "Unable to rename function scoped static initializer",
                         )
                     })?;
@@ -2933,7 +2932,7 @@ impl<'c> Translation<'c> {
 
         let pointee = match self.ast_context.resolve_type(type_id).kind {
             CTypeKind::Pointer(pointee) => pointee,
-            _ => return Err(TranslationError::generic("null_ptr requires a pointer")),
+            _ => return Err(generic_err!("null_ptr requires a pointer")),
         };
         let ty = self.convert_type(type_id)?;
         let mut zero = mk().lit_expr(mk().int_unsuffixed_lit(0));
@@ -3216,21 +3215,14 @@ impl<'c> Translation<'c> {
 
         use CExprKind::*;
         match *expr_kind {
-            DesignatedInitExpr(..) => {
-                Err(TranslationError::generic("Unexpected designated init expr"))
-            }
-            BadExpr => Err(TranslationError::generic(
-                "convert_expr: expression kind not supported",
-            )),
+            DesignatedInitExpr(..) => Err(generic_err!("Unexpected designated init expr")),
+            BadExpr => Err(generic_err!("convert_expr: expression kind not supported")),
             ShuffleVector(_, ref child_expr_ids) => self
                 .convert_shuffle_vector(ctx, child_expr_ids)
                 .map_err(|e| {
-                    TranslationError::new(
-                        self.ast_context.display_loc(src_loc),
-                        e.context(TranslationErrorKind::OldLLVMSimd),
-                    )
+                    old_llvm_simd_err!(self.ast_context.display_loc(src_loc), e.message)
                 }),
-            ConvertVector(..) => Err(TranslationError::generic("convert vector not supported")),
+            ConvertVector(..) => Err(generic_err!("convert vector not supported")),
 
             UnaryType(_ty, kind, opt_expr, arg_ty) => {
                 let result = match kind {
@@ -3269,7 +3261,7 @@ impl<'c> Translation<'c> {
                 let decl = &self
                     .ast_context
                     .get_decl(&decl_id)
-                    .ok_or_else(|| format_err!("Missing declref {:?}", decl_id))?
+                    .ok_or_else(|| generic_err!("Missing declref {:?}", decl_id))?
                     .kind;
                 if ctx.is_const {
                     if let CDeclKind::Variable {
@@ -3277,7 +3269,7 @@ impl<'c> Translation<'c> {
                         ..
                     } = decl
                     {
-                        return Err(format_translation_err!(
+                        return Err(generic_loc_err!(
                             self.ast_context.display_loc(src_loc),
                             "Cannot refer to static duration variable in a const expression",
                         ));
@@ -3289,7 +3281,7 @@ impl<'c> Translation<'c> {
                     .renamer
                     .borrow_mut()
                     .get(&decl_id)
-                    .ok_or_else(|| format_err!("name not declared: '{}'", varname))?;
+                    .ok_or_else(|| generic_err!("name not declared: '{}'", varname))?;
 
                 // Import the referenced global decl into our submodule
                 if self.tcfg.reorganize_definitions {
@@ -3398,7 +3390,7 @@ impl<'c> Translation<'c> {
                         .convert_expr(ctx, *expr_id)?
                         .to_pure_expr()
                         .ok_or_else(|| {
-                            format_err!("Expected Variable offsetof to be a side-effect free")
+                            generic_err!("Expected Variable offsetof to be a side-effect free")
                         })?;
                     let expr = mk().cast_expr(expr, mk().ident_ty("usize"));
                     use syn::__private::ToTokens;
@@ -3449,7 +3441,7 @@ impl<'c> Translation<'c> {
                 let source_ty = self.ast_context[expr]
                     .kind
                     .get_qual_type()
-                    .ok_or_else(|| format_err!("bad source type"))?;
+                    .ok_or_else(|| generic_err!("bad source type"))?;
 
                 let val = if is_explicit {
                     let stmts = self.compute_variable_array_sizes(ctx, ty.ctype)?;
@@ -3481,7 +3473,7 @@ impl<'c> Translation<'c> {
 
             Conditional(_, cond, lhs, rhs) => {
                 if ctx.is_const {
-                    return Err(format_translation_err!(
+                    return Err(generic_loc_err!(
                         self.ast_context.display_loc(src_loc),
                         "Constants cannot contain ternary expressions in Rust",
                     ));
@@ -3557,7 +3549,7 @@ impl<'c> Translation<'c> {
 
             Binary(type_id, op, lhs, rhs, opt_lhs_type_id, opt_res_type_id) => self
                 .convert_binary_expr(ctx, type_id, op, lhs, rhs, opt_lhs_type_id, opt_res_type_id)
-                .map_err(|e| e.add_loc(self.ast_context.display_loc(src_loc))),
+                .map_err(|e| Box::new(e.add_loc(self.ast_context.display_loc(src_loc)))),
 
             ArraySubscript(_, ref lhs, ref rhs, _) => {
                 let lhs_node = &self.ast_context.index(*lhs).kind;
@@ -3565,7 +3557,7 @@ impl<'c> Translation<'c> {
 
                 let lhs_node_type = lhs_node
                     .get_type()
-                    .ok_or_else(|| format_err!("lhs node bad type"))?;
+                    .ok_or_else(|| generic_err!("lhs node bad type"))?;
                 let lhs_node_kind = &self.ast_context.resolve_type(lhs_node_type).kind;
                 let lhs_is_indexable = lhs_node_kind.is_pointer() || lhs_node_kind.is_vector();
 
@@ -3578,17 +3570,16 @@ impl<'c> Translation<'c> {
 
                 let lhs_node_type = lhs_node
                     .get_type()
-                    .ok_or_else(|| format_err!("lhs node bad type"))?;
+                    .ok_or_else(|| generic_err!("lhs node bad type"))?;
                 if self
                     .ast_context
                     .resolve_type(lhs_node_type)
                     .kind
                     .is_vector()
                 {
-                    return Err(TranslationError::new(
+                    return Err(old_llvm_simd_err!(
                         self.ast_context.display_loc(src_loc),
-                        err_msg("Attempting to index a vector type")
-                            .context(TranslationErrorKind::OldLLVMSimd),
+                        "Attempting to index a vector type".into()
                     ));
                 }
 
@@ -3619,7 +3610,7 @@ impl<'c> Translation<'c> {
                                     ref kind => {
                                         let arr_type = kind
                                             .get_type()
-                                            .ok_or_else(|| format_err!("bad arr type"))?;
+                                            .ok_or_else(|| generic_err!("bad arr type"))?;
                                         match self.ast_context.resolve_type(arr_type).kind {
                                             // These get translated to 0-element arrays, this avoids the bounds check
                                             // that using an array subscript in Rust would cause
@@ -3640,7 +3631,7 @@ impl<'c> Translation<'c> {
                         let t = self.ast_context[arr]
                             .kind
                             .get_type()
-                            .ok_or_else(|| format_err!("bad arr type"))?;
+                            .ok_or_else(|| generic_err!("bad arr type"))?;
                         let var_elt_type_id = match self.ast_context.resolve_type(t).kind {
                             CTypeKind::ConstantArray(..) => None,
                             CTypeKind::IncompleteArray(..) => None,
@@ -3670,18 +3661,17 @@ impl<'c> Translation<'c> {
 
                             let lhs_type_id = lhs_node
                                 .get_type()
-                                .ok_or_else(|| format_err!("bad lhs type"))?;
+                                .ok_or_else(|| generic_err!("bad lhs type"))?;
 
                             // Determine the type of element being indexed
                             let pointee_type_id =
                                 match self.ast_context.resolve_type(lhs_type_id).kind {
                                     CTypeKind::Pointer(pointee_id) => pointee_id,
                                     _ => {
-                                        return Err(format_err!(
+                                        return Err(generic_err!(
                                             "Subscript applied to non-pointer: {:?}",
                                             lhs
-                                        )
-                                        .into());
+                                        ));
                                     }
                                 };
 
@@ -3697,7 +3687,7 @@ impl<'c> Translation<'c> {
                     self.ast_context
                         .get_pointee_qual_type(
                             self.ast_context[func].kind.get_type().ok_or_else(|| {
-                                format_err!("Invalid callee expression {:?}", func)
+                                generic_err!("Invalid callee expression {:?}", func)
                             })?,
                         )
                         .map(|ty| &self.ast_context.resolve_type(ty.ctype).kind);
@@ -3954,7 +3944,7 @@ impl<'c> Translation<'c> {
                     .renamer
                     .borrow_mut()
                     .get(macro_id)
-                    .ok_or_else(|| format_err!("Macro name not declared"))?;
+                    .ok_or_else(|| generic_err!("Macro name not declared"))?;
 
                 if let Some(cur_file) = self.cur_file.borrow().as_ref() {
                     self.add_import(*cur_file, *macro_id, &rustname);
@@ -4104,7 +4094,7 @@ impl<'c> Translation<'c> {
                         self.panic_or_err("Empty statement expression is not supposed to be used");
                     Ok(WithStmts::new_val(val))
                 } else {
-                    Err(TranslationError::generic("Bad statement expression"))
+                    Err(generic_err!("Bad statement expression"))
                 }
             }
         }
@@ -4251,7 +4241,7 @@ impl<'c> Translation<'c> {
                 } else if let &CTypeKind::Enum(enum_decl_id) = target_ty_ctype {
                     // Casts targeting `enum` types...
                     let expr =
-                        expr.ok_or_else(|| format_err!("Casts to enums require a C ExprId"))?;
+                        expr.ok_or_else(|| generic_err!("Casts to enums require a C ExprId"))?;
                     Ok(self.enum_cast(ty.ctype, enum_decl_id, expr, val, source_ty, target_ty))
                 } else if target_ty_ctype.is_floating_type() && source_ty_kind.is_bool() {
                     val.and_then(|x| {
@@ -4378,7 +4368,7 @@ impl<'c> Translation<'c> {
             }
 
             // I don't know how to actually cause clang to generate this
-            CastKind::BooleanToSignedIntegral => Err(TranslationError::generic(
+            CastKind::BooleanToSignedIntegral => Err(generic_err!(
                 "TODO boolean to signed integral not supported",
             )),
 
@@ -4390,11 +4380,11 @@ impl<'c> Translation<'c> {
             | CastKind::IntegralRealToComplex
             | CastKind::IntegralComplexCast
             | CastKind::IntegralComplexToFloatingComplex
-            | CastKind::IntegralComplexToBoolean => Err(TranslationError::generic(
+            | CastKind::IntegralComplexToBoolean => Err(generic_err!(
                 "TODO casts with complex numbers not supported",
             )),
 
-            CastKind::VectorSplat => Err(TranslationError::generic(
+            CastKind::VectorSplat => Err(generic_err!(
                 "TODO vector splat casts not supported",
             )),
         }
@@ -4427,11 +4417,11 @@ impl<'c> Translation<'c> {
             CTypeKind::Int128 => "to_i128",
             CTypeKind::UInt128 => "to_u128",
             _ => {
-                return Err(format_err!(
+                return Err(generic_err!(
                     "Tried casting long double to unsupported type: {:?}",
                     target_ty_ctype
                 )
-                .into());
+                );
             }
         };
 
@@ -4551,7 +4541,7 @@ impl<'c> Translation<'c> {
         } else if let &CTypeKind::Vector(CQualTypeId { ctype, .. }, len) = resolved_ty {
             self.implicit_vector_default(ctype, len, is_static)
         } else {
-            Err(format_err!("Unsupported default initializer: {:?}", resolved_ty).into())
+            Err(generic_err!("Unsupported default initializer: {:?}", resolved_ty))
         }
     }
 
@@ -4595,7 +4585,7 @@ impl<'c> Translation<'c> {
             }
 
             CDeclKind::Struct { fields: None, .. } => {
-                return Err(TranslationError::generic(
+                return Err(generic_err!(
                     "Attempted to zero-initialize forward-declared struct",
                 ));
             }
@@ -4611,7 +4601,7 @@ impl<'c> Translation<'c> {
                 let fields = match *fields {
                     Some(ref fields) => fields,
                     None => {
-                        return Err(TranslationError::generic(
+                        return Err(generic_err!(
                             "Attempted to zero-initialize forward-declared struct",
                         ));
                     }
@@ -4619,7 +4609,7 @@ impl<'c> Translation<'c> {
 
                 let &field_id = fields
                     .first()
-                    .ok_or_else(|| format_err!("A union should have a field"))?;
+                    .ok_or_else(|| generic_err!("A union should have a field"))?;
 
                 let field = match self.ast_context.index(field_id).kind {
                     CDeclKind::Field { typ, .. } => self
@@ -4634,7 +4624,7 @@ impl<'c> Translation<'c> {
                             mk().field(name, field_init)
                         }),
                     _ => {
-                        return Err(TranslationError::generic(
+                        return Err(generic_err!(
                             "Found non-field in record field list",
                         ));
                     }
@@ -4647,7 +4637,7 @@ impl<'c> Translation<'c> {
             CDeclKind::Enum { .. } => WithStmts::new_val(self.enum_for_i64(type_id, 0)),
 
             _ => {
-                return Err(TranslationError::generic(
+                return Err(generic_err!(
                     "Declaration is not associated with a type",
                 ));
             }
@@ -4671,7 +4661,7 @@ impl<'c> Translation<'c> {
             self.zero_inits.borrow_mut().insert(decl_id, init.clone());
             Ok(init)
         } else {
-            Err(TranslationError::generic(
+            Err(generic_err!(
                 "Expected no statements in zero initializer",
             ))
         }

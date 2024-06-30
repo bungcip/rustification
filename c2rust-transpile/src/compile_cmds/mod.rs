@@ -3,7 +3,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use failure::Error;
+use anyhow::{Error};
 use log::warn;
 use regex::Regex;
 use serde_derive::{Deserialize, Serialize};

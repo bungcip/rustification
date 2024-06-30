@@ -1,4 +1,4 @@
-use crate::format_translation_err;
+use crate::generic_loc_err;
 
 use super::*;
 use std::sync::atomic::Ordering;
@@ -206,7 +206,7 @@ impl<'c> Translation<'c> {
                                 format!("atomic_cxchg{weak}_{order}_{order_fail}")
                             })
                             .ok_or_else(|| {
-                                format_translation_err!(
+                                generic_loc_err!(
                                     self.ast_context
                                         .display_loc(&self.ast_context[order_fail_id.unwrap()].loc),
                                     "Invalid failure memory ordering",

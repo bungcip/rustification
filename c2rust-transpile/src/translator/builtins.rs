@@ -1,7 +1,7 @@
 #![deny(missing_docs)]
 //! Implementations of clang's builtin functions
 
-use crate::format_translation_err;
+use crate::{generic_loc_err, generic_err};
 
 use super::*;
 
@@ -29,18 +29,14 @@ impl<'c> Translation<'c> {
         let decl_id = match expr.kind {
             CExprKind::DeclRef(_, decl_id, _) => decl_id,
             _ => {
-                return Err(TranslationError::generic(
-                    "Expected declref when processing builtin",
-                ))
+                return Err(generic_err!("Expected declref when processing builtin"))
             }
         };
 
         let builtin_name: &str = match self.ast_context[decl_id].kind {
             CDeclKind::Function { ref name, .. } => name,
             _ => {
-                return Err(TranslationError::generic(
-                    "Expected function when processing builtin",
-                ))
+                return Err(generic_err!("Expected function when processing builtin"))
             }
         };
 
@@ -311,7 +307,7 @@ impl<'c> Translation<'c> {
                         }
                     }
                 }
-                Err(TranslationError::generic("Unsupported va_start"))
+                Err(generic_err!("Unsupported va_start"))
             }
             "__builtin_va_copy" => {
                 if ctx.is_unused() && args.len() == 2 {
@@ -329,7 +325,7 @@ impl<'c> Translation<'c> {
                         ));
                     }
                 }
-                Err(TranslationError::generic("Unsupported va_copy"))
+                Err(generic_err!("Unsupported va_copy"))
             }
             "__builtin_va_end" => {
                 if ctx.is_unused() && args.len() == 1 {
@@ -338,7 +334,7 @@ impl<'c> Translation<'c> {
                         return Ok(WithStmts::new_val(self.panic("va_end stub")));
                     }
                 }
-                Err(TranslationError::generic("Unsupported va_end"))
+                Err(generic_err!("Unsupported va_end"))
             }
 
             "__builtin_alloca" => {
@@ -649,7 +645,7 @@ impl<'c> Translation<'c> {
                 })
             }
 
-            _ => Err(format_translation_err!(
+            _ => Err(generic_loc_err!(
                 self.ast_context.display_loc(src_loc),
                 "Unimplemented builtin {}",
                 builtin_name
@@ -669,7 +665,7 @@ impl<'c> Translation<'c> {
         args.and_then(|args| {
             let [a, b, c]: [_; 3] = args
                 .try_into()
-                .map_err(|_| "`convert_overflow_arith` must have exactly 3 arguments")?;
+                .map_err(|_| generic_err!("`convert_overflow_arith` must have exactly 3 arguments"))?;
             let overflowing = mk().method_call_expr(a, method_name, vec![b]);
             let sum_name = self.renamer.borrow_mut().fresh();
             let over_name = self.renamer.borrow_mut().fresh();
@@ -708,13 +704,11 @@ impl<'c> Translation<'c> {
         args.and_then(|args| {
             if args.len() != arg_types.len() {
                 // This should not generally happen, as the C frontend checks these first
-                Err(err_msg(format!(
-                    "wrong number of arguments for {}: expected {}, found {}",
+                Err(generic_err!("wrong number of arguments for {}: expected {}, found {}",
                     builtin_name,
                     arg_types.len(),
                     args.len()
-                ))
-                .context(TranslationErrorKind::Generic))?
+                ))?;
             }
             let size_t = || mk().path_ty(vec!["libc", "size_t"]);
             let args_casted = args

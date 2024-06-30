@@ -3,8 +3,9 @@
 //! a helper that can be called from a generated main function in
 //! Rust.
 
+use crate::generic_err;
+
 use super::*;
-use failure::format_err;
 use proc_macro2::{TokenStream, TokenTree};
 
 impl<'c> Translation<'c> {
@@ -20,12 +21,11 @@ impl<'c> Translation<'c> {
                     self.ast_context.resolve_type(ret.ctype).kind.clone()
                 }
                 ref k => {
-                    return Err(format_err!(
+                    return Err(generic_err!(
                         "Type of main function {:?} was not a function type, got {:?}",
                         main_id,
                         k
-                    )
-                    .into())
+                    ))
                 }
             };
 
@@ -95,13 +95,13 @@ impl<'c> Translation<'c> {
 
                 let argc_ty: Box<Type> = match self.ast_context.index(parameters[0]).kind {
                     CDeclKind::Variable { ref typ, .. } => self.convert_type(typ.ctype),
-                    _ => Err(TranslationError::generic(
+                    _ => Err(generic_err!(
                         "Cannot find type of 'argc' argument in main function",
                     )),
                 }?;
                 let argv_ty: Box<Type> = match self.ast_context.index(parameters[1]).kind {
                     CDeclKind::Variable { ref typ, .. } => self.convert_type(typ.ctype),
-                    _ => Err(TranslationError::generic(
+                    _ => Err(generic_err!(
                         "Cannot find type of 'argv' argument in main function",
                     )),
                 }?;
@@ -205,7 +205,7 @@ impl<'c> Translation<'c> {
 
                 let envp_ty: Box<Type> = match self.ast_context.index(parameters[2]).kind {
                     CDeclKind::Variable { ref typ, .. } => self.convert_type(typ.ctype),
-                    _ => Err(TranslationError::generic(
+                    _ => Err(generic_err!(
                         "Cannot find type of 'envp' argument in main function",
                     )),
                 }?;
@@ -217,11 +217,10 @@ impl<'c> Translation<'c> {
 
             // Check `main` has the right form
             if n != 0 && n != 2 && n != 3 {
-                return Err(format_err!(
+                return Err(generic_err!(
                     "Main function should have 0, 2, or 3 parameters, not {}.",
                     n
-                )
-                .into());
+                ));
             };
 
             if let CTypeKind::Void = ret {
@@ -249,7 +248,7 @@ impl<'c> Translation<'c> {
             let block = mk().block(stmts);
             Ok(mk().pub_().fn_item(decl, block))
         } else {
-            Err(TranslationError::generic(
+            Err(generic_err!(
                 "Cannot translate non-function main entry point",
             ))
         }

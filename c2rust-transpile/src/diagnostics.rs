@@ -1,12 +1,11 @@
 use colored::Colorize;
-use failure::{err_msg, Backtrace, Context, Error, Fail};
+
 use fern::colors::ColoredLevelConfig;
 use log::{Level, SetLoggerError};
 use std::collections::HashSet;
 use std::fmt::{self, Display};
 use std::io;
 use std::str::FromStr;
-use std::sync::Arc;
 use strum_macros::{Display, EnumString};
 
 use crate::c_ast::{ClangAstParseErrorKind, DisplaySrcSpan};
@@ -72,11 +71,12 @@ pub fn init(mut enabled_warnings: HashSet<Diagnostic>, log_level: log::LevelFilt
 
 #[derive(Debug, Clone)]
 pub struct TranslationError {
-    loc: Vec<DisplaySrcSpan>,
-    inner: Arc<Context<TranslationErrorKind>>,
+    pub loc: Option<Vec<DisplaySrcSpan>>,
+    pub inner: TranslationErrorKind,
+    pub message: String,
 }
 
-pub type TranslationResult<T> = Result<T, TranslationError>;
+pub type TranslationResult<T> = Result<T, Box<TranslationError>>;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum TranslationErrorKind {
@@ -94,22 +94,64 @@ pub enum TranslationErrorKind {
 
 /// Constructs a `TranslationError` using the standard string interpolation syntax.
 #[macro_export]
-macro_rules! format_translation_err {
+macro_rules! generic_loc_err {
     ($loc:expr, $($arg:tt)*) => {
-        TranslationError::new(
-            $loc,
-            failure::err_msg(format!($($arg)*))
-                .context(TranslationErrorKind::Generic),
-        )
+        Box::new(TranslationError {
+            loc: if let Some(loc) = $loc { Some(vec![loc]) } else { None },
+            inner: crate::diagnostics::TranslationErrorKind::Generic,
+            message: format!($($arg)*),
+        })
     }
 }
+
+#[macro_export]
+macro_rules! generic_err {
+    ($message: literal) => {
+        Box::new(TranslationError {
+            loc: None,
+            inner: crate::diagnostics::TranslationErrorKind::Generic,
+            message: $message.into(),
+        })
+    };
+
+    ($($arg:tt)*) => {
+        Box::new(TranslationError {
+            loc: None,
+            inner: crate::diagnostics::TranslationErrorKind::Generic,
+            message: format!($($arg)*),
+        })
+    }
+}
+
+#[macro_export]
+macro_rules! clang_err {
+    ($loc:expr, $kind:expr, $($arg:tt)*) => {
+        Box::new(TranslationError {
+            loc: if let Some(loc) = $loc { Some(vec![loc]) } else { None },
+            inner: crate::diagnostics::TranslationErrorKind::InvalidClangAst($kind),
+            message: format!($($arg)*),
+        })
+    }
+}
+
+#[macro_export]
+macro_rules! old_llvm_simd_err {
+    ($loc:expr, $message: expr) => {
+        Box::new(TranslationError {
+            loc: if let Some(loc) = $loc { Some(vec![loc]) } else { None },
+            inner: crate::diagnostics::TranslationErrorKind::OldLLVMSimd,
+            message: $message,
+        })
+    }
+}
+
+
 
 impl Display for TranslationErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::TranslationErrorKind::*;
         match self {
-            Generic => {}
-
+            Generic => {},
             OldLLVMSimd => {
                 if let Some(version) = get_clang_major_version() {
                     if version < 7 {
@@ -130,39 +172,35 @@ impl Display for TranslationErrorKind {
     }
 }
 
-impl Fail for TranslationError {
-    fn cause(&self) -> Option<&dyn Fail> {
-        self.inner.cause()
-    }
-
-    fn backtrace(&self) -> Option<&Backtrace> {
-        self.inner.backtrace()
-    }
-}
-
 impl Display for TranslationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(cause) = self.cause() {
-            writeln!(f, "{}", cause)?;
-        }
-        match self.inner.get_context() {
+        match self.inner {
             TranslationErrorKind::Generic => {}
             ref kind => writeln!(f, "{}", kind)?,
         }
-        for loc in &self.loc {
-            writeln!(f, "{} {}", "-->".blue(), loc)?;
+        
+        if let Some(loc) = &self.loc {
+            for item in loc {
+                writeln!(f, "{} {}", "-->".blue(), item)?;
+            }
         }
         Ok(())
     }
 }
 
 impl TranslationError {
-    pub fn kind(&self) -> TranslationErrorKind {
-        self.inner.get_context().clone()
-    }
+    pub fn new(loc: Option<DisplaySrcSpan>, inner: TranslationErrorKind, message: String) -> Self {
+        let loc = if let Some(loc) = loc {
+            Some(vec![loc])
+        } else {
+            None
+        };
 
-    pub fn new(loc: Option<DisplaySrcSpan>, inner: Context<TranslationErrorKind>) -> Self {
-        Self::from(inner).add_loc(loc)
+        Self {
+            loc,
+            inner,
+            message,
+        }
     }
 
     pub fn generic(msg: &'static str) -> Self {
@@ -170,36 +208,32 @@ impl TranslationError {
     }
 
     pub fn add_loc(mut self, loc: Option<DisplaySrcSpan>) -> Self {
-        if let Some(loc) = loc {
-            self.loc.push(loc);
+        match (&mut self.loc, loc) {
+            (None, Some(x)) => self.loc = Some(vec![x]),
+            (Some(ref mut vec), Some(x)) => vec.push(x),
+            _ => {}
         }
+
         self
     }
 }
 
 impl From<&'static str> for TranslationError {
     fn from(msg: &'static str) -> Self {
-        err_msg(msg).context(TranslationErrorKind::Generic).into()
-    }
-}
-
-impl From<Error> for TranslationError {
-    fn from(e: Error) -> Self {
-        e.context(TranslationErrorKind::Generic).into()
+        TranslationError {
+            loc: None,
+            inner: TranslationErrorKind::Generic,
+            message: msg.to_owned(),
+        }
     }
 }
 
 impl From<TranslationErrorKind> for TranslationError {
     fn from(kind: TranslationErrorKind) -> Self {
-        Context::new(kind).into()
-    }
-}
-
-impl From<Context<TranslationErrorKind>> for TranslationError {
-    fn from(ctx: Context<TranslationErrorKind>) -> Self {
-        Self {
-            loc: Vec::new(),
-            inner: Arc::new(ctx),
+        TranslationError {
+            loc: None,
+            inner: kind,
+            message: String::new(),
         }
     }
 }

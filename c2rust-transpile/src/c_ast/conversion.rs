@@ -1,14 +1,13 @@
-use crate::c_ast::*;
+use crate::{c_ast::*, clang_err};
 use crate::diagnostics::diag;
 use c2rust_ast_exporter::clang_ast::*;
-use failure::err_msg;
 use serde_bytes::ByteBuf;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::vec::Vec;
 
 use super::Located;
-use crate::diagnostics::{Diagnostic, TranslationError, TranslationErrorKind};
+use crate::diagnostics::{Diagnostic, TranslationError};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ClangAstParseErrorKind {
@@ -261,13 +260,10 @@ impl ConversionContext {
                 diag!(
                     Diagnostic::ClangAst,
                     "{}",
-                    TranslationError::new(
+                    clang_err!(
                         None,
-                        err_msg(format!("Missing top-level node with id: {}", top_node)).context(
-                            TranslationErrorKind::InvalidClangAst(
-                                ClangAstParseErrorKind::MissingNode,
-                            )
-                        )
+                        ClangAstParseErrorKind::MissingNode,
+                        "Missing top-level node with id: {}", top_node
                     ),
                 );
                 invalid_clang_ast = true;
@@ -280,12 +276,10 @@ impl ConversionContext {
                     diag!(
                         Diagnostic::ClangAst,
                         "{}",
-                        TranslationError::new(
+                        clang_err!(
                             display_loc(untyped_context, &Some(node.loc)),
-                            err_msg(format!("Missing child {} of node {:?}", child, node,))
-                                .context(TranslationErrorKind::InvalidClangAst(
-                                    ClangAstParseErrorKind::MissingChild,
-                                )),
+                            ClangAstParseErrorKind::MissingChild,
+                            "Missing child {} of node {:?}", child, node
                         ),
                     );
                     invalid_clang_ast = true;
@@ -298,12 +292,10 @@ impl ConversionContext {
                     diag!(
                         Diagnostic::ClangAst,
                         "{}",
-                        TranslationError::new(
+                        clang_err!(
                             display_loc(untyped_context, &Some(node.loc)),
-                            err_msg(format!("Missing type {} for node: {:?}", type_id, node,))
-                                .context(TranslationErrorKind::InvalidClangAst(
-                                    ClangAstParseErrorKind::MissingType,
-                                )),
+                            ClangAstParseErrorKind::MissingType,
+                            "Missing type {} for node: {:?}", type_id, node,
                         ),
                     );
                     invalid_clang_ast = true;

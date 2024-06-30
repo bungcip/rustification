@@ -2,7 +2,7 @@
 //! This code is used to generate literal expressions of various kinds.
 //! These include integer, floating, array, struct, union, enum literals.
 
-use failure::format_err;
+use crate::generic_err;
 
 use super::*;
 use std::iter;
@@ -253,7 +253,7 @@ impl<'c> Translation<'c> {
                 let id = ids.first().unwrap();
                 self.convert_expr(ctx.used(), *id)
             }
-            ref t => Err(format_err!("Init list not implemented for {:?}", t).into()),
+            ref t => Err(generic_err!("Init list not implemented for {:?}", t)),
         }
     }
 

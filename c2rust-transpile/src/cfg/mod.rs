@@ -33,7 +33,6 @@ use std::ops::Deref;
 use std::ops::Index;
 use syn::{spanned::Spanned, Arm, Expr, Pat, Stmt};
 
-use failure::format_err;
 use indexmap::indexset;
 use indexmap::{IndexMap, IndexSet};
 
@@ -42,7 +41,7 @@ use serde::ser::{
 };
 use serde_json;
 
-use crate::c_ast::*;
+use crate::{c_ast::*, generic_err};
 use crate::translator::*;
 use crate::with_stmts::WithStmts;
 use c2rust_ast_builder::mk;
@@ -1034,10 +1033,10 @@ impl DeclStmtStore {
         let DeclStmtInfo { decl, assign, .. } = self
             .store
             .swap_remove(&decl_id)
-            .ok_or_else(|| format_err!("Cannot find information on declaration 1 {:?}", decl_id))?;
+            .ok_or_else(|| generic_err!("Cannot find information on declaration 1 {:?}", decl_id))?;
 
         let decl: Vec<Stmt> = decl.ok_or_else(|| {
-            format_err!("Declaration for {:?} has already been extracted", decl_id)
+            generic_err!("Declaration for {:?} has already been extracted", decl_id)
         })?;
 
         let pruned = DeclStmtInfo {
@@ -1056,11 +1055,11 @@ impl DeclStmtStore {
     pub fn extract_assign(&mut self, decl_id: CDeclId) -> TranslationResult<Vec<Stmt>> {
         let DeclStmtInfo { decl, assign, .. } =
             self.store.swap_remove(&decl_id).ok_or_else(|| {
-                format_err!("Cannot find information on declaration 2 {:?}", decl_id,)
+                generic_err!("Cannot find information on declaration 2 {:?}", decl_id,)
             })?;
 
         let assign: Vec<Stmt> = assign.ok_or_else(|| {
-            format_err!("Assignment for {:?} has already been extracted", decl_id)
+            generic_err!("Assignment for {:?} has already been extracted", decl_id)
         })?;
 
         let pruned = DeclStmtInfo {
@@ -1081,10 +1080,10 @@ impl DeclStmtStore {
         } = self
             .store
             .swap_remove(&decl_id)
-            .ok_or_else(|| format_err!("Cannot find information on declaration 3 {:?}", decl_id))?;
+            .ok_or_else(|| generic_err!("Cannot find information on declaration 3 {:?}", decl_id))?;
 
         let decl_and_assign: Vec<Stmt> = decl_and_assign.ok_or_else(|| {
-            format_err!(
+            generic_err!(
                 "Declaration with assignment for {:?} has already been extracted",
                 decl_id
             )
@@ -1108,10 +1107,10 @@ impl DeclStmtStore {
         } = self
             .store
             .get(&decl_id)
-            .ok_or_else(|| format_err!("Cannot find information on declaration 4 {:?}", decl_id))?;
+            .ok_or_else(|| generic_err!("Cannot find information on declaration 4 {:?}", decl_id))?;
 
         let decl_and_assign: Vec<Stmt> = decl_and_assign.clone().ok_or_else(|| {
-            format_err!(
+            generic_err!(
                 "Declaration with assignment for {:?} has already been extracted",
                 decl_id
             )
@@ -1806,7 +1805,7 @@ impl CfgBuilder {
                     .break_labels
                     .last()
                     .ok_or_else(|| {
-                        format_err!(
+                        generic_err!(
                             "Cannot find what to break from in this ({:?}) 'break' statement",
                             stmt_id,
                         )
@@ -1823,7 +1822,7 @@ impl CfgBuilder {
                     .continue_labels
                     .last()
                     .ok_or_else(|| {
-                        format_err!(
+                        generic_err!(
                             "Cannot find what to continue from in this ({:?}) 'continue' statement",
                             stmt_id,
                         )
@@ -1867,7 +1866,7 @@ impl CfgBuilder {
                 self.switch_expr_cases
                     .last_mut()
                     .ok_or_else(|| {
-                        format_err!(
+                        generic_err!(
                             "Cannot find the 'switch' wrapping this ({:?}) 'case' statement",
                             stmt_id,
                         )

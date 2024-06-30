@@ -90,9 +90,9 @@ impl<'c> Translation<'c> {
                 // __m64 and MMX support were removed from upstream Rust.
                 // See https://github.com/immunant/c2rust/issues/369
                 if name == "__m64" {
-                    return Err(format_err!(
+                    return Err(generic_err!(
                         "__m64 and MMX are no longer supported, due to removed upstream support. See https://github.com/immunant/c2rust/issues/369"
-                    ).into());
+                    ));
                 }
 
                 self.with_cur_file_item_store(|item_store| {
@@ -148,11 +148,11 @@ impl<'c> Translation<'c> {
         if name.starts_with("_mm") {
             // REVIEW: This will do a linear lookup against all SIMD fns. Could use a lazy static hashset
             if MISSING_SIMD_FUNCTIONS.contains(&name) {
-                return Err(format_err!(
+                return Err(generic_err!(
                     "SIMD function {} doesn't currently have a rust counterpart",
                     name
                 )
-                .into());
+                );
             }
 
             // The majority of x86/64 SIMD is stable, however there are still some
@@ -253,12 +253,12 @@ impl<'c> Translation<'c> {
                 ("_mm_setzero_si64", 8)
             }
             (kind, len) => {
-                return Err(format_err!(
+                return Err(generic_err!(
                     "Unsupported vector default initializer: {:?} x {}",
                     kind,
                     len
                 )
-                .into())
+                )
             }
         };
 
@@ -315,7 +315,7 @@ impl<'c> Translation<'c> {
                     (Short, 4) => "_mm_setr_pi16",
                     (Short, 8) => "_mm_setr_epi16",
                     (Short, 16) => "_mm256_setr_epi16",
-                    e => return Err(format_err!("Unknown vector init list: {:?}", e).into()),
+                    e => return Err(generic_err!("Unknown vector init list: {:?}", e)),
                 };
 
                 self.import_simd_function(fn_call_name)?;
@@ -355,12 +355,12 @@ impl<'c> Translation<'c> {
 
         let input_params = [4, 6, 10, 18];
         if !input_params.contains(&child_expr_ids.len()) {
-            return Err(format_err!(
+            return Err(generic_err!(
                 "Unsupported shuffle vector without input params: found {}, expected one of {:?}",
                 child_expr_ids.len(),
                 input_params,
             )
-            .into());
+            );
         };
 
         // There is some internal explicit casting which is okay for us to strip off
@@ -370,10 +370,10 @@ impl<'c> Translation<'c> {
             self.strip_vector_explicit_cast(child_expr_ids[1]);
 
         if first_vec != second_vec {
-            return Err("Unsupported shuffle vector with different vector kinds".into());
+            return Err(generic_err!("Unsupported shuffle vector with different vector kinds"));
         }
         if first_vec_len != second_vec_len {
-            return Err("Unsupported shuffle vector with different vector lengths".into());
+            return Err(generic_err!("Unsupported shuffle vector with different vector lengths"));
         }
 
         let mask_expr_id = self.get_shuffle_vector_mask(&child_expr_ids[2..])?;
@@ -382,7 +382,7 @@ impl<'c> Translation<'c> {
         param_translation.and_then(|params| {
             let [first, second, third]: [_; 3] = params
                 .try_into()
-                .map_err(|_| "`convert_shuffle_vector` must have exactly 3 parameters")?;
+                .map_err(|_| generic_err!("`convert_shuffle_vector` must have exactly 3 parameters"))?;
             let mut new_params = vec![first];
 
             // Some don't take a second param, but the expr is still there for some reason
@@ -431,7 +431,7 @@ impl<'c> Translation<'c> {
                         "_mm256_shufflelo_epi16"
                     }
                 }
-                e => return Err(format_err!("Unknown shuffle vector signature: {:?}", e).into()),
+                e => return Err(generic_err!("Unknown shuffle vector signature: {:?}", e)),
             };
 
             new_params.push(third);
@@ -493,8 +493,8 @@ impl<'c> Translation<'c> {
     /// excluding the first two (which are always vector exprs). These exprs contain mathematical
     /// offsets applied to a mask expr (or are otherwise a numeric constant) which we'd like to extract.
     fn get_shuffle_vector_mask(&self, expr_ids: &[CExprId]) -> TranslationResult<CExprId> {
-        fn unknown_mask_format(e: &CExprKind) -> Result<CExprId, TranslationError> {
-            Err(format_err!("Found unknown mask format: {:?}", e).into())
+        fn unknown_mask_format(e: &CExprKind) -> Result<CExprId, Box<TranslationError>> {
+            Err(generic_err!("Found unknown mask format: {:?}", e))
         }
         match self.ast_context[expr_ids[0]].kind {
             // Need to unmask which looks like this most of the time: X + (((mask) >> Y) & Z):

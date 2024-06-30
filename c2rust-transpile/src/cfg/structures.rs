@@ -264,12 +264,12 @@ fn structured_cfg_help<S: StructuredStatement<E = Box<Expr>, P = Pat, L = Label,
                             }
 
                             Err(
-                                format_err!("Not a valid exit: {:?} has nothing to exit to", to)
+                                generic_err!("Not a valid exit: {:?} has nothing to exit to", to)
                                     .into(),
                             )
                         }
 
-                        GoTo(to) => Err(format_err!(
+                        GoTo(to) => Err(generic_err!(
                             "Not a valid exit: {:?} (GoTo isn't falling through to {:?})",
                             to,
                             next
@@ -315,7 +315,7 @@ fn structured_cfg_help<S: StructuredStatement<E = Box<Expr>, P = Pat, L = Label,
                 let label = entries
                     .iter()
                     .next()
-                    .ok_or_else(|| format_err!("The loop {:?} has no entry", structure))?;
+                    .ok_or_else(|| generic_err!("The loop {:?} has no entry", structure))?;
 
                 let mut these_exits = IndexMap::new();
                 these_exits.extend(

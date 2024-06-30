@@ -1,9 +1,8 @@
 use crate::c_ast::CDeclId;
-use crate::c_ast::*;
-use crate::diagnostics::TranslationResult;
+use crate::{c_ast::*, generic_err};
+use crate::diagnostics::{TranslationResult, TranslationError};
 use crate::renamer::*;
 use c2rust_ast_builder::{mk, properties::*};
-use failure::format_err;
 use std::collections::{HashMap, HashSet};
 use std::ops::Index;
 use syn::*;
@@ -340,7 +339,7 @@ impl TypeConverter {
             CTypeKind::Struct(decl_id) => {
                 let new_name = self
                     .resolve_decl_name(decl_id)
-                    .ok_or_else(|| format_err!("Unknown decl id {:?}", decl_id))?;
+                    .ok_or_else(|| generic_err!("Unknown decl id {:?}", decl_id))?;
                 Ok(mk().path_ty(mk().path(vec![new_name])))
             }
 
@@ -397,7 +396,7 @@ impl TypeConverter {
 
             CTypeKind::TypeOf(ty) => self.convert(ctxt, ty),
 
-            ref t => Err(format_err!("Unsupported type {:?}", t).into()),
+            ref t => Err(generic_err!("Unsupported type {:?}", t)),
         }
     }
 

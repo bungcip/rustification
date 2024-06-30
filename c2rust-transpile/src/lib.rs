@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 use std::process;
 
 use crate::compile_cmds::CompileCmd;
-use failure::Error;
+use anyhow::Error;
 use itertools::Itertools;
 use log::{info, warn};
 use regex::Regex;
