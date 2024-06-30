@@ -148,7 +148,7 @@ fn use_tree_with_prefix(prefix: Path, leaf: UseTree) -> UseTree {
 }
 
 fn punct<T, P: Default>(x: Vec<T>) -> Punctuated<T, P> {
-    Punctuated::from_iter(x.into_iter())
+    Punctuated::from_iter(x)
 }
 
 fn punct_box<T, P: Default>(x: Vec<Box<T>>) -> Punctuated<T, P> {
@@ -361,7 +361,7 @@ impl Make<TokenStream> for Vec<&str> {
                 first = false;
             }
 
-            tokens.push(TokenTree::Ident(Ident::new(&s, Span::call_site())));
+            tokens.push(TokenTree::Ident(Ident::new(s, Span::call_site())));
         }
         tokens.into_iter().collect::<TokenStream>()
     }
@@ -1255,7 +1255,7 @@ impl Builder {
     pub fn lit_pat(self, lit: Lit) -> Pat {
         Pat::Lit(PatLit {
             attrs: self.attrs,
-            lit: lit,
+            lit,
         })
     }
 
@@ -1414,12 +1414,6 @@ impl Builder {
         Box::new(Type::Macro(TypeMacro { mac }))
     }
 
-    pub fn cvar_args_ty(self) -> Box<Type> {
-        let dot = TokenTree::Punct(proc_macro2::Punct::new('.', proc_macro2::Spacing::Joint));
-        let dots = vec![dot.clone(), dot.clone(), dot];
-        Box::new(Type::Verbatim(TokenStream::from_iter(dots.into_iter())))
-    }
-
     // Stmts
 
     pub fn local_stmt(self, local: Box<Local>) -> Stmt {
@@ -1436,10 +1430,6 @@ impl Builder {
 
     pub fn item_stmt(self, item: Box<Item>) -> Stmt {
         Stmt::Item(*item)
-    }
-
-    pub fn mac_stmt(self, mac: Macro) -> Stmt {
-        self.semi_stmt(mk().mac_expr(mac))
     }
 
     // Items

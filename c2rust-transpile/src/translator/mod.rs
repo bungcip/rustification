@@ -4709,6 +4709,7 @@ impl<'c> Translation<'c> {
             // is already in the form `(x <op> y) as <ty>` where `<op>` is a Rust operator
             // that returns a boolean, we can simple output `x <op> y` or `!(x <op> y)`.
             if let Expr::Cast(ExprCast { expr: ref arg, .. }) = *unparen(&val) {
+                #[allow(clippy::collapsible_match)]
                 if let Expr::Binary(ExprBinary { op, .. }) = *unparen(arg) {
                     match op {
                         BinOp::Or(_)
@@ -4753,7 +4754,7 @@ impl<'c> Translation<'c> {
             } else {
                 mk().binary_expr(BinOp::Eq(Default::default()), val, zero)
             }
-        }
+        } 
     }
 
     pub fn with_scope<F, A>(&self, f: F) -> A

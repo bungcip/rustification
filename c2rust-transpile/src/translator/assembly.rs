@@ -17,17 +17,17 @@ enum ArgDirSpec {
     InLateOut,
 }
 
-impl ToString for ArgDirSpec {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for ArgDirSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use ArgDirSpec::*;
-        match self {
+        let text = match self {
             In => "in",
             Out => "out",
             InOut => "inout",
             LateOut => "lateout",
             InLateOut => "inlateout",
-        }
-        .to_owned()
+        };
+        write!(f, "{text}")
     }
 }
 
