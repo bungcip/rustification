@@ -156,7 +156,7 @@ impl RelooperState {
                 for val in vals {
                     flipped_map
                         .entry(val)
-                        .or_insert(IndexSet::new())
+                        .or_default()
                         .insert(lbl.clone());
                 }
             }
@@ -289,7 +289,7 @@ impl RelooperState {
 
             let mut closure: IndexMap<V, IndexSet<V>> = IndexMap::new();
             for (f, t) in edges {
-                closure.entry(f).or_insert(IndexSet::new()).insert(t);
+                closure.entry(f).or_default().insert(t);
             }
 
             closure
@@ -358,7 +358,7 @@ impl RelooperState {
             // Partition blocks into those belonging in or after the loop
             let (mut body_blocks, mut follow_blocks): (StructuredBlocks, StructuredBlocks) = blocks
                 .into_iter()
-                .partition(|&(ref lbl, _)| new_returns.contains(lbl) || entries.contains(lbl));
+                .partition(|(lbl, _)| new_returns.contains(lbl) || entries.contains(lbl));
             let mut follow_entries = out_edges(&body_blocks);
 
             // Try to match an existing loop (from the initial C)
@@ -433,7 +433,7 @@ impl RelooperState {
         for entry in &entries {
             reachable_from
                 .entry(entry.clone())
-                .or_insert(IndexSet::new())
+                .or_default()
                 .insert(entry.clone());
         }
 
@@ -442,7 +442,7 @@ impl RelooperState {
             reachable_from
                 .into_iter()
                 .map(|(lbl, reachable)| (lbl, &reachable & &entries.clone()))
-                .filter(|&(_, ref reachable)| reachable.len() == 1)
+                .filter(|(_, reachable)| reachable.len() == 1)
                 .collect(),
         );
 
@@ -459,9 +459,7 @@ impl RelooperState {
             .collect();
 
         let unhandled_entries: IndexSet<Label> = entries
-            .iter()
-            .cloned()
-            .filter(|e| !handled_entries.contains_key(e))
+            .iter().filter(|&e| !handled_entries.contains_key(e)).cloned()
             .collect();
 
         let mut handled_blocks: StructuredBlocks = IndexMap::new();
@@ -561,9 +559,9 @@ fn simplify_structure<Stmt: Clone>(structures: Vec<Structure<Stmt>>) -> Vec<Stru
             } => {
                 // Here, we ensure that all labels in a terminator are mentioned only once in the
                 // terminator.
-                let terminator: GenTerminator<StructureLabel<Stmt>> = if let &Switch {
-                    ref expr,
-                    ref cases,
+                let terminator: GenTerminator<StructureLabel<Stmt>> = if let Switch {
+                    expr,
+                    cases,
                 } = terminator
                 {
                     // Here, we group patterns by the label they go to.

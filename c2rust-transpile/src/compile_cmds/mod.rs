@@ -3,7 +3,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use anyhow::{Error};
+use anyhow::Error;
 use log::warn;
 use regex::Regex;
 use serde_derive::{Deserialize, Serialize};
@@ -180,7 +180,7 @@ pub fn get_compile_commands(
     let v: Vec<Rc<CompileCmd>> = serde_json::from_reader(f)?;
 
     // apply the filter argument, if any
-    let v = if let &Some(ref re) = filter {
+    let v = if let Some(re) = filter {
         v.into_iter()
             .filter(|c| re.is_match(c.file.to_str().unwrap()))
             .collect::<Vec<Rc<CompileCmd>>>()

@@ -263,7 +263,7 @@ pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]
 
     let build_dir = get_build_dir(&tcfg, cc_db);
 
-    let lcmds = get_compile_commands(&cc_db, &tcfg.filter).unwrap_or_else(|_| {
+    let lcmds = get_compile_commands(cc_db, &tcfg.filter).unwrap_or_else(|_| {
         panic!(
             "Could not parse compile commands from {}",
             cc_db.to_string_lossy()
@@ -330,7 +330,7 @@ pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]
                     cmd.abs_file(),
                     &ancestor_path,
                     &build_dir,
-                    &cc_db,
+                    cc_db,
                     &clang_args,
                 )
             })
@@ -416,7 +416,7 @@ fn get_extra_args_macos() -> Vec<String> {
         let usr_incl = Path::new("/usr/include");
         if !usr_incl.exists() {
             let output = process::Command::new("xcrun")
-                .args(&["--show-sdk-path"])
+                .args(["--show-sdk-path"])
                 .output()
                 .expect("failed to run `xcrun` subcommand");
             let mut sdk_path = String::from_utf8(output.stdout).unwrap();
@@ -451,7 +451,7 @@ fn reorganize_definitions(
     invoke_refactor(build_dir)?;
     // fix the formatting of the output of `c2rust-refactor`
     let status = process::Command::new("cargo")
-        .args(&["fmt"])
+        .args(["fmt"])
         .current_dir(build_dir)
         .status()?;
     if !status.success() {
@@ -591,7 +591,7 @@ fn get_output_path(
         // Create the parent directory if it doesn't exist
         let parent = output_path.parent().unwrap();
         if !parent.exists() {
-            fs::create_dir_all(&parent).unwrap_or_else(|_| {
+            fs::create_dir_all(parent).unwrap_or_else(|_| {
                 panic!("couldn't create source directory: {}", parent.display())
             });
         }

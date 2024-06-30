@@ -153,10 +153,6 @@ pub fn traverse_expr_def<W: Traversal>(walk: &mut W, e: Expr) -> Expr {
             expr: e.expr.traverse(walk),
             ..e
         }),
-        // Expr::Type(e) => Expr::Type(ExprType {
-        //     expr: e.expr.traverse(walk),
-        //     ..e
-        // }),
         Expr::Let(e) => Expr::Let(ExprLet {
             expr: e.expr.traverse(walk),
             ..e

@@ -98,7 +98,7 @@ macro_rules! generic_loc_err {
     ($loc:expr, $($arg:tt)*) => {
         Box::new(TranslationError {
             loc: if let Some(loc) = $loc { Some(vec![loc]) } else { None },
-            inner: crate::diagnostics::TranslationErrorKind::Generic,
+            inner: $crate::diagnostics::TranslationErrorKind::Generic,
             message: format!($($arg)*),
         })
     }
@@ -109,7 +109,7 @@ macro_rules! generic_err {
     ($message: literal) => {
         Box::new(TranslationError {
             loc: None,
-            inner: crate::diagnostics::TranslationErrorKind::Generic,
+            inner: $crate::diagnostics::TranslationErrorKind::Generic,
             message: $message.into(),
         })
     };
@@ -117,7 +117,7 @@ macro_rules! generic_err {
     ($($arg:tt)*) => {
         Box::new(TranslationError {
             loc: None,
-            inner: crate::diagnostics::TranslationErrorKind::Generic,
+            inner: $crate::diagnostics::TranslationErrorKind::Generic,
             message: format!($($arg)*),
         })
     }
@@ -128,7 +128,7 @@ macro_rules! clang_err {
     ($loc:expr, $kind:expr, $($arg:tt)*) => {
         Box::new(TranslationError {
             loc: if let Some(loc) = $loc { Some(vec![loc]) } else { None },
-            inner: crate::diagnostics::TranslationErrorKind::InvalidClangAst($kind),
+            inner: $crate::diagnostics::TranslationErrorKind::InvalidClangAst($kind),
             message: format!($($arg)*),
         })
     }
@@ -139,7 +139,7 @@ macro_rules! old_llvm_simd_err {
     ($loc:expr, $message: expr) => {
         Box::new(TranslationError {
             loc: if let Some(loc) = $loc { Some(vec![loc]) } else { None },
-            inner: crate::diagnostics::TranslationErrorKind::OldLLVMSimd,
+            inner: $crate::diagnostics::TranslationErrorKind::OldLLVMSimd,
             message: $message,
         })
     }
@@ -190,11 +190,7 @@ impl Display for TranslationError {
 
 impl TranslationError {
     pub fn new(loc: Option<DisplaySrcSpan>, inner: TranslationErrorKind, message: String) -> Self {
-        let loc = if let Some(loc) = loc {
-            Some(vec![loc])
-        } else {
-            None
-        };
+        let loc = loc.map(|loc| vec![loc]);
 
         Self {
             loc,

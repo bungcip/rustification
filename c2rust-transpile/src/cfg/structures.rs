@@ -264,8 +264,7 @@ fn structured_cfg_help<S: StructuredStatement<E = Box<Expr>, P = Pat, L = Label,
                             }
 
                             Err(
-                                generic_err!("Not a valid exit: {:?} has nothing to exit to", to)
-                                    .into(),
+                                generic_err!("Not a valid exit: {:?} has nothing to exit to", to),
                             )
                         }
 
@@ -273,8 +272,7 @@ fn structured_cfg_help<S: StructuredStatement<E = Box<Expr>, P = Pat, L = Label,
                             "Not a valid exit: {:?} (GoTo isn't falling through to {:?})",
                             to,
                             next
-                        )
-                        .into()),
+                        )),
                     }
                 };
 
@@ -287,7 +285,7 @@ fn structured_cfg_help<S: StructuredStatement<E = Box<Expr>, P = Pat, L = Label,
                         Switch { expr, cases } => {
                             let branched_cases = cases
                                 .iter()
-                                .map(|&(ref pat, ref slbl)| Ok((pat.clone(), branch(slbl)?)))
+                                .map(|(pat, slbl)| Ok((pat.clone(), branch(slbl)?)))
                                 .collect::<TranslationResult<_>>()?;
 
                             S::mk_match(expr.clone(), branched_cases)
