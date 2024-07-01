@@ -72,6 +72,7 @@ pub fn emit_build_files(
     build_dir: &Path,
     crate_cfg: Option<CrateConfig<'_>>,
     workspace_members: Option<Vec<String>>,
+    use_nightly: bool,
 ) -> Option<PathBuf> {
     let mut reg = Handlebars::new();
 
@@ -88,7 +89,7 @@ pub fn emit_build_files(
     }
 
     emit_cargo_toml(tcfg, &reg, build_dir, &crate_cfg, workspace_members);
-    if tcfg.translate_valist {
+    if tcfg.translate_valist || use_nightly {
         emit_rust_toolchain(tcfg, build_dir);
     }
     crate_cfg.and_then(|ccfg| {
@@ -259,10 +260,17 @@ fn emit_lib_rs(
 /// If we translate variadic functions, the output will only compile
 /// on a nightly toolchain until the `c_variadics` feature is stable.
 fn emit_rust_toolchain(tcfg: &TranspilerConfig, build_dir: &Path) {
-    // FIXME: create rust-toolchain.toml file with the correct version
+    let output = r#"
+    [toolchain]
+    channel = "nightly"
+    "#;
+
     let output_path = build_dir.join("rust-toolchain.toml");
-    let output = include_str!("../../rust-toolchain.toml").to_string();
-    maybe_write_to_file(&output_path, output, tcfg.overwrite_existing);
+    dbg!(maybe_write_to_file(
+        &output_path,
+        output.to_string(),
+        tcfg.overwrite_existing
+    ));
 }
 
 fn emit_cargo_toml(

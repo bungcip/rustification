@@ -40,7 +40,13 @@ use std::prelude::v1::Vec;
 type PragmaVec = Vec<(&'static str, Vec<&'static str>)>;
 type PragmaSet = indexmap::IndexSet<(&'static str, &'static str)>;
 type CrateSet = indexmap::IndexSet<ExternCrate>;
-type TranspileResult = Result<(PathBuf, PragmaVec, CrateSet), ()>;
+#[derive(PartialEq, Eq, Clone)]
+pub enum RustChannel {
+    Stable,
+    Nightly,
+}
+
+type TranspileResult = Result<(PathBuf, PragmaVec, CrateSet, RustChannel), ()>;
 
 /// Configuration settings for the translation process
 #[derive(Debug)]
@@ -279,6 +285,7 @@ pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]
     let mut workspace_members = vec![];
     let mut num_transpiled_files = 0;
     let mut transpiled_modules = Vec::new();
+    let mut use_nightly = false;
 
     for lcmd in &lcmds {
         let cmds = &lcmd.cmd_inputs;
@@ -341,7 +348,7 @@ pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]
         let mut crates = CrateSet::new();
         for res in results {
             match res {
-                Ok((module, pragma_vec, crate_set)) => {
+                Ok((module, pragma_vec, crate_set, channel)) => {
                     modules.push(module);
                     crates.extend(crate_set);
 
@@ -350,6 +357,10 @@ pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]
                         for val in vals {
                             pragmas.insert((key, val));
                         }
+                    }
+
+                    if channel == RustChannel::Nightly {
+                        use_nightly = true;
                     }
                 }
                 Err(_) => {
@@ -379,7 +390,7 @@ pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]
             if lcmd.top_level {
                 top_level_ccfg = Some(ccfg);
             } else {
-                let crate_file = emit_build_files(&tcfg, &build_dir, Some(ccfg), None);
+                let crate_file = emit_build_files(&tcfg, &build_dir, Some(ccfg), None, use_nightly);
                 reorganize_definitions(&tcfg, &build_dir, crate_file)
                     .unwrap_or_else(|e| warn!("Reorganizing definitions failed: {}", e));
                 workspace_members.push(lcmd_name);
@@ -394,7 +405,7 @@ pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]
 
     if tcfg.emit_build_files {
         let crate_file =
-            emit_build_files(&tcfg, &build_dir, top_level_ccfg, Some(workspace_members));
+            emit_build_files(&tcfg, &build_dir, top_level_ccfg, Some(workspace_members), use_nightly);
         reorganize_definitions(&tcfg, &build_dir, crate_file)
             .unwrap_or_else(|e| warn!("Reorganizing definitions failed: {}", e));
     }
@@ -532,7 +543,7 @@ fn transpile_single(
     }
 
     // Perform the translation
-    let (translated_string, pragmas, crates) =
+    let (translated_string, pragmas, crates, channel) =
         translator::translate(typed_context, tcfg, input_path);
 
     let mut file = match File::create(&output_path) {
@@ -553,7 +564,7 @@ fn transpile_single(
         ),
     };
 
-    Ok((output_path, pragmas, crates))
+    Ok((output_path, pragmas, crates, channel))
 }
 
 fn get_output_path(
