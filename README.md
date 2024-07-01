@@ -36,8 +36,8 @@ The manual is still a work-in-progress, so if you can't find something please le
 
 ### Prerequisites
 
-C2Rust requires LLVM 7 or later with its corresponding clang compiler and libraries.
-Python 3.6 or later, CMake 3.4.3 or later, and openssl (1.0) are also required. These prerequisites may be installed with the following commands, depending on your platform:
+C2Rust requires LLVM 16 or later with its corresponding clang compiler and libraries.
+Python 3.6 or later, CMake 3.9.1 or later, and openssl (1.0) are also required. These prerequisites may be installed with the following commands, depending on your platform:
 
 - **Ubuntu 18.04, Debian 10, and later:**
 
@@ -81,7 +81,7 @@ You can also set the LLVM version explicitly if you have multiple installed,
 like this, for example:
 
 ```sh
-LLVM_CONFIG_PATH=llvm-config-14 cargo install c2rust
+LLVM_CONFIG_PATH=llvm-config-16 cargo install c2rust
 ```
 
 On macOS with Homebrew LLVM, you need to point the build system at the LLVM installation. The path for the installation is architecture dependent:

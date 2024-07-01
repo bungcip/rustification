@@ -22,7 +22,7 @@ Then run `./scripts/provision_mac.sh`.
   - `gperf`
   - `ninja`
   - `unzip`
-  - `clang` >= 7
+  - `clang` >= 16
   - `intercept-build` or `bear` ([see why here](../README.md#generating-compilecommandsjson-files))
   - `python-dev`
   - `python` >= 3.6
@@ -34,7 +34,7 @@ Then run `./scripts/provision_mac.sh`.
 ## Building with system LLVM libraries
 
 The quickest way to build the C2Rust transpiler
-is with LLVM and clang system libraries (LLVM/clang >= 7 are currently supported).
+is with LLVM and clang system libraries (LLVM/clang >= 16 are currently supported).
 If you have `libLLVM.so` and the `libclang` libraries (`libclangAST.a`, `libclangTooling.a`, etc. or their shared variants) installed,
 you can build the transpiler with:
 

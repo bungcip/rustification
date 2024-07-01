@@ -9,7 +9,6 @@ use std::str::FromStr;
 use strum_macros::{Display, EnumString};
 
 use crate::c_ast::{ClangAstParseErrorKind, DisplaySrcSpan};
-use c2rust_ast_exporter::get_clang_major_version;
 
 const DEFAULT_WARNINGS: &[Diagnostic] = &[Diagnostic::ClangAst];
 
@@ -82,9 +81,6 @@ pub type TranslationResult<T> = Result<T, Box<TranslationError>>;
 pub enum TranslationErrorKind {
     Generic,
 
-    // Not enough simd intrinsics are available in LLVM < 7
-    OldLLVMSimd,
-
     // We are waiting for va_copy support to land in rustc
     VaCopyNotImplemented,
 
@@ -134,33 +130,12 @@ macro_rules! clang_err {
     }
 }
 
-#[macro_export]
-macro_rules! old_llvm_simd_err {
-    ($loc:expr, $message: expr) => {
-        Box::new(TranslationError {
-            loc: if let Some(loc) = $loc {
-                Some(vec![loc])
-            } else {
-                None
-            },
-            inner: $crate::diagnostics::TranslationErrorKind::OldLLVMSimd,
-            message: $message,
-        })
-    };
-}
 
 impl Display for TranslationErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::TranslationErrorKind::*;
         match self {
             Generic => {}
-            OldLLVMSimd => {
-                if let Some(version) = get_clang_major_version() {
-                    if version < 7 {
-                        return write!(f, "SIMD intrinsics require LLVM 7 or newer. Please build C2Rust against a newer LLVM version.");
-                    }
-                }
-            }
 
             VaCopyNotImplemented => {
                 return write!(f, "Rust does not yet support a C-compatible va_copy which is required to translate this function. See https://github.com/rust-lang/rust/pull/59625");

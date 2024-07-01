@@ -31,7 +31,7 @@ use crate::convert_type::TypeConverter;
 use crate::renamer::Renamer;
 use crate::with_stmts::WithStmts;
 use crate::{c_ast, generic_loc_err};
-use crate::{c_ast::*, generic_err, old_llvm_simd_err, RustChannel};
+use crate::{c_ast::*, generic_err, RustChannel};
 use crate::{ExternCrate, ExternCrateDetails, TranspilerConfig};
 use c2rust_ast_exporter::clang_ast::LRValue;
 
@@ -3217,7 +3217,7 @@ impl<'c> Translation<'c> {
             BadExpr => Err(generic_err!("convert_expr: expression kind not supported")),
             ShuffleVector(_, ref child_expr_ids) => self
                 .convert_shuffle_vector(ctx, child_expr_ids)
-                .map_err(|e| old_llvm_simd_err!(self.ast_context.display_loc(src_loc), e.message)),
+                .map_err(|e| generic_loc_err!(self.ast_context.display_loc(src_loc), "{}", e.message)),
             ConvertVector(..) => Err(generic_err!("convert vector not supported")),
 
             UnaryType(_ty, kind, opt_expr, arg_ty) => {
@@ -3573,9 +3573,9 @@ impl<'c> Translation<'c> {
                     .kind
                     .is_vector()
                 {
-                    return Err(old_llvm_simd_err!(
+                    return Err(generic_loc_err!(
                         self.ast_context.display_loc(src_loc),
-                        "Attempting to index a vector type".into()
+                        "Attempting to index a vector type"
                     ));
                 }
 

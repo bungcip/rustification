@@ -182,6 +182,7 @@ fn build_native(llvm_info: &LLVMInfo) {
             "clangFrontend",
             "clangParse",
             "clangSema",
+            "clangSupport",
             "clangAnalysis",
             "clangASTMatchers",
             "clangSerialization",
@@ -194,11 +195,6 @@ fn build_native(llvm_info: &LLVMInfo) {
             "clangLex",
             "clangBasic",
         ];
-        if llvm_info.llvm_major_version >= 15 {
-            // insert after clangSema
-            let sema_pos = clang_libs.iter().position(|&r| r == "clangSema").unwrap();
-            clang_libs.insert(sema_pos + 1, "clangSupport");
-        }
         if llvm_info.llvm_major_version >= 18 {
             // insert after clangSupport
             let sema_pos = clang_libs
@@ -350,7 +346,7 @@ impl LLVMInfo {
         };
 
         // Construct the list of libs we need to link against
-        let mut args = vec![
+        let args = vec![
             "--libs",
             link_mode,
             "MC",
@@ -361,13 +357,9 @@ impl LLVMInfo {
             "ProfileData",
             "BinaryFormat",
             "Core",
+            "FrontendOpenMP",
+            "WindowsDriver",
         ];
-        if llvm_major_version >= 10 {
-            args.push("FrontendOpenMP");
-        }
-        if llvm_major_version >= 15 {
-            args.push("WindowsDriver");
-        }
 
         let mut libs: Vec<String> = invoke_command(llvm_config.as_deref(), &args)
             .unwrap_or_else(|| "-lLLVM".to_string())

@@ -266,9 +266,7 @@ def _parse_args() -> argparse.Namespace:
                         help='build clang with this tool')
     llvm_ver_help = 'fetch and build specified version of clang/LLVM (default: {})'.format(c.LLVM_VER)
     # FIXME: build this list by globbing for scripts/llvm-*.0.*-key.asc
-    llvm_ver_choices = ["6.0.0", "6.0.1", "7.0.0", "7.0.1", "8.0.0", "9.0.0",
-        "10.0.0", "10.0.1", "11.0.0", "11.1.0", "12.0.0", "15.0.1", "16.0.6",
-        "17.0.6", "18.1.1"]
+    llvm_ver_choices = ["16.0.6", "17.0.6", "18.1.1"]
     parser.add_argument('--with-llvm-version', default=None,
                         action='store', dest='llvm_ver',
                         help=llvm_ver_help, choices=llvm_ver_choices)

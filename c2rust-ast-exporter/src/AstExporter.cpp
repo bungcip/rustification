@@ -25,11 +25,7 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
-#if CLANG_VERSION_MAJOR < 10
-#include "clang/Frontend/LangStandard.h"
-#else
 #include "clang/Basic/LangStandard.h"
-#endif // CLANG_VERSION_MAJOR < 10
 #include "clang/Tooling/Tooling.h"
 
 #include "AstExporter.hpp"
@@ -87,15 +83,7 @@ std::string make_realpath(std::string const &path) {
 // Helper to smooth out differences between versions of clang
 #if CLANG_VERSION_MAJOR < 17
 Optional<APSInt> getIntegerConstantExpr(const Expr &E, const ASTContext &Ctx) {
-#if CLANG_VERSION_MAJOR < 12
-    APSInt value;
-    if (E.isIntegerConstantExpr(value, Ctx))
-        return {value};
-    else
-        return Optional<APSInt>();
-#else
     return E.getIntegerConstantExpr(Ctx);
-#endif // CLANG_VERSION_MAJOR
 }
 #else
 #include <optional>
@@ -221,27 +209,15 @@ class TypeEncoder final : public TypeVisitor<TypeEncoder> {
             switch (k) {
             default: tag = nullptr; break;
 
-#if CLANG_VERSION_MAJOR < 8
-            case AttributedType::attr_noreturn:
-#else
             case attr::NoReturn:
-#endif // CLANG_VERSION_MAJOR
                 tag = "noreturn";
                 break;
 
-#if CLANG_VERSION_MAJOR < 8
-            case AttributedType::attr_nonnull:
-#else
             case attr::TypeNonNull:
-#endif // CLANG_VERSION_MAJOR
                 tag = "notnull";
                 break;
 
-#if CLANG_VERSION_MAJOR < 8
-            case AttributedType::attr_nullable:
-#else
             case attr::TypeNullable:
-#endif // CLANG_VERSION_MAJOR
                 tag = "nullable";
                 break;
             }
@@ -329,52 +305,20 @@ class TypeEncoder final : public TypeVisitor<TypeEncoder> {
     void VisitBuiltinType(const BuiltinType *T) {
         auto kind = T->getKind();
 
-#if CLANG_VERSION_MAJOR >= 10
+
         // Handle built-in vector types as if they're normal vector types
         if (kind >= BuiltinType::SveInt8 && kind <= BuiltinType::SveBool
-#if CLANG_VERSION_MAJOR >= 13
             /* RISC-V vector types */
             || kind >= BuiltinType::RvvInt8mf8 && kind <= BuiltinType::RvvBool64
-#endif // CLANG_VERSION_MAJOR >= 13
             ) {
 // Declare ElemType and ElemCount as needed by various Clang versions
-#if CLANG_VERSION_MAJOR >= 11
+
             auto Info = Context->getBuiltinVectorTypeInfo(T);
             auto ElemType = Info.ElementType;
 
-#if CLANG_VERSION_MAJOR >= 12
             auto ElemCount = Info.EC.getKnownMinValue() * Info.NumVectors;
-#else // CLANG_VERSION_MAJOR >= 12
-            // getKnownMinValue was added in Clang 12.
-            auto ElemCount = Info.EC.Min * Info.NumVectors;
-#endif // CLANG_VERSION_MAJOR >= 12
-#else // CLANG_VERSION_MAJOR >= 11
-            auto &Ctx = *Context;
-            // Copy-pasted from Type::getSveEltType introduced after Clang 10:
-            // (Not extended for RISCV types
-            // as they are not available in that version anyway).
-            auto ElemType = [&] {
-                switch (kind) {
-                default: llvm_unreachable("Unknown builtin SVE type!");
-                case BuiltinType::SveInt8: return Ctx.SignedCharTy;
-                case BuiltinType::SveUint8: return Ctx.UnsignedCharTy;
-                case BuiltinType::SveBool: return Ctx.UnsignedCharTy;
-                case BuiltinType::SveInt16: return Ctx.ShortTy;
-                case BuiltinType::SveUint16: return Ctx.UnsignedShortTy;
-                case BuiltinType::SveInt32: return Ctx.IntTy;
-                case BuiltinType::SveUint32: return Ctx.UnsignedIntTy;
-                case BuiltinType::SveInt64: return Ctx.LongTy;
-                case BuiltinType::SveUint64: return Ctx.UnsignedLongTy;
-                case BuiltinType::SveFloat16: return Ctx.Float16Ty;
-                case BuiltinType::SveFloat32: return Ctx.FloatTy;
-                case BuiltinType::SveFloat64: return Ctx.DoubleTy;
-                }
-            }();
-            // All the SVE types present in Clang 10 are 128-bit vectors
-            // (see `AArch64SVEACLETypes.def`), so we can divide 128
-            // by their element size to get element count.
-            auto ElemCount = 128 / Context->getTypeSize(ElemType);
-#endif // CLANG_VERSION_MAJOR >= 11
+
+
             auto ElemTypeTag = encodeQualType(ElemType);
             encodeType(T, TagVectorType,
                        [&](CborEncoder *local) {
@@ -385,7 +329,7 @@ class TypeEncoder final : public TypeVisitor<TypeEncoder> {
             VisitQualType(ElemType);
             return;
         }
-#endif // CLANG_VERSION_MAJOR >= 10
+
 
         const TypeTag tag = [&] {
             switch (kind) {
@@ -404,9 +348,7 @@ class TypeEncoder final : public TypeVisitor<TypeEncoder> {
             // built-in to normal vector types.
             case BuiltinType::Float16: return TagHalf;
             case BuiltinType::Half: return TagHalf;
-#if CLANG_VERSION_MAJOR >= 11
             case BuiltinType::BFloat16: return TagBFloat16;
-#endif
             case BuiltinType::Float: return TagFloat;
             case BuiltinType::Double: return TagDouble;
             case BuiltinType::LongDouble: return TagLongDouble;
@@ -596,17 +538,9 @@ class TranslateASTVisitor final
             constant = *value;
             return true;
         } else {
-#if CLANG_VERSION_MAJOR < 8
-            APSInt eval_result;
-#else
             Expr::EvalResult eval_result;
-#endif // CLANG_VERSION_MAJOR
             bool hasValue = E->EvaluateAsInt(eval_result, *Context);
-#if CLANG_VERSION_MAJOR < 8
-            constant = eval_result;
-#else
             constant = eval_result.Val.getInt();
-#endif // CLANG_VERSION_MAJOR
             return hasValue;
         }
     }
@@ -692,12 +626,8 @@ class TranslateASTVisitor final
         auto ty = ast->getType();
         auto isVaList = false;
         auto encodeMacroExpansions = true;
-#if CLANG_VERSION_MAJOR < 13
-        bool isRValue = ast->isRValue();
-#else
         assert(Context && "Expected Context to be non-NULL");
         bool isRValue = ast->Classify(*Context).isRValue();
-#endif
         encode_entry_raw(ast, tag, ast->getSourceRange(), ty, isRValue, isVaList,
                          encodeMacroExpansions, childIds, extra);
         typeEncoder.VisitQualType(ty);
@@ -1234,15 +1164,7 @@ class TranslateASTVisitor final
             return true;
 
         if (Begin.isMacroID()) {
-#if CLANG_VERSION_MAJOR < 7
-            // getImmediateExpansionRange in LLVM<7 returns a
-            // std::pair<SourceLocation, SourceLocation>, which we need to
-            // translate to a CharSourceRange for Lexer::getSourceText
-            auto LocPair = Mgr.getImmediateExpansionRange(Begin);
-            auto ExpansionRange = CharSourceRange::getCharRange(LocPair.first, LocPair.second);
-#else // CLANG_VERSION_MAJOR >= 7
             auto ExpansionRange = Mgr.getImmediateExpansionRange(Begin);
-#endif
             curMacroExpansionSource =
                 Lexer::getSourceText(ExpansionRange, Mgr, Context->getLangOpts());
         }
@@ -1251,15 +1173,9 @@ class TranslateASTVisitor final
         // starts with literal replacement and works it's way to the macro call
         // that was replaced.
         while (Begin.isMacroID()) {
-#if CLANG_VERSION_MAJOR < 7
-            auto ExpansionRange = Mgr.getImmediateExpansionRange(Begin);
-            auto ExpansionBegin = ExpansionRange.first;
-            auto ExpansionEnd = ExpansionRange.second;
-#else // CLANG_VERSION_MAJOR >= 7
             auto ExpansionRange = Mgr.getImmediateExpansionRange(Begin).getAsRange();
             auto ExpansionBegin = ExpansionRange.getBegin();
             auto ExpansionEnd = ExpansionRange.getEnd();
-#endif
             StringRef name;
             MacroInfo *mac = getMacroInfo(ExpansionBegin, name);
 
@@ -1317,7 +1233,7 @@ class TranslateASTVisitor final
                 case UETT_OpenMPRequiredSimdAlign:
                     cbor_encode_text_stringz(extras, "openmprequiredsimdalign");
                     break;
-#if CLANG_VERSION_MAJOR >= 8
+
                 case UETT_PreferredAlignOf: {
                     // This is GCC's `__alignof` intrinsic. To match its
                     // behavior, we only want to use preferred alignment if
@@ -1346,7 +1262,7 @@ class TranslateASTVisitor final
                         cbor_encode_text_stringz(extras, "alignof");
                     break;
                 }
-#endif // CLANG_VERSION_MAJOR
+
                 default:
                     this->printError("Could not match UnaryExprOrTypeTrait", E);
                     abort();
@@ -1575,13 +1491,11 @@ class TranslateASTVisitor final
             ICE, TagImplicitCastExpr, childIds, [ICE](CborEncoder *array) {
                 auto cast_name = ICE->getCastKindName();
 
-#if CLANG_VERSION_MAJOR < 8
-                if (ICE->getCastKind() == CastKind::CK_BitCast) {
-#else  // Incompatible const qualifier pointer casts are now NoOp casts if they
+
+       // Incompatible const qualifier pointer casts are now NoOp casts if they
        // are in the same namespace. See Sema::CheckAssignmentConstraints
        // (SemaExpr.cpp:7951)
                 if (ICE->getCastKind() == CastKind::CK_NoOp) {
-#endif // CLANG_VERSION_MAJOR
                     auto source_type = ICE->getSubExpr()->getType();
                     auto target_type = ICE->getType();
 
@@ -1736,7 +1650,7 @@ class TranslateASTVisitor final
         return true;
     }
 
-#if CLANG_VERSION_MAJOR >= 8
+
     bool VisitConstantExpr(ConstantExpr *E) {
         auto children = E->children();
         std::vector<void *> childIds(std::begin(children), std::end(children));
@@ -1759,7 +1673,7 @@ class TranslateASTVisitor final
 
         return true;
     }
-#endif // CLANG_VERSION_MAJOR
+
 
     bool VisitAtomicExpr(AtomicExpr *E) {
         auto children = E->children();
@@ -2304,10 +2218,8 @@ class TranslateASTVisitor final
             switch (SL->getKind()) {
 #if CLANG_VERSION_MAJOR >= 18
             case clang::StringLiteralKind::Ordinary:
-#elif CLANG_VERSION_MAJOR >= 15
-            case clang::StringLiteral::StringKind::Ordinary:
 #else
-            case clang::StringLiteral::StringKind::Ascii:
+            case clang::StringLiteral::StringKind::Ordinary:
 #endif // CLANG_VERSION_MAJOR
                 cbor_encode_uint(array, StringTypeTag::TagAscii);
                 break;
@@ -2448,11 +2360,7 @@ class TranslateASTVisitor final
     }
 
     void printError(std::string Message, Stmt *S) {
-#if CLANG_VERSION_MAJOR < 8
-        SourceLocation loc = S->getLocStart();
-#else
         SourceLocation loc = S->getBeginLoc();
-#endif // CLANG_VERSION_MAJOR
         auto DiagBuilder = getDiagBuilder(loc, DiagnosticsEngine::Error);
         DiagBuilder.AddString(Message);
         DiagBuilder.AddSourceRange(
@@ -2618,24 +2526,6 @@ class TranslateConsumer : public clang::ASTConsumer {
             // Getting all comments requires -fparse-all-comments (see
             // augment_argv())!
             const SourceManager& sourceMgr = Context.getSourceManager();
-#if CLANG_VERSION_MAJOR < 10
-            auto comments = Context.getRawCommentList().getComments();
-            cbor_encoder_create_array(&outer, &array, comments.size());
-            for (auto comment : comments) {
-                CborEncoder entry;
-                cbor_encoder_create_array(&array, &entry, 4);
-#if CLANG_VERSION_MAJOR < 8
-                SourceLocation loc = comment->getLocStart();
-#else // 7 < CLANG_VERSION_MAJOR < 10
-                SourceLocation loc = comment->getBeginLoc();
-#endif // CLANG_VERSION_MAJOR < 8
-                visitor.encodeSourcePos(&entry, loc); // emits 3 values
-                auto raw_text = comment->getRawText(sourceMgr);
-                cbor_encode_byte_string(&entry, raw_text.bytes_begin(),
-                                        raw_text.size());
-                cbor_encoder_close_container(&array, &entry);
-            }
-#else  // CLANG_VERSION_MAJOR >= 10
             const FileID file = sourceMgr.getMainFileID();
             auto comments = Context.Comments.getCommentsInFile(file);
             if (comments != nullptr) {
@@ -2654,7 +2544,6 @@ class TranslateConsumer : public clang::ASTConsumer {
                 // this happens when the C file contains no comments
                 cbor_encoder_create_array(&outer, &array, 0);
             }
-#endif // CLANG_VERSION_MAJOR >= 10
             cbor_encoder_close_container(&outer, &array);
 
             // 5. Target VaList type as BuiltinVaListKind
@@ -2694,11 +2583,7 @@ class TranslateAction : public clang::ASTFrontendAction {
     CreateASTConsumer(clang::CompilerInstance &Compiler,
                       llvm::StringRef InFile) {
 
-#if CLANG_VERSION_MAJOR < 10
-        const InputKind::Language lang_c = InputKind::Language::C;
-#else
         const Language lang_c = Language::C;
-#endif // CLANG_VERSION_MAJOR
         if (this->getCurrentFileKind().getLanguage() != lang_c) {
             return nullptr;
         }
@@ -2763,15 +2648,9 @@ class MyFrontendActionFactory : public FrontendActionFactory {
   public:
     MyFrontendActionFactory(Outputs *outputs) : outputs(outputs) {}
 
-#if CLANG_VERSION_MAJOR < 10
-    clang::FrontendAction *create() override {
-        return new TranslateAction(outputs);
-    }
-#else
     std::unique_ptr<FrontendAction> create() override {
         return std::make_unique<TranslateAction>(outputs);
     }
-#endif // CLANG_VERSION_MAJOR
 };
 
 // Marshal the output map into something easy to manipulate in Rust
@@ -2805,9 +2684,6 @@ Outputs process(int argc, const char *argv[], int *result) {
     auto argv_ = augment_argv(argc, argv);
     int argc_ = argv_.size() - 1; // ignore the extra nullptr
 
-#if CLANG_VERSION_MAJOR < 13
-    CommonOptionsParser OptionsParser(argc_, argv_.data(), MyToolCategory);
-#else
     Expected<CommonOptionsParser> parseResult =
         CommonOptionsParser::create(argc_, argv_.data(), MyToolCategory);
     if (auto err = parseResult.takeError()) {
@@ -2815,7 +2691,6 @@ Outputs process(int argc, const char *argv[], int *result) {
         assert(0 && "Failed to parse command line options");
     }
     CommonOptionsParser& OptionsParser = *parseResult;
-#endif
 
     // the logic below assumes we're only translating one source file
     static size_t source_path_count = 0;

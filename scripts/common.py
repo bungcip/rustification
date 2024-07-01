@@ -66,14 +66,8 @@ class Config:
 
     CBOR_PREFIX = os.path.join(BUILD_DIR, "tinycbor")
 
-    LLVM_VER = "7.0.0"
+    LLVM_VER = "16.0.0"
     LLVM_ARCHIVE_URLS = None  # initialized by _init_llvm_ver_deps
-    OLD_LLVM_ARCHIVE_URLS = [
-        'http://releases.llvm.org/{ver}/llvm-{ver}.src.tar.xz',
-        'http://releases.llvm.org/{ver}/cfe-{ver}.src.tar.xz',
-        'http://releases.llvm.org/{ver}/compiler-rt-{ver}.src.tar.xz',
-        # 'http://releases.llvm.org/{ver}/clang-tools-extra-{ver}.src.tar.xz',
-    ]
     # Since LLVM version 10, sources have been hosted on Github.
     GITHUB_LLVM_ARCHIVE_URLS = [
         'https://github.com/llvm/llvm-project/releases/download/llvmorg-{ver}/llvm-{ver}.src.tar.xz',
@@ -81,7 +75,7 @@ class Config:
         'https://github.com/llvm/llvm-project/releases/download/llvmorg-{ver}/compiler-rt-{ver}.src.tar.xz',
         # 'https://github.com/llvm/llvm-project/releases/download/llvmorg-{ver}/clang-tools-extra-{ver}.src.tar.xz',
     ]
-    # See http://releases.llvm.org/download.html#7.0.0
+    # See http://releases.llvm.org/download.html#16.0.0
     LLVM_PUBKEY = "scripts/llvm-{ver}-key.asc".format(ver=LLVM_VER)
     LLVM_PUBKEY = os.path.join(ROOT_DIR, LLVM_PUBKEY)
     LLVM_SRC = os.path.join(BUILD_DIR, 'llvm-{ver}/src'.format(ver=LLVM_VER))
@@ -111,20 +105,11 @@ class Config:
             (major, _, _) = self.LLVM_VER.split(".")
             return int(major) >= test_ver
 
-        def use_github_archive_urls() -> bool:
-            try:
-                return llvm_major_ver_ge(10)
-            except ValueError:
-                emsg = "invalid LLVM version: {}".format(self.LLVM_VER)
-                raise ValueError(emsg)
-
-        urls = self.GITHUB_LLVM_ARCHIVE_URLS if use_github_archive_urls() \
-            else self.OLD_LLVM_ARCHIVE_URLS
+        urls = self.GITHUB_LLVM_ARCHIVE_URLS
         # LLVM 15 and later distributes cmake files in a separate archive
-        if llvm_major_ver_ge(15):
-            urls.append(
-                'https://github.com/llvm/llvm-project/releases/download/llvmorg-{ver}/cmake-{ver}.src.tar.xz',
-            )
+        urls.append(
+            'https://github.com/llvm/llvm-project/releases/download/llvmorg-{ver}/cmake-{ver}.src.tar.xz',
+        )
         self.LLVM_ARCHIVE_URLS = [u.format(ver=self.LLVM_VER) for u in urls]
         self.LLVM_SIGNATURE_URLS = [s + ".sig" for s in self.LLVM_ARCHIVE_URLS]
         self.LLVM_ARCHIVE_FILES = [os.path.basename(s)
