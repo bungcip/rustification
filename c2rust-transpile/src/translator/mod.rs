@@ -879,7 +879,6 @@ pub fn translate(
 
         // use nightly if translation has feature gate
         let channel = if t.features.borrow().len() > 0 {
-            println!("pakai nightly");
             RustChannel::Nightly
         } else {
             RustChannel::Stable
