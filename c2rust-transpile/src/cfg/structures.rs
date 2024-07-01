@@ -264,9 +264,10 @@ fn structured_cfg_help<S: StructuredStatement<E = Box<Expr>, P = Pat, L = Label,
                                 immediate = false;
                             }
 
-                            Err(
-                                generic_err!("Not a valid exit: {:?} has nothing to exit to", to),
-                            )
+                            Err(generic_err!(
+                                "Not a valid exit: {:?} has nothing to exit to",
+                                to
+                            ))
                         }
 
                         GoTo(to) => Err(generic_err!(

@@ -21,7 +21,6 @@ use crate::diagnostics::TranslationResult;
 use crate::rust_ast::SpanExt;
 use c2rust_ast_printer::pprust;
 use proc_macro2::Span;
-use syn::Lit;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::BTreeSet;
 use std::fs::File;
@@ -31,6 +30,7 @@ use std::io;
 use std::io::Write;
 use std::ops::Deref;
 use std::ops::Index;
+use syn::Lit;
 use syn::{spanned::Spanned, Arm, Expr, Pat, Stmt};
 
 use indexmap::indexset;
@@ -41,9 +41,9 @@ use serde::ser::{
 };
 use serde_json;
 
-use crate::{c_ast::*, generic_err};
 use crate::translator::*;
 use crate::with_stmts::WithStmts;
+use crate::{c_ast::*, generic_err};
 use c2rust_ast_builder::mk;
 
 mod inc_cleanup;
@@ -579,10 +579,7 @@ impl Cfg<Label, StmtOrDecl> {
                 _ => None,
             })
         {
-            c_label_to_goto
-                .entry(target)
-                .or_default()
-                .insert(x);
+            c_label_to_goto.entry(target).or_default().insert(x);
         }
 
         let mut cfg_builder = CfgBuilder::new(c_label_to_goto);
@@ -1030,10 +1027,10 @@ impl DeclStmtStore {
     /// Extract _just_ the Rust statements for a declaration (without initialization). Used when you
     /// want to move just a declaration to a larger scope.
     pub fn extract_decl(&mut self, decl_id: CDeclId) -> TranslationResult<Vec<Stmt>> {
-        let DeclStmtInfo { decl, assign, .. } = self
-            .store
-            .swap_remove(&decl_id)
-            .ok_or_else(|| generic_err!("Cannot find information on declaration 1 {:?}", decl_id))?;
+        let DeclStmtInfo { decl, assign, .. } =
+            self.store.swap_remove(&decl_id).ok_or_else(|| {
+                generic_err!("Cannot find information on declaration 1 {:?}", decl_id)
+            })?;
 
         let decl: Vec<Stmt> = decl.ok_or_else(|| {
             generic_err!("Declaration for {:?} has already been extracted", decl_id)
@@ -1077,10 +1074,9 @@ impl DeclStmtStore {
     pub fn extract_decl_and_assign(&mut self, decl_id: CDeclId) -> TranslationResult<Vec<Stmt>> {
         let DeclStmtInfo {
             decl_and_assign, ..
-        } = self
-            .store
-            .swap_remove(&decl_id)
-            .ok_or_else(|| generic_err!("Cannot find information on declaration 3 {:?}", decl_id))?;
+        } = self.store.swap_remove(&decl_id).ok_or_else(|| {
+            generic_err!("Cannot find information on declaration 3 {:?}", decl_id)
+        })?;
 
         let decl_and_assign: Vec<Stmt> = decl_and_assign.ok_or_else(|| {
             generic_err!(
@@ -1102,12 +1098,10 @@ impl DeclStmtStore {
     /// Extract the Rust statements for the full declaration and initializers. DEBUGGING ONLY.
     pub fn peek_decl_and_assign(&self, decl_id: CDeclId) -> TranslationResult<Vec<Stmt>> {
         let DeclStmtInfo {
-            decl_and_assign,
-            ..
-        } = self
-            .store
-            .get(&decl_id)
-            .ok_or_else(|| generic_err!("Cannot find information on declaration 4 {:?}", decl_id))?;
+            decl_and_assign, ..
+        } = self.store.get(&decl_id).ok_or_else(|| {
+            generic_err!("Cannot find information on declaration 4 {:?}", decl_id)
+        })?;
 
         let decl_and_assign: Vec<Stmt> = decl_and_assign.clone().ok_or_else(|| {
             generic_err!(

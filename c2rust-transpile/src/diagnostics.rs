@@ -138,20 +138,22 @@ macro_rules! clang_err {
 macro_rules! old_llvm_simd_err {
     ($loc:expr, $message: expr) => {
         Box::new(TranslationError {
-            loc: if let Some(loc) = $loc { Some(vec![loc]) } else { None },
+            loc: if let Some(loc) = $loc {
+                Some(vec![loc])
+            } else {
+                None
+            },
             inner: $crate::diagnostics::TranslationErrorKind::OldLLVMSimd,
             message: $message,
         })
-    }
+    };
 }
-
-
 
 impl Display for TranslationErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::TranslationErrorKind::*;
         match self {
-            Generic => {},
+            Generic => {}
             OldLLVMSimd => {
                 if let Some(version) = get_clang_major_version() {
                     if version < 7 {
@@ -178,7 +180,7 @@ impl Display for TranslationError {
             TranslationErrorKind::Generic => {}
             ref kind => writeln!(f, "{}", kind)?,
         }
-        
+
         if let Some(loc) = &self.loc {
             for item in loc {
                 writeln!(f, "{} {}", "-->".blue(), item)?;

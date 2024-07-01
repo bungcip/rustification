@@ -26,12 +26,12 @@ use c2rust_ast_builder::{mk, properties::*, Builder};
 use c2rust_ast_printer::pprust::{self};
 
 use crate::c_ast::iterators::{DFExpr, SomeId};
-use crate::{c_ast::*, generic_err, old_llvm_simd_err};
 use crate::cfg;
 use crate::convert_type::TypeConverter;
 use crate::renamer::Renamer;
 use crate::with_stmts::WithStmts;
 use crate::{c_ast, generic_loc_err};
+use crate::{c_ast::*, generic_err, old_llvm_simd_err, RustChannel};
 use crate::{ExternCrate, ExternCrateDetails, TranspilerConfig};
 use c2rust_ast_exporter::clang_ast::LRValue;
 
@@ -359,9 +359,12 @@ fn vec_expr(val: Box<Expr>, count: Box<Expr>) -> Box<Expr> {
 pub fn stmts_block(mut stmts: Vec<Stmt>) -> Block {
     match stmts.pop() {
         None => {}
-        Some(Stmt::Expr(Expr::Block(ExprBlock {
-            block, label: None, ..
-        }), _semi)) if stmts.is_empty() => return block,
+        Some(Stmt::Expr(
+            Expr::Block(ExprBlock {
+                block, label: None, ..
+            }),
+            _semi,
+        )) if stmts.is_empty() => return block,
         Some(mut s) => {
             if let Stmt::Expr(e, _semi) = s {
                 s = Stmt::Expr(e, _semi);
@@ -479,7 +482,7 @@ pub fn translate(
     ast_context: TypedAstContext,
     tcfg: &TranspilerConfig,
     main_file: PathBuf,
-) -> (String, PragmaVec, CrateSet) {
+) -> (String, PragmaVec, CrateSet, RustChannel) {
     let mut t = Translation::new(ast_context, tcfg, main_file.as_path());
     let ctx = ExprContext {
         used: true,
@@ -873,7 +876,16 @@ pub fn translate(
                 items: all_items.into_iter().map(|x| *x).collect(),
             }
         });
-        (translation, pragmas, crates)
+
+        // use nightly if translation has feature gate
+        let channel = if t.features.borrow().len() > 0 {
+            println!("pakai nightly");
+            RustChannel::Nightly
+        } else {
+            RustChannel::Stable
+        };
+
+        (translation, pragmas, crates, channel)
     }
 }
 
@@ -1240,9 +1252,7 @@ impl<'c> Translation<'c> {
         F: FnOnce(&mut ItemStore) -> T,
     {
         let mut item_stores = self.items.borrow_mut();
-        let item_store = item_stores
-            .entry(Self::cur_file(self))
-            .or_default();
+        let item_store = item_stores.entry(Self::cur_file(self)).or_default();
         f(item_store)
     }
 
@@ -1746,9 +1756,7 @@ impl<'c> Translation<'c> {
                             field_syns.push(mk().pub_().struct_field(name, typ))
                         }
                         _ => {
-                            return Err(generic_err!(
-                                "Found non-field in record field list",
-                            ));
+                            return Err(generic_err!("Found non-field in record field list",));
                         }
                     }
                 }
@@ -1868,9 +1876,7 @@ impl<'c> Translation<'c> {
                     {
                         args.push((*param_id, ident.clone(), typ))
                     } else {
-                        return Err(generic_err!(
-                            "Parameter is not variable declaration",
-                        ));
+                        return Err(generic_err!("Parameter is not variable declaration",));
                     }
                 }
 
@@ -2190,7 +2196,9 @@ impl<'c> Translation<'c> {
                             Ok(Some((expr, ty)))
                         }
                     } else {
-                        Err(generic_err!("Not all macro expansions are compatible types"))
+                        Err(generic_err!(
+                            "Not all macro expansions are compatible types"
+                        ))
                     }
                 } else {
                     Ok(Some((expr, ty)))
@@ -2270,7 +2278,7 @@ impl<'c> Translation<'c> {
                 } else {
                     None
                 };
-                
+
                 Some(builder.variadic_arg(arg_va_list_name))
             } else {
                 None
@@ -2293,12 +2301,7 @@ impl<'c> Translation<'c> {
                 ReturnType::Type(Default::default(), ret)
             };
 
-            let decl = mk().fn_decl(
-                new_name,
-                args,
-                variadic,
-                ret,
-            );
+            let decl = mk().fn_decl(new_name, args, variadic, ret);
 
             if let Some(body) = body {
                 // Translating an actual function
@@ -2622,9 +2625,7 @@ impl<'c> Translation<'c> {
                     .borrow_mut()
                     .insert_root(decl_id, ident)
                     .ok_or_else(|| {
-                        generic_err!(
-                            "Unable to rename function scoped static initializer",
-                        )
+                        generic_err!("Unable to rename function scoped static initializer",)
                     })?;
                 let ConvertedVariable { ty, mutbl: _, init } =
                     self.convert_variable(ctx.static_(), initializer, typ)?;
@@ -3217,9 +3218,7 @@ impl<'c> Translation<'c> {
             BadExpr => Err(generic_err!("convert_expr: expression kind not supported")),
             ShuffleVector(_, ref child_expr_ids) => self
                 .convert_shuffle_vector(ctx, child_expr_ids)
-                .map_err(|e| {
-                    old_llvm_simd_err!(self.ast_context.display_loc(src_loc), e.message)
-                }),
+                .map_err(|e| old_llvm_simd_err!(self.ast_context.display_loc(src_loc), e.message)),
             ConvertVector(..) => Err(generic_err!("convert vector not supported")),
 
             UnaryType(_ty, kind, opt_expr, arg_ty) => {
@@ -4382,9 +4381,7 @@ impl<'c> Translation<'c> {
                 "TODO casts with complex numbers not supported",
             )),
 
-            CastKind::VectorSplat => Err(generic_err!(
-                "TODO vector splat casts not supported",
-            )),
+            CastKind::VectorSplat => Err(generic_err!("TODO vector splat casts not supported",)),
         }
     }
 
@@ -4418,8 +4415,7 @@ impl<'c> Translation<'c> {
                 return Err(generic_err!(
                     "Tried casting long double to unsupported type: {:?}",
                     target_ty_ctype
-                )
-                );
+                ));
             }
         };
 
@@ -4539,7 +4535,10 @@ impl<'c> Translation<'c> {
         } else if let &CTypeKind::Vector(CQualTypeId { ctype, .. }, len) = resolved_ty {
             self.implicit_vector_default(ctype, len, is_static)
         } else {
-            Err(generic_err!("Unsupported default initializer: {:?}", resolved_ty))
+            Err(generic_err!(
+                "Unsupported default initializer: {:?}",
+                resolved_ty
+            ))
         }
     }
 
@@ -4622,9 +4621,7 @@ impl<'c> Translation<'c> {
                             mk().field(name, field_init)
                         }),
                     _ => {
-                        return Err(generic_err!(
-                            "Found non-field in record field list",
-                        ));
+                        return Err(generic_err!("Found non-field in record field list",));
                     }
                 };
 
@@ -4635,9 +4632,7 @@ impl<'c> Translation<'c> {
             CDeclKind::Enum { .. } => WithStmts::new_val(self.enum_for_i64(type_id, 0)),
 
             _ => {
-                return Err(generic_err!(
-                    "Declaration is not associated with a type",
-                ));
+                return Err(generic_err!("Declaration is not associated with a type",));
             }
         };
 
@@ -4659,9 +4654,7 @@ impl<'c> Translation<'c> {
             self.zero_inits.borrow_mut().insert(decl_id, init.clone());
             Ok(init)
         } else {
-            Err(generic_err!(
-                "Expected no statements in zero initializer",
-            ))
+            Err(generic_err!("Expected no statements in zero initializer",))
         }
     }
 
@@ -4754,7 +4747,7 @@ impl<'c> Translation<'c> {
             } else {
                 mk().binary_expr(BinOp::Eq(Default::default()), val, zero)
             }
-        } 
+        }
     }
 
     pub fn with_scope<F, A>(&self, f: F) -> A
@@ -4777,9 +4770,7 @@ impl<'c> Translation<'c> {
             let attrs = item_attrs(&mut item).expect("no attrs field on unexpected item variant");
             add_src_loc_attr(attrs, &decl.loc.as_ref().map(|x| x.begin()));
             let mut item_stores = self.items.borrow_mut();
-            let items = item_stores
-                .entry(decl_file_id.unwrap())
-                .or_default();
+            let items = item_stores.entry(decl_file_id.unwrap()).or_default();
 
             items.add_item(item);
         } else {
@@ -4798,9 +4789,7 @@ impl<'c> Translation<'c> {
                 .expect("no attrs field on unexpected foreign item variant");
             add_src_loc_attr(attrs, &decl.loc.as_ref().map(|x| x.begin()));
             let mut items = self.items.borrow_mut();
-            let mod_block_items = items
-                .entry(decl_file_id.unwrap())
-                .or_default();
+            let mod_block_items = items.entry(decl_file_id.unwrap()).or_default();
 
             mod_block_items.add_foreign_item(item);
         } else {

@@ -841,12 +841,10 @@ impl<'c> Translation<'c> {
                 if self.ast_context.is_function_pointer(ctype) {
                     Ok(arg.map(|x| mk().call_expr(mk().ident_expr("Some"), vec![x])))
                 } else {
-                    let pointee_ty =
-                        self.ast_context
-                            .get_pointee_qual_type(ctype)
-                            .ok_or_else(|| {
-                                generic_err!("Address-of should return a pointer")
-                            })?;
+                    let pointee_ty = self
+                        .ast_context
+                        .get_pointee_qual_type(ctype)
+                        .ok_or_else(|| generic_err!("Address-of should return a pointer"))?;
 
                     let mutbl = if pointee_ty.qualifiers.is_const {
                         Mutability::Immutable

@@ -1,5 +1,5 @@
-use crate::{c_ast::*, clang_err};
 use crate::diagnostics::diag;
+use crate::{c_ast::*, clang_err};
 use c2rust_ast_exporter::clang_ast::*;
 use serde_bytes::ByteBuf;
 use std::collections::HashMap;
@@ -263,7 +263,8 @@ impl ConversionContext {
                     clang_err!(
                         None,
                         ClangAstParseErrorKind::MissingNode,
-                        "Missing top-level node with id: {}", top_node
+                        "Missing top-level node with id: {}",
+                        top_node
                     ),
                 );
                 invalid_clang_ast = true;
@@ -279,7 +280,9 @@ impl ConversionContext {
                         clang_err!(
                             display_loc(untyped_context, &Some(node.loc)),
                             ClangAstParseErrorKind::MissingChild,
-                            "Missing child {} of node {:?}", child, node
+                            "Missing child {} of node {:?}",
+                            child,
+                            node
                         ),
                     );
                     invalid_clang_ast = true;
@@ -295,7 +298,9 @@ impl ConversionContext {
                         clang_err!(
                             display_loc(untyped_context, &Some(node.loc)),
                             ClangAstParseErrorKind::MissingType,
-                            "Missing type {} for node: {:?}", type_id, node,
+                            "Missing type {} for node: {:?}",
+                            type_id,
+                            node,
                         ),
                     );
                     invalid_clang_ast = true;
@@ -1927,7 +1932,8 @@ impl ConversionContext {
                     );
 
                     let initializer = node
-                        .children.first()
+                        .children
+                        .first()
                         .into_iter()
                         .flatten()
                         .map(|id| self.visit_expr(*id))

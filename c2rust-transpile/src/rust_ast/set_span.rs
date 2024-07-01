@@ -108,7 +108,7 @@ impl SetSpan for Expr {
         match self {
             Expr::Array(..) => {
                 println!("Expr::Array cannot set_span DelimSpan");
-            },
+            }
             Expr::Assign(e) => e.eq_token.spans[0] = s,
             Expr::Await(e) => e.await_token.span = s,
             Expr::Binary(e) => e.op.set_span(s),
@@ -124,7 +124,7 @@ impl SetSpan for Expr {
             Expr::If(e) => e.if_token.span = s,
             Expr::Index(..) => {
                 println!("Expr::Index cannot set_span DelimSpan");
-            },
+            }
             Expr::Let(e) => e.let_token.span = s,
             Expr::Lit(e) => e.lit.set_span(s),
             Expr::Loop(e) => e.loop_token.span = s,
@@ -133,7 +133,7 @@ impl SetSpan for Expr {
             Expr::MethodCall(e) => e.dot_token.span = s,
             Expr::Paren(..) => {
                 println!("Expr::Paren cannot set_span DelimSpan");
-            },
+            }
             Expr::Path(e) => e.path.set_span(s),
             Expr::Range(e) => match e.limits {
                 RangeLimits::Closed(mut r) => r.spans[0] = s,
@@ -142,18 +142,18 @@ impl SetSpan for Expr {
             Expr::Reference(e) => e.and_token.span = s,
             Expr::Repeat(..) => {
                 println!("Expr::Repeat cannot set_span DelimSpan");
-            },
+            }
             Expr::Return(e) => e.return_token.span = s,
             Expr::Struct(..) => {
                 println!("Expr::Struct cannot set_span DelimSpan");
-            },
+            }
             Expr::Try(e) => e.question_token.span = s,
             Expr::Tuple(..) => {
                 println!("Expr::Tuple cannot set_span DelimSpan");
-            },
+            }
             Expr::Unary(e) => e.op.set_span(s),
             Expr::Unsafe(e) => e.unsafe_token.span = s,
-            Expr::Verbatim(..) => {},
+            Expr::Verbatim(..) => {}
             Expr::While(e) => e.while_token.span = s,
             Expr::Yield(e) => e.yield_token.span = s,
             e => panic!("Expr set_span, {:?}", e),

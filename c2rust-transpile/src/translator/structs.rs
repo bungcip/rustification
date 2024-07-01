@@ -517,9 +517,7 @@ impl<'a> Translation<'a> {
 
                     let mut init = self.implicit_default_expr(ty.ctype, ctx.is_static)?;
                     if !init.is_pure() {
-                        return Err(generic_err!(
-                            "Expected no statements in field expression",
-                        ));
+                        return Err(generic_err!("Expected no statements in field expression",));
                     }
                     if use_inner_type {
                         // Small hack: we need a value of the inner type,
@@ -534,9 +532,7 @@ impl<'a> Translation<'a> {
                     let mut expr = self.convert_expr(ctx.used(), *field_id)?;
 
                     if !expr.is_pure() {
-                        return Err(generic_err!(
-                            "Expected no statements in field expression",
-                        ));
+                        return Err(generic_err!("Expected no statements in field expression",));
                     }
 
                     if use_inner_type {
@@ -657,9 +653,7 @@ impl<'a> Translation<'a> {
                 } => {
                     let mut field_init = self.implicit_default_expr(ctype, is_static)?;
                     if !field_init.is_pure() {
-                        return Err(generic_err!(
-                            "Expected no statements in field expression",
-                        ));
+                        return Err(generic_err!("Expected no statements in field expression",));
                     }
                     if use_inner_type {
                         // See comment above

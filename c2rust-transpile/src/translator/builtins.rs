@@ -1,7 +1,7 @@
 #![deny(missing_docs)]
 //! Implementations of clang's builtin functions
 
-use crate::{generic_loc_err, generic_err};
+use crate::{generic_err, generic_loc_err};
 
 use super::*;
 
@@ -28,16 +28,12 @@ impl<'c> Translation<'c> {
         let src_loc = &expr.loc;
         let decl_id = match expr.kind {
             CExprKind::DeclRef(_, decl_id, _) => decl_id,
-            _ => {
-                return Err(generic_err!("Expected declref when processing builtin"))
-            }
+            _ => return Err(generic_err!("Expected declref when processing builtin")),
         };
 
         let builtin_name: &str = match self.ast_context[decl_id].kind {
             CDeclKind::Function { ref name, .. } => name,
-            _ => {
-                return Err(generic_err!("Expected function when processing builtin"))
-            }
+            _ => return Err(generic_err!("Expected function when processing builtin")),
         };
 
         match builtin_name {
@@ -663,9 +659,9 @@ impl<'c> Translation<'c> {
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
         let args = self.convert_exprs(ctx.used(), args)?;
         args.and_then(|args| {
-            let [a, b, c]: [_; 3] = args
-                .try_into()
-                .map_err(|_| generic_err!("`convert_overflow_arith` must have exactly 3 arguments"))?;
+            let [a, b, c]: [_; 3] = args.try_into().map_err(|_| {
+                generic_err!("`convert_overflow_arith` must have exactly 3 arguments")
+            })?;
             let overflowing = mk().method_call_expr(a, method_name, vec![b]);
             let sum_name = self.renamer.borrow_mut().fresh();
             let over_name = self.renamer.borrow_mut().fresh();
@@ -704,7 +700,8 @@ impl<'c> Translation<'c> {
         args.and_then(|args| {
             if args.len() != arg_types.len() {
                 // This should not generally happen, as the C frontend checks these first
-                Err(generic_err!("wrong number of arguments for {}: expected {}, found {}",
+                Err(generic_err!(
+                    "wrong number of arguments for {}: expected {}, found {}",
                     builtin_name,
                     arg_types.len(),
                     args.len()

@@ -151,8 +151,7 @@ impl<'c> Translation<'c> {
                 return Err(generic_err!(
                     "SIMD function {} doesn't currently have a rust counterpart",
                     name
-                )
-                );
+                ));
             }
 
             // The majority of x86/64 SIMD is stable, however there are still some
@@ -257,8 +256,7 @@ impl<'c> Translation<'c> {
                     "Unsupported vector default initializer: {:?} x {}",
                     kind,
                     len
-                )
-                )
+                ))
             }
         };
 
@@ -359,8 +357,7 @@ impl<'c> Translation<'c> {
                 "Unsupported shuffle vector without input params: found {}, expected one of {:?}",
                 child_expr_ids.len(),
                 input_params,
-            )
-            );
+            ));
         };
 
         // There is some internal explicit casting which is okay for us to strip off
@@ -370,19 +367,23 @@ impl<'c> Translation<'c> {
             self.strip_vector_explicit_cast(child_expr_ids[1]);
 
         if first_vec != second_vec {
-            return Err(generic_err!("Unsupported shuffle vector with different vector kinds"));
+            return Err(generic_err!(
+                "Unsupported shuffle vector with different vector kinds"
+            ));
         }
         if first_vec_len != second_vec_len {
-            return Err(generic_err!("Unsupported shuffle vector with different vector lengths"));
+            return Err(generic_err!(
+                "Unsupported shuffle vector with different vector lengths"
+            ));
         }
 
         let mask_expr_id = self.get_shuffle_vector_mask(&child_expr_ids[2..])?;
         let param_translation =
             self.convert_exprs(ctx.used(), &[first_expr_id, second_expr_id, mask_expr_id])?;
         param_translation.and_then(|params| {
-            let [first, second, third]: [_; 3] = params
-                .try_into()
-                .map_err(|_| generic_err!("`convert_shuffle_vector` must have exactly 3 parameters"))?;
+            let [first, second, third]: [_; 3] = params.try_into().map_err(|_| {
+                generic_err!("`convert_shuffle_vector` must have exactly 3 parameters")
+            })?;
             let mut new_params = vec![first];
 
             // Some don't take a second param, but the expr is still there for some reason

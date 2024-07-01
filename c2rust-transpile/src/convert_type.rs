@@ -1,7 +1,7 @@
 use crate::c_ast::CDeclId;
-use crate::{c_ast::*, generic_err};
-use crate::diagnostics::{TranslationResult, TranslationError};
+use crate::diagnostics::{TranslationError, TranslationResult};
 use crate::renamer::*;
+use crate::{c_ast::*, generic_err};
 use c2rust_ast_builder::{mk, properties::*};
 use std::collections::{HashMap, HashSet};
 use std::ops::Index;

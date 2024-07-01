@@ -223,7 +223,9 @@ impl<'c> Translation<'c> {
                 }
             })
         } else {
-            Err(generic_err!("Variable argument list translation is not enabled."))
+            Err(generic_err!(
+                "Variable argument list translation is not enabled."
+            ))
         }
     }
 
