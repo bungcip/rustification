@@ -1,15 +1,8 @@
-# C2Rust
-
-[![GitHub Actions Status]][github] [![Azure Build Status]][azure] [![Latest Version]][crates.io] [![Rustc Version]](#)
-
-[GitHub Actions Status]: https://github.com/immunant/c2rust/workflows/c2rust-testsuite/badge.svg
-[github]: https://github.com/immunant/c2rust/actions
-[Azure Build Status]: https://dev.azure.com/immunant/c2rust/_apis/build/status/immunant.c2rust?branchName=master
-[azure]: https://dev.azure.com/immunant/c2rust/_build/latest?definitionId=1&branchName=master
-
-[Latest Version]: https://img.shields.io/crates/v/c2rust.svg
-[crates.io]: https://crates.io/crates/c2rust
-[Rustc Version]: https://img.shields.io/badge/rustc-nightly--2022--02--14-lightgrey.svg "Rustc nightly-2022-02-14"
+# Rustification - C2Rust Fork
+`
+This repository is fork of c2rust project which only contain transpiler part.
+Its make easier to compile it using latest nightly or stable channel.
+`
 
 C2Rust helps you migrate C99-compliant code to Rust.
 The translator (or transpiler), [`c2rust transpile`](./c2rust-transpile/),
