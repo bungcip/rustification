@@ -672,14 +672,6 @@ impl Builder {
         }
     }
 
-    pub fn parenthesized_args(self, tys: Vec<Box<Type>>) -> ParenthesizedGenericArguments {
-        ParenthesizedGenericArguments {
-            paren_token: token::Paren(self.span),
-            inputs: punct_box(tys),
-            output: ReturnType::Default,
-        }
-    }
-
     pub fn angle_bracketed_args<A>(self, args: Vec<A>) -> AngleBracketedGenericArguments
     where
         A: Make<GenericArgument>,
@@ -691,13 +683,6 @@ impl Builder {
             args,
             gt_token: Token![>](self.span),
         }
-    }
-
-    pub fn generic_arg<A>(self, arg: A) -> GenericArgument
-    where
-        A: Make<GenericArgument>,
-    {
-        arg.make(&self)
     }
 
     // Simple nodes
@@ -723,20 +708,6 @@ impl Builder {
         path.make(&self)
     }
 
-    pub fn use_tree<Pa>(self, prefix: Pa, mut tree: UseTree) -> UseTree
-    where
-        Pa: Make<Path>,
-    {
-        let path: Path = prefix.make(&self);
-        for seg in path.segments {
-            tree = UseTree::Path(UsePath {
-                ident: seg.ident,
-                colon2_token: Token![::](self.span),
-                tree: Box::new(tree),
-            });
-        }
-        tree
-    }
 
     pub fn abs_path<Pa>(self, path: Pa) -> Path
     where
@@ -993,28 +964,6 @@ impl Builder {
             path,
             fields: punct(fields),
             rest: None,
-        }))
-    }
-
-    // struct_expr, but with optional base expression
-    pub fn struct_expr_base<Pa>(
-        self,
-        path: Pa,
-        fields: Vec<FieldValue>,
-        base: Option<Box<Expr>>,
-    ) -> Box<Expr>
-    where
-        Pa: Make<Path>,
-    {
-        let path = path.make(&self);
-        Box::new(Expr::Struct(ExprStruct {
-            attrs: self.attrs,
-            qself: None,
-            brace_token: token::Brace(self.span),
-            dot2_token: Some(Token![..](self.span)),
-            path,
-            fields: punct(fields),
-            rest: base,
         }))
     }
 
