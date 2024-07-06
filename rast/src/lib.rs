@@ -310,9 +310,9 @@ extern crate proc_macro;
 #[macro_use]
 mod macros;
 
-#[cfg(feature = "parsing")]
-#[macro_use]
-mod group;
+// #[cfg(feature = "parsing")]
+// #[macro_use]
+// mod group;
 
 #[macro_use]
 pub mod token;
@@ -434,8 +434,8 @@ pub use crate::lit::{
     Lit, LitBool, LitByte, LitByteStr, LitCStr, LitChar, LitFloat, LitInt, LitStr,
 };
 
-#[cfg(feature = "parsing")]
-mod lookahead;
+// #[cfg(feature = "parsing")]
+// mod lookahead;
 
 #[cfg(any(feature = "full", feature = "derive"))]
 mod mac;
@@ -456,15 +456,15 @@ mod op;
 #[cfg_attr(docsrs, doc(cfg(any(feature = "full", feature = "derive"))))]
 pub use crate::op::{BinOp, UnOp};
 
-#[cfg(feature = "parsing")]
-#[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-pub mod parse;
+// #[cfg(feature = "parsing")]
+// #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
+// pub mod parse;
 
-#[cfg(all(feature = "parsing", feature = "proc-macro"))]
-mod parse_macro_input;
+// #[cfg(all(feature = "parsing", feature = "proc-macro"))]
+// mod parse_macro_input;
 
-#[cfg(all(feature = "parsing", feature = "printing"))]
-mod parse_quote;
+// #[cfg(all(feature = "parsing", feature = "printing"))]
+// mod parse_quote;
 
 #[cfg(feature = "full")]
 mod pat;
@@ -501,7 +501,7 @@ mod restriction;
 #[cfg_attr(docsrs, doc(cfg(any(feature = "full", feature = "derive"))))]
 pub use crate::restriction::{FieldMutability, VisRestricted, Visibility};
 
-mod sealed;
+// mod sealed;
 
 mod span;
 
@@ -870,151 +870,3 @@ pub use crate::gen::visit_mut;
 #[path = "export.rs"]
 pub mod __private;
 
-/// Parse tokens of source code into the chosen syntax tree node.
-///
-/// This is preferred over parsing a string because tokens are able to preserve
-/// information about where in the user's code they were originally written (the
-/// "span" of the token), possibly allowing the compiler to produce better error
-/// messages.
-///
-/// This function parses a `proc_macro::TokenStream` which is the type used for
-/// interop with the compiler in a procedural macro. To parse a
-/// `proc_macro2::TokenStream`, use [`rast::parse2`] instead.
-///
-/// [`rast::parse2`]: parse2
-///
-/// # Examples
-///
-/// ```
-/// # extern crate proc_macro;
-/// #
-/// use proc_macro::TokenStream;
-/// use quote::quote;
-/// use rast::DeriveInput;
-///
-/// # const IGNORE_TOKENS: &str = stringify! {
-/// #[proc_macro_derive(MyMacro)]
-/// # };
-/// pub fn my_macro(input: TokenStream) -> TokenStream {
-///     // Parse the tokens into a syntax tree
-///     let ast: DeriveInput = rast::parse(input).unwrap();
-///
-///     // Build the output, possibly using quasi-quotation
-///     let expanded = quote! {
-///         /* ... */
-///     };
-///
-///     // Convert into a token stream and return it
-///     expanded.into()
-/// }
-/// ```
-#[cfg(all(feature = "parsing", feature = "proc-macro"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "parsing", feature = "proc-macro"))))]
-pub fn parse<T: parse::Parse>(tokens: proc_macro::TokenStream) -> Result<T> {
-    parse::Parser::parse(T::parse, tokens)
-}
-
-/// Parse a proc-macro2 token stream into the chosen syntax tree node.
-///
-/// This function will check that the input is fully parsed. If there are
-/// any unparsed tokens at the end of the stream, an error is returned.
-///
-/// This function parses a `proc_macro2::TokenStream` which is commonly useful
-/// when the input comes from a node of the Syn syntax tree, for example the
-/// body tokens of a [`Macro`] node. When in a procedural macro parsing the
-/// `proc_macro::TokenStream` provided by the compiler, use [`rast::parse`]
-/// instead.
-///
-/// [`rast::parse`]: parse()
-#[cfg(feature = "parsing")]
-#[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-pub fn parse2<T: parse::Parse>(tokens: proc_macro2::TokenStream) -> Result<T> {
-    parse::Parser::parse2(T::parse, tokens)
-}
-
-/// Parse a string of Rust code into the chosen syntax tree node.
-///
-/// # Hygiene
-///
-/// Every span in the resulting syntax tree will be set to resolve at the macro
-/// call site.
-///
-/// # Examples
-///
-/// ```
-/// use rast::{Expr, Result};
-///
-/// fn run() -> Result<()> {
-///     let code = "assert_eq!(u8::max_value(), 255)";
-///     let expr = rast::parse_str::<Expr>(code)?;
-///     println!("{:#?}", expr);
-///     Ok(())
-/// }
-/// #
-/// # run().unwrap();
-/// ```
-#[cfg(feature = "parsing")]
-#[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-pub fn parse_str<T: parse::Parse>(s: &str) -> Result<T> {
-    parse::Parser::parse_str(T::parse, s)
-}
-
-/// Parse the content of a file of Rust code.
-///
-/// This is different from `rast::parse_str::<File>(content)` in two ways:
-///
-/// - It discards a leading byte order mark `\u{FEFF}` if the file has one.
-/// - It preserves the shebang line of the file, such as `#!/usr/bin/env rustx`.
-///
-/// If present, either of these would be an error using `from_str`.
-///
-/// # Examples
-///
-/// ```no_run
-/// use std::error::Error;
-/// use std::fs::File;
-/// use std::io::Read;
-///
-/// fn run() -> Result<(), Box<dyn Error>> {
-///     let mut file = File::open("path/to/code.rs")?;
-///     let mut content = String::new();
-///     file.read_to_string(&mut content)?;
-///
-///     let ast = rast::parse_file(&content)?;
-///     if let Some(shebang) = ast.shebang {
-///         println!("{}", shebang);
-///     }
-///     println!("{} items", ast.items.len());
-///
-///     Ok(())
-/// }
-/// #
-/// # run().unwrap();
-/// ```
-#[cfg(all(feature = "parsing", feature = "full"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "parsing", feature = "full"))))]
-pub fn parse_file(mut content: &str) -> Result<File> {
-    // Strip the BOM if it is present
-    const BOM: &str = "\u{feff}";
-    if content.starts_with(BOM) {
-        content = &content[BOM.len()..];
-    }
-
-    let mut shebang = None;
-    if content.starts_with("#!") {
-        let rest = whitespace::skip(&content[2..]);
-        if !rest.starts_with('[') {
-            if let Some(idx) = content.find('\n') {
-                shebang = Some(content[..idx].to_string());
-                content = &content[idx..];
-            } else {
-                shebang = Some(content.to_string());
-                content = "";
-            }
-        }
-    }
-
-    let mut file: File = parse_str(content)?;
-    file.shebang = shebang;
-    Ok(file)
-}

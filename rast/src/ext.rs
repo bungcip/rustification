@@ -1,10 +1,10 @@
 //! Extension traits to provide parsing methods on foreign types.
 
 use crate::buffer::Cursor;
-use crate::error::Result;
-use crate::parse::ParseStream;
-use crate::parse::Peek;
-use crate::sealed::lookahead;
+// use crate::error::Result;
+// use crate::parse::ParseStream;
+// use crate::parse::Peek;
+// use crate::sealed::lookahead;
 use crate::token::CustomToken;
 use proc_macro2::Ident;
 
@@ -13,37 +13,6 @@ use proc_macro2::Ident;
 /// This trait is sealed and cannot be implemented for types outside of Syn. It
 /// is implemented only for `proc_macro2::Ident`.
 pub trait IdentExt: Sized + private::Sealed {
-    /// Parses any identifier including keywords.
-    ///
-    /// This is useful when parsing macro input which allows Rust keywords as
-    /// identifiers.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use rast::{Error, Ident, Result, Token};
-    /// use rast::ext::IdentExt;
-    /// use rast::parse::ParseStream;
-    ///
-    /// mod kw {
-    ///     rast::custom_keyword!(name);
-    /// }
-    ///
-    /// // Parses input that looks like `name = NAME` where `NAME` can be
-    /// // any identifier.
-    /// //
-    /// // Examples:
-    /// //
-    /// //     name = anything
-    /// //     name = impl
-    /// fn parse_dsl(input: ParseStream) -> Result<Ident> {
-    ///     input.parse::<kw::name>()?;
-    ///     input.parse::<Token![=]>()?;
-    ///     let name = input.call(Ident::parse_any)?;
-    ///     Ok(name)
-    /// }
-    /// ```
-    fn parse_any(input: ParseStream) -> Result<Self>;
 
     /// Peeks any identifier including keywords. Usage:
     /// `input.peek(Ident::peek_any)`
@@ -84,12 +53,6 @@ pub trait IdentExt: Sized + private::Sealed {
 }
 
 impl IdentExt for Ident {
-    fn parse_any(input: ParseStream) -> Result<Self> {
-        input.step(|cursor| match cursor.ident() {
-            Some((ident, rest)) => Ok((ident, rest)),
-            None => Err(cursor.error("expected ident")),
-        })
-    }
 
     fn unraw(&self) -> Ident {
         let string = self.to_string();
@@ -101,9 +64,9 @@ impl IdentExt for Ident {
     }
 }
 
-impl Peek for private::PeekFn {
-    type Token = private::IdentAny;
-}
+// impl Peek for private::PeekFn {
+//     type Token = private::IdentAny;
+// }
 
 impl CustomToken for private::IdentAny {
     fn peek(cursor: Cursor) -> bool {
@@ -115,7 +78,7 @@ impl CustomToken for private::IdentAny {
     }
 }
 
-impl lookahead::Sealed for private::PeekFn {}
+// impl lookahead::Sealed for private::PeekFn {}
 
 mod private {
     use proc_macro2::Ident;

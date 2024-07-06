@@ -169,7 +169,7 @@ impl Printer {
 
     #[cfg(feature = "verbatim")]
     fn type_verbatim(&mut self, tokens: &TokenStream) {
-        use rast::parse::{Parse, ParseStream, Result};
+        // use rast::parse::{Parse, ParseStream, Result};
         use rast::punctuated::Punctuated;
         use rast::{token, FieldsNamed, Token, TypeParamBound};
 
@@ -202,102 +202,7 @@ impl Printer {
             inner: Type,
         }
 
-        impl Parse for TypeVerbatim {
-            fn parse(input: ParseStream) -> Result<Self> {
-                let lookahead = input.lookahead1();
-                if lookahead.peek(Token![struct]) {
-                    input.parse::<Token![struct]>()?;
-                    let fields: FieldsNamed = input.parse()?;
-                    Ok(TypeVerbatim::AnonStruct(AnonStruct { fields }))
-                } else if lookahead.peek(Token![union]) && input.peek2(token::Brace) {
-                    input.parse::<Token![union]>()?;
-                    let fields: FieldsNamed = input.parse()?;
-                    Ok(TypeVerbatim::AnonUnion(AnonUnion { fields }))
-                } else if lookahead.peek(Token![dyn]) {
-                    input.parse::<Token![dyn]>()?;
-                    input.parse::<Token![*]>()?;
-                    let bounds = input.parse_terminated(TypeParamBound::parse, Token![+])?;
-                    Ok(TypeVerbatim::DynStar(DynStar { bounds }))
-                } else if lookahead.peek(Token![mut]) {
-                    input.parse::<Token![mut]>()?;
-                    input.parse::<Token![self]>()?;
-                    let ty = if input.is_empty() {
-                        None
-                    } else {
-                        input.parse::<Token![:]>()?;
-                        let ty: Type = input.parse()?;
-                        Some(ty)
-                    };
-                    Ok(TypeVerbatim::MutSelf(MutSelf { ty }))
-                } else if lookahead.peek(Token![!]) {
-                    input.parse::<Token![!]>()?;
-                    let inner: Type = input.parse()?;
-                    Ok(TypeVerbatim::NotType(NotType { inner }))
-                } else if lookahead.peek(Token![...]) {
-                    input.parse::<Token![...]>()?;
-                    Ok(TypeVerbatim::Ellipsis)
-                } else {
-                    Err(lookahead.error())
-                }
-            }
-        }
-
-        let ty: TypeVerbatim = match rast::parse2(tokens.clone()) {
-            Ok(ty) => ty,
-            Err(_) => unimplemented!("Type::Verbatim `{}`", tokens),
-        };
-
-        match ty {
-            TypeVerbatim::Ellipsis => {
-                self.word("...");
-            }
-            TypeVerbatim::AnonStruct(ty) => {
-                self.cbox(INDENT);
-                self.word("struct {");
-                self.hardbreak_if_nonempty();
-                for field in &ty.fields.named {
-                    self.field(field);
-                    self.word(",");
-                    self.hardbreak();
-                }
-                self.offset(-INDENT);
-                self.end();
-                self.word("}");
-            }
-            TypeVerbatim::AnonUnion(ty) => {
-                self.cbox(INDENT);
-                self.word("union {");
-                self.hardbreak_if_nonempty();
-                for field in &ty.fields.named {
-                    self.field(field);
-                    self.word(",");
-                    self.hardbreak();
-                }
-                self.offset(-INDENT);
-                self.end();
-                self.word("}");
-            }
-            TypeVerbatim::DynStar(ty) => {
-                self.word("dyn* ");
-                for type_param_bound in ty.bounds.iter().delimited() {
-                    if !type_param_bound.is_first {
-                        self.word(" + ");
-                    }
-                    self.type_param_bound(&type_param_bound);
-                }
-            }
-            TypeVerbatim::MutSelf(bare_fn_arg) => {
-                self.word("mut self");
-                if let Some(ty) = &bare_fn_arg.ty {
-                    self.word(": ");
-                    self.ty(ty);
-                }
-            }
-            TypeVerbatim::NotType(ty) => {
-                self.word("!");
-                self.ty(&ty.inner);
-            }
-        }
+        unimplemented!("Type::Verbatim `{}`", tokens);
     }
 
     pub fn return_type(&mut self, ty: &ReturnType) {

@@ -1,13 +1,9 @@
-#[cfg(feature = "parsing")]
-use crate::error::Error;
-#[cfg(feature = "parsing")]
-use crate::error::Result;
+// #[cfg(feature = "parsing")]
+// use crate::error::Error;
+// #[cfg(feature = "parsing")]
+// use crate::error::Result;
 use crate::expr::Expr;
 use crate::mac::MacroDelimiter;
-#[cfg(feature = "parsing")]
-use crate::meta::{self, ParseNestedMeta};
-#[cfg(feature = "parsing")]
-use crate::parse::{Parse, ParseStream, Parser};
 use crate::path::Path;
 use crate::token;
 use proc_macro2::TokenStream;
@@ -187,243 +183,9 @@ impl Attribute {
         self.meta.path()
     }
 
-    /// Parse the arguments to the attribute as a syntax tree.
-    ///
-    /// This is similar to pulling out the `TokenStream` from `Meta::List` and
-    /// doing `rast::parse2::<T>(meta_list.tokens)`, except that using
-    /// `parse_args` the error message has a more useful span when `tokens` is
-    /// empty.
-    ///
-    /// The surrounding delimiters are *not* included in the input to the
-    /// parser.
-    ///
-    /// ```text
-    /// #[my_attr(value < 5)]
-    ///           ^^^^^^^^^ what gets parsed
-    /// ```
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use rast::{parse_quote, Attribute, Expr};
-    ///
-    /// let attr: Attribute = parse_quote! {
-    ///     #[precondition(value < 5)]
-    /// };
-    ///
-    /// if attr.path().is_ident("precondition") {
-    ///     let precondition: Expr = attr.parse_args()?;
-    ///     // ...
-    /// }
-    /// # anyhow::Ok(())
-    /// ```
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn parse_args<T: Parse>(&self) -> Result<T> {
-        self.parse_args_with(T::parse)
-    }
 
-    /// Parse the arguments to the attribute using the given parser.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use rast::{parse_quote, Attribute};
-    ///
-    /// let attr: Attribute = parse_quote! {
-    ///     #[inception { #[brrrrrrraaaaawwwwrwrrrmrmrmmrmrmmmmm] }]
-    /// };
-    ///
-    /// let bwom = attr.parse_args_with(Attribute::parse_outer)?;
-    ///
-    /// // Attribute does not have a Parse impl, so we couldn't directly do:
-    /// // let bwom: Attribute = attr.parse_args()?;
-    /// # anyhow::Ok(())
-    /// ```
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn parse_args_with<F: Parser>(&self, parser: F) -> Result<F::Output> {
-        match &self.meta {
-            Meta::Path(path) => Err(crate::error::new2(
-                path.segments.first().unwrap().ident.span(),
-                path.segments.last().unwrap().ident.span(),
-                format!(
-                    "expected attribute arguments in parentheses: {}[{}(...)]",
-                    parsing::DisplayAttrStyle(&self.style),
-                    parsing::DisplayPath(path),
-                ),
-            )),
-            Meta::NameValue(meta) => Err(Error::new(
-                meta.eq_token.span,
-                format_args!(
-                    "expected parentheses: {}[{}(...)]",
-                    parsing::DisplayAttrStyle(&self.style),
-                    parsing::DisplayPath(&meta.path),
-                ),
-            )),
-            Meta::List(meta) => meta.parse_args_with(parser),
-        }
-    }
+ 
 
-    /// Parse the arguments to the attribute, expecting it to follow the
-    /// conventional structure used by most of Rust's built-in attributes.
-    ///
-    /// The [*Meta Item Attribute Syntax*][syntax] section in the Rust reference
-    /// explains the convention in more detail. Not all attributes follow this
-    /// convention, so [`parse_args()`][Self::parse_args] is available if you
-    /// need to parse arbitrarily goofy attribute syntax.
-    ///
-    /// [syntax]: https://doc.rust-lang.org/reference/attributes.html#meta-item-attribute-syntax
-    ///
-    /// # Example
-    ///
-    /// We'll parse a struct, and then parse some of Rust's `#[repr]` attribute
-    /// syntax.
-    ///
-    /// ```
-    /// use rast::{parenthesized, parse_quote, token, ItemStruct, LitInt};
-    ///
-    /// let input: ItemStruct = parse_quote! {
-    ///     #[repr(C, align(4))]
-    ///     pub struct MyStruct(u16, u32);
-    /// };
-    ///
-    /// let mut repr_c = false;
-    /// let mut repr_transparent = false;
-    /// let mut repr_align = None::<usize>;
-    /// let mut repr_packed = None::<usize>;
-    /// for attr in &input.attrs {
-    ///     if attr.path().is_ident("repr") {
-    ///         attr.parse_nested_meta(|meta| {
-    ///             // #[repr(C)]
-    ///             if meta.path.is_ident("C") {
-    ///                 repr_c = true;
-    ///                 return Ok(());
-    ///             }
-    ///
-    ///             // #[repr(transparent)]
-    ///             if meta.path.is_ident("transparent") {
-    ///                 repr_transparent = true;
-    ///                 return Ok(());
-    ///             }
-    ///
-    ///             // #[repr(align(N))]
-    ///             if meta.path.is_ident("align") {
-    ///                 let content;
-    ///                 parenthesized!(content in meta.input);
-    ///                 let lit: LitInt = content.parse()?;
-    ///                 let n: usize = lit.base10_parse()?;
-    ///                 repr_align = Some(n);
-    ///                 return Ok(());
-    ///             }
-    ///
-    ///             // #[repr(packed)] or #[repr(packed(N))], omitted N means 1
-    ///             if meta.path.is_ident("packed") {
-    ///                 if meta.input.peek(token::Paren) {
-    ///                     let content;
-    ///                     parenthesized!(content in meta.input);
-    ///                     let lit: LitInt = content.parse()?;
-    ///                     let n: usize = lit.base10_parse()?;
-    ///                     repr_packed = Some(n);
-    ///                 } else {
-    ///                     repr_packed = Some(1);
-    ///                 }
-    ///                 return Ok(());
-    ///             }
-    ///
-    ///             Err(meta.error("unrecognized repr"))
-    ///         })?;
-    ///     }
-    /// }
-    /// # anyhow::Ok(())
-    /// ```
-    ///
-    /// # Alternatives
-    ///
-    /// In some cases, for attributes which have nested layers of structured
-    /// content, the following less flexible approach might be more convenient:
-    ///
-    /// ```
-    /// # use rast::{parse_quote, ItemStruct};
-    /// #
-    /// # let input: ItemStruct = parse_quote! {
-    /// #     #[repr(C, align(4))]
-    /// #     pub struct MyStruct(u16, u32);
-    /// # };
-    /// #
-    /// use rast::punctuated::Punctuated;
-    /// use rast::{parenthesized, token, Error, LitInt, Meta, Token};
-    ///
-    /// let mut repr_c = false;
-    /// let mut repr_transparent = false;
-    /// let mut repr_align = None::<usize>;
-    /// let mut repr_packed = None::<usize>;
-    /// for attr in &input.attrs {
-    ///     if attr.path().is_ident("repr") {
-    ///         let nested = attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
-    ///         for meta in nested {
-    ///             match meta {
-    ///                 // #[repr(C)]
-    ///                 Meta::Path(path) if path.is_ident("C") => {
-    ///                     repr_c = true;
-    ///                 }
-    ///
-    ///                 // #[repr(align(N))]
-    ///                 Meta::List(meta) if meta.path.is_ident("align") => {
-    ///                     let lit: LitInt = meta.parse_args()?;
-    ///                     let n: usize = lit.base10_parse()?;
-    ///                     repr_align = Some(n);
-    ///                 }
-    ///
-    ///                 /* ... */
-    ///
-    ///                 _ => {
-    ///                     return Err(Error::new_spanned(meta, "unrecognized repr"));
-    ///                 }
-    ///             }
-    ///         }
-    ///     }
-    /// }
-    /// # Ok(())
-    /// ```
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn parse_nested_meta(
-        &self,
-        logic: impl FnMut(ParseNestedMeta) -> Result<()>,
-    ) -> Result<()> {
-        self.parse_args_with(meta::parser(logic))
-    }
-
-    /// Parses zero or more outer attributes from the stream.
-    ///
-    /// # Example
-    ///
-    /// See
-    /// [*Parsing from tokens to Attribute*](#parsing-from-tokens-to-attribute).
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn parse_outer(input: ParseStream) -> Result<Vec<Self>> {
-        let mut attrs = Vec::new();
-        while input.peek(Token![#]) {
-            attrs.push(input.call(parsing::single_parse_outer)?);
-        }
-        Ok(attrs)
-    }
-
-    /// Parses zero or more inner attributes from the stream.
-    ///
-    /// # Example
-    ///
-    /// See
-    /// [*Parsing from tokens to Attribute*](#parsing-from-tokens-to-attribute).
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn parse_inner(input: ParseStream) -> Result<Vec<Self>> {
-        let mut attrs = Vec::new();
-        parsing::parse_inner(input, &mut attrs)?;
-        Ok(attrs)
-    }
 }
 
 ast_enum! {
@@ -514,80 +276,56 @@ impl Meta {
         }
     }
 
-    /// Error if this is a `Meta::List` or `Meta::NameValue`.
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn require_path_only(&self) -> Result<&Path> {
-        let error_span = match self {
-            Meta::Path(path) => return Ok(path),
-            Meta::List(meta) => meta.delimiter.span().open(),
-            Meta::NameValue(meta) => meta.eq_token.span,
-        };
-        Err(Error::new(error_span, "unexpected token in attribute"))
-    }
+    // /// Error if this is a `Meta::List` or `Meta::NameValue`.
+    // #[cfg(feature = "parsing")]
+    // #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
+    // pub fn require_path_only(&self) -> Result<&Path> {
+    //     let error_span = match self {
+    //         Meta::Path(path) => return Ok(path),
+    //         Meta::List(meta) => meta.delimiter.span().open(),
+    //         Meta::NameValue(meta) => meta.eq_token.span,
+    //     };
+    //     Err(Error::new(error_span, "unexpected token in attribute"))
+    // }
 
-    /// Error if this is a `Meta::Path` or `Meta::NameValue`.
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn require_list(&self) -> Result<&MetaList> {
-        match self {
-            Meta::List(meta) => Ok(meta),
-            Meta::Path(path) => Err(crate::error::new2(
-                path.segments.first().unwrap().ident.span(),
-                path.segments.last().unwrap().ident.span(),
-                format!(
-                    "expected attribute arguments in parentheses: `{}(...)`",
-                    parsing::DisplayPath(path),
-                ),
-            )),
-            Meta::NameValue(meta) => Err(Error::new(meta.eq_token.span, "expected `(`")),
-        }
-    }
+    // #[cfg(feature = "parsing")]
+    // #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
+    // pub fn require_list(&self) -> Result<&MetaList> {
+    //     match self {
+    //         Meta::List(meta) => Ok(meta),
+    //         Meta::Path(path) => Err(crate::error::new2(
+    //             path.segments.first().unwrap().ident.span(),
+    //             path.segments.last().unwrap().ident.span(),
+    //             format!(
+    //                 "expected attribute arguments in parentheses: `{}(...)`",
+    //                 parsing::DisplayPath(path),
+    //             ),
+    //         )),
+    //         Meta::NameValue(meta) => Err(Error::new(meta.eq_token.span, "expected `(`")),
+    //     }
+    // }
 
-    /// Error if this is a `Meta::Path` or `Meta::List`.
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn require_name_value(&self) -> Result<&MetaNameValue> {
-        match self {
-            Meta::NameValue(meta) => Ok(meta),
-            Meta::Path(path) => Err(crate::error::new2(
-                path.segments.first().unwrap().ident.span(),
-                path.segments.last().unwrap().ident.span(),
-                format!(
-                    "expected a value for this attribute: `{} = ...`",
-                    parsing::DisplayPath(path),
-                ),
-            )),
-            Meta::List(meta) => Err(Error::new(meta.delimiter.span().open(), "expected `=`")),
-        }
-    }
+    // #[cfg(feature = "parsing")]
+    // #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
+    // pub fn require_name_value(&self) -> Result<&MetaNameValue> {
+    //     match self {
+    //         Meta::NameValue(meta) => Ok(meta),
+    //         Meta::Path(path) => Err(crate::error::new2(
+    //             path.segments.first().unwrap().ident.span(),
+    //             path.segments.last().unwrap().ident.span(),
+    //             format!(
+    //                 "expected a value for this attribute: `{} = ...`",
+    //                 parsing::DisplayPath(path),
+    //             ),
+    //         )),
+    //         Meta::List(meta) => Err(Error::new(meta.delimiter.span().open(), "expected `=`")),
+    //     }
+    // }
 }
 
 impl MetaList {
-    /// See [`Attribute::parse_args`].
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn parse_args<T: Parse>(&self) -> Result<T> {
-        self.parse_args_with(T::parse)
-    }
 
-    /// See [`Attribute::parse_args_with`].
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn parse_args_with<F: Parser>(&self, parser: F) -> Result<F::Output> {
-        let scope = self.delimiter.span().close();
-        crate::parse::parse_scoped(parser, scope, self.tokens.clone())
-    }
 
-    /// See [`Attribute::parse_nested_meta`].
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn parse_nested_meta(
-        &self,
-        logic: impl FnMut(ParseNestedMeta) -> Result<()>,
-    ) -> Result<()> {
-        self.parse_args_with(meta::parser(logic))
-    }
 }
 
 #[cfg(feature = "printing")]
@@ -622,136 +360,6 @@ impl<'a> FilterAttrs<'a> for &'a [Attribute] {
             }
         }
         self.iter().filter(is_inner)
-    }
-}
-
-#[cfg(feature = "parsing")]
-pub(crate) mod parsing {
-    use crate::attr::{AttrStyle, Attribute, Meta, MetaList, MetaNameValue};
-    use crate::error::Result;
-    use crate::expr::{Expr, ExprLit};
-    use crate::lit::Lit;
-    use crate::parse::discouraged::Speculative as _;
-    use crate::parse::{Parse, ParseStream};
-    use crate::path::Path;
-    use crate::{mac, token};
-    use std::fmt::{self, Display};
-
-    pub(crate) fn parse_inner(input: ParseStream, attrs: &mut Vec<Attribute>) -> Result<()> {
-        while input.peek(Token![#]) && input.peek2(Token![!]) {
-            attrs.push(input.call(single_parse_inner)?);
-        }
-        Ok(())
-    }
-
-    pub(crate) fn single_parse_inner(input: ParseStream) -> Result<Attribute> {
-        let content;
-        Ok(Attribute {
-            pound_token: input.parse()?,
-            style: AttrStyle::Inner(input.parse()?),
-            bracket_token: bracketed!(content in input),
-            meta: content.parse()?,
-        })
-    }
-
-    pub(crate) fn single_parse_outer(input: ParseStream) -> Result<Attribute> {
-        let content;
-        Ok(Attribute {
-            pound_token: input.parse()?,
-            style: AttrStyle::Outer,
-            bracket_token: bracketed!(content in input),
-            meta: content.parse()?,
-        })
-    }
-
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    impl Parse for Meta {
-        fn parse(input: ParseStream) -> Result<Self> {
-            let path = input.call(Path::parse_mod_style)?;
-            parse_meta_after_path(path, input)
-        }
-    }
-
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    impl Parse for MetaList {
-        fn parse(input: ParseStream) -> Result<Self> {
-            let path = input.call(Path::parse_mod_style)?;
-            parse_meta_list_after_path(path, input)
-        }
-    }
-
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    impl Parse for MetaNameValue {
-        fn parse(input: ParseStream) -> Result<Self> {
-            let path = input.call(Path::parse_mod_style)?;
-            parse_meta_name_value_after_path(path, input)
-        }
-    }
-
-    pub(crate) fn parse_meta_after_path(path: Path, input: ParseStream) -> Result<Meta> {
-        if input.peek(token::Paren) || input.peek(token::Bracket) || input.peek(token::Brace) {
-            parse_meta_list_after_path(path, input).map(Meta::List)
-        } else if input.peek(Token![=]) {
-            parse_meta_name_value_after_path(path, input).map(Meta::NameValue)
-        } else {
-            Ok(Meta::Path(path))
-        }
-    }
-
-    fn parse_meta_list_after_path(path: Path, input: ParseStream) -> Result<MetaList> {
-        let (delimiter, tokens) = mac::parse_delimiter(input)?;
-        Ok(MetaList {
-            path,
-            delimiter,
-            tokens,
-        })
-    }
-
-    fn parse_meta_name_value_after_path(path: Path, input: ParseStream) -> Result<MetaNameValue> {
-        let eq_token: Token![=] = input.parse()?;
-        let ahead = input.fork();
-        let lit: Option<Lit> = ahead.parse()?;
-        let value = if let (Some(lit), true) = (lit, ahead.is_empty()) {
-            input.advance_to(&ahead);
-            Expr::Lit(ExprLit {
-                attrs: Vec::new(),
-                lit,
-            })
-        } else if input.peek(Token![#]) && input.peek2(token::Bracket) {
-            return Err(input.error("unexpected attribute inside of attribute"));
-        } else {
-            input.parse()?
-        };
-        Ok(MetaNameValue {
-            path,
-            eq_token,
-            value,
-        })
-    }
-
-    pub(super) struct DisplayAttrStyle<'a>(pub &'a AttrStyle);
-
-    impl<'a> Display for DisplayAttrStyle<'a> {
-        fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str(match self.0 {
-                AttrStyle::Outer => "#",
-                AttrStyle::Inner(_) => "#!",
-            })
-        }
-    }
-
-    pub(super) struct DisplayPath<'a>(pub &'a Path);
-
-    impl<'a> Display for DisplayPath<'a> {
-        fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            for (i, segment) in self.0.segments.iter().enumerate() {
-                if i > 0 || self.0.leading_colon.is_some() {
-                    formatter.write_str("::")?;
-                }
-                write!(formatter, "{}", segment.ident)?;
-            }
-            Ok(())
-        }
     }
 }
 

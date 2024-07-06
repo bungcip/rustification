@@ -1,5 +1,5 @@
-#[cfg(feature = "parsing")]
-use crate::lookahead;
+// #[cfg(feature = "parsing")]
+// use crate::lookahead;
 use proc_macro2::{Ident, Span};
 use std::cmp::Ordering;
 use std::fmt::{self, Display};
@@ -111,32 +111,7 @@ impl Hash for Lifetime {
     }
 }
 
-#[cfg(feature = "parsing")]
-pub_if_not_doc! {
-    #[doc(hidden)]
-    #[allow(non_snake_case)]
-    pub fn Lifetime(marker: lookahead::TokenMarker) -> Lifetime {
-        match marker {}
-    }
-}
 
-#[cfg(feature = "parsing")]
-pub(crate) mod parsing {
-    use crate::error::Result;
-    use crate::lifetime::Lifetime;
-    use crate::parse::{Parse, ParseStream};
-
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    impl Parse for Lifetime {
-        fn parse(input: ParseStream) -> Result<Self> {
-            input.step(|cursor| {
-                cursor
-                    .lifetime()
-                    .ok_or_else(|| cursor.error("expected lifetime"))
-            })
-        }
-    }
-}
 
 #[cfg(feature = "printing")]
 mod printing {

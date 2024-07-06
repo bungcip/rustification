@@ -91,14 +91,14 @@
 #[cfg(feature = "parsing")]
 pub(crate) use self::private::CustomToken;
 use self::private::WithSpan;
-#[cfg(feature = "parsing")]
-use crate::buffer::Cursor;
-#[cfg(feature = "parsing")]
-use crate::error::Result;
-#[cfg(feature = "parsing")]
-use crate::lifetime::Lifetime;
-#[cfg(feature = "parsing")]
-use crate::parse::{Parse, ParseStream};
+// #[cfg(feature = "parsing")]
+// use crate::buffer::Cursor;
+// #[cfg(feature = "parsing")]
+// use crate::error::Result;
+// #[cfg(feature = "parsing")]
+// use crate::lifetime::Lifetime;
+// #[cfg(feature = "parsing")]
+// use crate::parse::{Parse, ParseStream};
 use crate::span::IntoSpans;
 use proc_macro2::extra::DelimSpan;
 use proc_macro2::Span;
@@ -106,8 +106,8 @@ use proc_macro2::Span;
 use proc_macro2::TokenStream;
 #[cfg(any(feature = "parsing", feature = "printing"))]
 use proc_macro2::{Delimiter, Ident};
-#[cfg(feature = "parsing")]
-use proc_macro2::{Literal, Punct, TokenTree};
+// #[cfg(feature = "parsing")]
+// use proc_macro2::{Literal, Punct, TokenTree};
 #[cfg(feature = "printing")]
 use quote::{ToTokens, TokenStreamExt};
 #[cfg(feature = "extra-traits")]
@@ -118,27 +118,14 @@ use std::fmt::{self, Debug};
 use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
 
-/// Marker trait for types that represent single tokens.
-///
-/// This trait is sealed and cannot be implemented for types outside of Syn.
-#[cfg(feature = "parsing")]
-pub trait Token: private::Sealed {
-    // Not public API.
-    #[doc(hidden)]
-    fn peek(cursor: Cursor) -> bool;
-
-    // Not public API.
-    #[doc(hidden)]
-    fn display() -> &'static str;
-}
 
 pub(crate) mod private {
     #[cfg(feature = "parsing")]
     use crate::buffer::Cursor;
     use proc_macro2::Span;
 
-    #[cfg(feature = "parsing")]
-    pub trait Sealed {}
+    // #[cfg(feature = "parsing")]
+    // pub trait Sealed {}
 
     /// Support writing `token.span` rather than `token.spans[0]` on tokens that
     /// hold a single span.
@@ -157,24 +144,24 @@ pub(crate) mod private {
     }
 }
 
-#[cfg(feature = "parsing")]
-impl private::Sealed for Ident {}
+// #[cfg(feature = "parsing")]
+// impl private::Sealed for Ident {}
 
 macro_rules! impl_low_level_token {
     ($display:literal $($path:ident)::+ $get:ident) => {
-        #[cfg(feature = "parsing")]
-        impl Token for $($path)::+ {
-            fn peek(cursor: Cursor) -> bool {
-                cursor.$get().is_some()
-            }
+        // #[cfg(feature = "parsing")]
+        // impl Token for $($path)::+ {
+        //     fn peek(cursor: Cursor) -> bool {
+        //         cursor.$get().is_some()
+        //     }
 
-            fn display() -> &'static str {
-                $display
-            }
-        }
+        //     fn display() -> &'static str {
+        //         $display
+        //     }
+        // }
 
-        #[cfg(feature = "parsing")]
-        impl private::Sealed for $($path)::+ {}
+        // #[cfg(feature = "parsing")]
+        // impl private::Sealed for $($path)::+ {}
     };
 }
 
@@ -184,19 +171,19 @@ impl_low_level_token!("token" TokenTree token_tree);
 impl_low_level_token!("group token" proc_macro2::Group any_group);
 impl_low_level_token!("lifetime" Lifetime lifetime);
 
-#[cfg(feature = "parsing")]
-impl<T: CustomToken> private::Sealed for T {}
+// #[cfg(feature = "parsing")]
+// impl<T: CustomToken> private::Sealed for T {}
 
-#[cfg(feature = "parsing")]
-impl<T: CustomToken> Token for T {
-    fn peek(cursor: Cursor) -> bool {
-        <Self as CustomToken>::peek(cursor)
-    }
+// #[cfg(feature = "parsing")]
+// impl<T: CustomToken> Token for T {
+//     fn peek(cursor: Cursor) -> bool {
+//         <Self as CustomToken>::peek(cursor)
+//     }
 
-    fn display() -> &'static str {
-        <Self as CustomToken>::display()
-    }
-}
+//     fn display() -> &'static str {
+//         <Self as CustomToken>::display()
+//     }
+// }
 
 macro_rules! define_keywords {
     ($($token:literal pub struct $name:ident)*) => {
@@ -273,29 +260,29 @@ macro_rules! define_keywords {
                 }
             }
 
-            #[cfg(feature = "parsing")]
-            #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-            impl Parse for $name {
-                fn parse(input: ParseStream) -> Result<Self> {
-                    Ok($name {
-                        span: parsing::keyword(input, $token)?,
-                    })
-                }
-            }
+            // #[cfg(feature = "parsing")]
+            // #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
+            // impl Parse for $name {
+            //     fn parse(input: ParseStream) -> Result<Self> {
+            //         Ok($name {
+            //             span: parsing::keyword(input, $token)?,
+            //         })
+            //     }
+            // }
 
-            #[cfg(feature = "parsing")]
-            impl Token for $name {
-                fn peek(cursor: Cursor) -> bool {
-                    parsing::peek_keyword(cursor, $token)
-                }
+            // #[cfg(feature = "parsing")]
+            // impl Token for $name {
+            //     fn peek(cursor: Cursor) -> bool {
+            //         parsing::peek_keyword(cursor, $token)
+            //     }
 
-                fn display() -> &'static str {
-                    concat!("`", $token, "`")
-                }
-            }
+            //     fn display() -> &'static str {
+            //         concat!("`", $token, "`")
+            //     }
+            // }
 
-            #[cfg(feature = "parsing")]
-            impl private::Sealed for $name {}
+            // #[cfg(feature = "parsing")]
+            // impl private::Sealed for $name {}
         )*
     };
 }
@@ -412,29 +399,29 @@ macro_rules! define_punctuation {
                 }
             }
 
-            #[cfg(feature = "parsing")]
-            #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-            impl Parse for $name {
-                fn parse(input: ParseStream) -> Result<Self> {
-                    Ok($name {
-                        spans: parsing::punct(input, $token)?,
-                    })
-                }
-            }
+            // #[cfg(feature = "parsing")]
+            // #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
+            // impl Parse for $name {
+            //     fn parse(input: ParseStream) -> Result<Self> {
+            //         Ok($name {
+            //             spans: parsing::punct(input, $token)?,
+            //         })
+            //     }
+            // }
 
-            #[cfg(feature = "parsing")]
-            impl Token for $name {
-                fn peek(cursor: Cursor) -> bool {
-                    parsing::peek_punct(cursor, $token)
-                }
+            // #[cfg(feature = "parsing")]
+            // impl Token for $name {
+            //     fn peek(cursor: Cursor) -> bool {
+            //         parsing::peek_punct(cursor, $token)
+            //     }
 
-                fn display() -> &'static str {
-                    concat!("`", $token, "`")
-                }
-            }
+            //     fn display() -> &'static str {
+            //         concat!("`", $token, "`")
+            //     }
+            // }
 
-            #[cfg(feature = "parsing")]
-            impl private::Sealed for $name {}
+            // #[cfg(feature = "parsing")]
+            // impl private::Sealed for $name {}
         )*
     };
 }
@@ -511,8 +498,8 @@ macro_rules! define_delimiters {
                 }
             }
 
-            #[cfg(feature = "parsing")]
-            impl private::Sealed for $name {}
+            // #[cfg(feature = "parsing")]
+            // impl private::Sealed for $name {}
         )*
     };
 }
@@ -529,45 +516,9 @@ impl ToTokens for Underscore {
     }
 }
 
-#[cfg(feature = "parsing")]
-#[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-impl Parse for Underscore {
-    fn parse(input: ParseStream) -> Result<Self> {
-        input.step(|cursor| {
-            if let Some((ident, rest)) = cursor.ident() {
-                if ident == "_" {
-                    return Ok((Underscore(ident.span()), rest));
-                }
-            }
-            if let Some((punct, rest)) = cursor.punct() {
-                if punct.as_char() == '_' {
-                    return Ok((Underscore(punct.span()), rest));
-                }
-            }
-            Err(cursor.error("expected `_`"))
-        })
-    }
-}
 
-#[cfg(feature = "parsing")]
-impl Token for Underscore {
-    fn peek(cursor: Cursor) -> bool {
-        if let Some((ident, _rest)) = cursor.ident() {
-            return ident == "_";
-        }
-        if let Some((punct, _rest)) = cursor.punct() {
-            return punct.as_char() == '_';
-        }
-        false
-    }
-
-    fn display() -> &'static str {
-        "`_`"
-    }
-}
-
-#[cfg(feature = "parsing")]
-impl private::Sealed for Underscore {}
+// #[cfg(feature = "parsing")]
+// impl private::Sealed for Underscore {}
 
 /// None-delimited group
 pub struct Group {
@@ -640,52 +591,52 @@ impl Group {
     }
 }
 
-#[cfg(feature = "parsing")]
-impl private::Sealed for Group {}
+// #[cfg(feature = "parsing")]
+// impl private::Sealed for Group {}
 
-#[cfg(feature = "parsing")]
-impl Token for Paren {
-    fn peek(cursor: Cursor) -> bool {
-        cursor.group(Delimiter::Parenthesis).is_some()
-    }
+// #[cfg(feature = "parsing")]
+// impl Token for Paren {
+//     fn peek(cursor: Cursor) -> bool {
+//         cursor.group(Delimiter::Parenthesis).is_some()
+//     }
 
-    fn display() -> &'static str {
-        "parentheses"
-    }
-}
+//     fn display() -> &'static str {
+//         "parentheses"
+//     }
+// }
 
-#[cfg(feature = "parsing")]
-impl Token for Brace {
-    fn peek(cursor: Cursor) -> bool {
-        cursor.group(Delimiter::Brace).is_some()
-    }
+// #[cfg(feature = "parsing")]
+// impl Token for Brace {
+//     fn peek(cursor: Cursor) -> bool {
+//         cursor.group(Delimiter::Brace).is_some()
+//     }
 
-    fn display() -> &'static str {
-        "curly braces"
-    }
-}
+//     fn display() -> &'static str {
+//         "curly braces"
+//     }
+// }
 
-#[cfg(feature = "parsing")]
-impl Token for Bracket {
-    fn peek(cursor: Cursor) -> bool {
-        cursor.group(Delimiter::Bracket).is_some()
-    }
+// #[cfg(feature = "parsing")]
+// impl Token for Bracket {
+//     fn peek(cursor: Cursor) -> bool {
+//         cursor.group(Delimiter::Bracket).is_some()
+//     }
 
-    fn display() -> &'static str {
-        "square brackets"
-    }
-}
+//     fn display() -> &'static str {
+//         "square brackets"
+//     }
+// }
 
-#[cfg(feature = "parsing")]
-impl Token for Group {
-    fn peek(cursor: Cursor) -> bool {
-        cursor.group(Delimiter::None).is_some()
-    }
+// #[cfg(feature = "parsing")]
+// impl Token for Group {
+//     fn peek(cursor: Cursor) -> bool {
+//         cursor.group(Delimiter::None).is_some()
+//     }
 
-    fn display() -> &'static str {
-        "invisible group"
-    }
-}
+//     fn display() -> &'static str {
+//         "invisible group"
+//     }
+// }
 
 define_keywords! {
     "abstract"    pub struct Abstract
@@ -965,88 +916,6 @@ macro_rules! Token {
     [*=]          => { $crate::token::StarEq };
     [~]           => { $crate::token::Tilde };
     [_]           => { $crate::token::Underscore };
-}
-
-// Not public API.
-#[doc(hidden)]
-#[cfg(feature = "parsing")]
-pub(crate) mod parsing {
-    use crate::buffer::Cursor;
-    use crate::error::{Error, Result};
-    use crate::parse::ParseStream;
-    use proc_macro2::{Spacing, Span};
-
-    pub(crate) fn keyword(input: ParseStream, token: &str) -> Result<Span> {
-        input.step(|cursor| {
-            if let Some((ident, rest)) = cursor.ident() {
-                if ident == token {
-                    return Ok((ident.span(), rest));
-                }
-            }
-            Err(cursor.error(format!("expected `{}`", token)))
-        })
-    }
-
-    pub(crate) fn peek_keyword(cursor: Cursor, token: &str) -> bool {
-        if let Some((ident, _rest)) = cursor.ident() {
-            ident == token
-        } else {
-            false
-        }
-    }
-
-    #[doc(hidden)]
-    pub fn punct<const N: usize>(input: ParseStream, token: &str) -> Result<[Span; N]> {
-        let mut spans = [input.span(); N];
-        punct_helper(input, token, &mut spans)?;
-        Ok(spans)
-    }
-
-    fn punct_helper(input: ParseStream, token: &str, spans: &mut [Span]) -> Result<()> {
-        input.step(|cursor| {
-            let mut cursor = *cursor;
-            assert_eq!(token.len(), spans.len());
-
-            for (i, ch) in token.chars().enumerate() {
-                match cursor.punct() {
-                    Some((punct, rest)) => {
-                        spans[i] = punct.span();
-                        if punct.as_char() != ch {
-                            break;
-                        } else if i == token.len() - 1 {
-                            return Ok(((), rest));
-                        } else if punct.spacing() != Spacing::Joint {
-                            break;
-                        }
-                        cursor = rest;
-                    }
-                    None => break,
-                }
-            }
-
-            Err(Error::new(spans[0], format!("expected `{}`", token)))
-        })
-    }
-
-    #[doc(hidden)]
-    pub fn peek_punct(mut cursor: Cursor, token: &str) -> bool {
-        for (i, ch) in token.chars().enumerate() {
-            match cursor.punct() {
-                Some((punct, rest)) => {
-                    if punct.as_char() != ch {
-                        break;
-                    } else if i == token.len() - 1 {
-                        return true;
-                    } else if punct.spacing() != Spacing::Joint {
-                        break;
-                    }
-                    cursor = rest;
-                }
-                None => break,
-            }
-        }
-        false
-    }
 }
 
 // Not public API.

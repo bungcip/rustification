@@ -3195,13 +3195,14 @@ impl<'c> Translation<'c> {
             }
         }
 
-        if self.tcfg.translate_fn_macros {
-            let text = self.ast_context.macro_expansion_text.get(&expr_id);
-            if let Some(converted) = text.and_then(|text| self.convert_macro_invocation(ctx, text))
-            {
-                return Ok(converted);
-            }
-        }
+        // TODO: remove translate_fn feature
+        // if self.tcfg.translate_fn_macros {
+        //     let text = self.ast_context.macro_expansion_text.get(&expr_id);
+        //     if let Some(converted) = text.and_then(|text| self.convert_macro_invocation(ctx, text))
+        //     {
+        //         return Ok(converted);
+        //     }
+        // }
 
         use CExprKind::*;
         match *expr_kind {
@@ -3967,22 +3968,22 @@ impl<'c> Translation<'c> {
         Ok(None)
     }
 
-    fn convert_macro_invocation(
-        &self,
-        _ctx: ExprContext,
-        text: &str,
-    ) -> Option<WithStmts<Box<Expr>>> {
-        let mut split = text.splitn(2, '(');
-        let ident = split.next()?;
-        let args = split.next()?.trim_end_matches(')');
+    // fn convert_macro_invocation(
+    //     &self,
+    //     _ctx: ExprContext,
+    //     text: &str,
+    // ) -> Option<WithStmts<Box<Expr>>> {
+    //     let mut split = text.splitn(2, '(');
+    //     let ident = split.next()?;
+    //     let args = split.next()?.trim_end_matches(')');
 
-        let ts: TokenStream = rast::parse_str(args).ok()?;
-        Some(WithStmts::new_val(mk().mac_expr(mk().mac(
-            mk().path(ident),
-            ts,
-            MacroDelimiter::Paren(Default::default()),
-        ))))
-    }
+    //     let ts: TokenStream = rast::parse_str(args).ok()?;
+    //     Some(WithStmts::new_val(mk().mac_expr(mk().mac(
+    //         mk().path(ident),
+    //         ts,
+    //         MacroDelimiter::Paren(Default::default()),
+    //     ))))
+    // }
 
     /// If `ctx` is unused, convert `expr` to a semi statement, otherwise return
     /// `expr`.

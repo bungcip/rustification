@@ -21,12 +21,12 @@
 //! ```
 
 use crate::drops::{NoDrop, TrivialDrop};
-#[cfg(feature = "parsing")]
-use crate::error::Result;
-#[cfg(feature = "parsing")]
-use crate::parse::{Parse, ParseStream};
-#[cfg(feature = "parsing")]
-use crate::token::Token;
+// #[cfg(feature = "parsing")]
+// use crate::error::Result;
+// #[cfg(feature = "parsing")]
+// use crate::parse::{Parse, ParseStream};
+// #[cfg(feature = "parsing")]
+// use crate::token::Token;
 #[cfg(feature = "extra-traits")]
 use std::fmt::{self, Debug};
 #[cfg(feature = "extra-traits")]
@@ -257,104 +257,8 @@ impl<T, P> Punctuated<T, P> {
         self.last = None;
     }
 
-    /// Parses zero or more occurrences of `T` separated by punctuation of type
-    /// `P`, with optional trailing punctuation.
-    ///
-    /// Parsing continues until the end of this parse stream. The entire content
-    /// of this parse stream must consist of `T` and `P`.
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn parse_terminated(input: ParseStream) -> Result<Self>
-    where
-        T: Parse,
-        P: Parse,
-    {
-        Self::parse_terminated_with(input, T::parse)
-    }
 
-    /// Parses zero or more occurrences of `T` using the given parse function,
-    /// separated by punctuation of type `P`, with optional trailing
-    /// punctuation.
-    ///
-    /// Like [`parse_terminated`], the entire content of this stream is expected
-    /// to be parsed.
-    ///
-    /// [`parse_terminated`]: Punctuated::parse_terminated
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn parse_terminated_with(
-        input: ParseStream,
-        parser: fn(ParseStream) -> Result<T>,
-    ) -> Result<Self>
-    where
-        P: Parse,
-    {
-        let mut punctuated = Punctuated::new();
 
-        loop {
-            if input.is_empty() {
-                break;
-            }
-            let value = parser(input)?;
-            punctuated.push_value(value);
-            if input.is_empty() {
-                break;
-            }
-            let punct = input.parse()?;
-            punctuated.push_punct(punct);
-        }
-
-        Ok(punctuated)
-    }
-
-    /// Parses one or more occurrences of `T` separated by punctuation of type
-    /// `P`, not accepting trailing punctuation.
-    ///
-    /// Parsing continues as long as punctuation `P` is present at the head of
-    /// the stream. This method returns upon parsing a `T` and observing that it
-    /// is not followed by a `P`, even if there are remaining tokens in the
-    /// stream.
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn parse_separated_nonempty(input: ParseStream) -> Result<Self>
-    where
-        T: Parse,
-        P: Token + Parse,
-    {
-        Self::parse_separated_nonempty_with(input, T::parse)
-    }
-
-    /// Parses one or more occurrences of `T` using the given parse function,
-    /// separated by punctuation of type `P`, not accepting trailing
-    /// punctuation.
-    ///
-    /// Like [`parse_separated_nonempty`], may complete early without parsing
-    /// the entire content of this stream.
-    ///
-    /// [`parse_separated_nonempty`]: Punctuated::parse_separated_nonempty
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn parse_separated_nonempty_with(
-        input: ParseStream,
-        parser: fn(ParseStream) -> Result<T>,
-    ) -> Result<Self>
-    where
-        P: Token + Parse,
-    {
-        let mut punctuated = Punctuated::new();
-
-        loop {
-            let value = parser(input)?;
-            punctuated.push_value(value);
-            if !P::peek(input.cursor()) {
-                break;
-            }
-            let punct = input.parse()?;
-            punctuated.push_punct(punct);
-        }
-
-        Ok(punctuated)
-    }
 }
 
 #[cfg(feature = "clone-impls")]

@@ -1,5 +1,5 @@
-#[cfg(feature = "parsing")]
-use crate::buffer::Cursor;
+// #[cfg(feature = "parsing")]
+// use crate::buffer::Cursor;
 use crate::thread::ThreadBound;
 use proc_macro2::{
     Delimiter, Group, Ident, LexError, Literal, Punct, Spacing, Span, TokenStream, TokenTree,
@@ -323,15 +323,6 @@ impl ErrorMessage {
     }
 }
 
-#[cfg(feature = "parsing")]
-pub(crate) fn new_at<T: Display>(scope: Span, cursor: Cursor, message: T) -> Error {
-    if cursor.eof() {
-        Error::new(scope, format!("unexpected end of input, {}", message))
-    } else {
-        let span = crate::buffer::open_span_of_group(cursor);
-        Error::new(span, message)
-    }
-}
 
 #[cfg(all(feature = "parsing", any(feature = "full", feature = "derive")))]
 pub(crate) fn new2<T: Display>(start: Span, end: Span, message: T) -> Error {

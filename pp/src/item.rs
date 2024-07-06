@@ -1200,7 +1200,7 @@ impl Printer {
 
     #[cfg(feature = "verbatim")]
     fn impl_item_verbatim(&mut self, tokens: &TokenStream) {
-        use rast::parse::{Parse, ParseStream, Result};
+        // use rast::parse::{Parse, ParseStream, Result};
         use rast::{Attribute, Ident, Token, Visibility};
         use verbatim::{FlexibleItemConst, FlexibleItemFn, FlexibleItemType, WhereClauseLocation};
 
@@ -1252,29 +1252,7 @@ impl Printer {
             }
         }
 
-        let impl_item: ImplItemVerbatim = match rast::parse2(tokens.clone()) {
-            Ok(impl_item) => impl_item,
-            Err(_) => unimplemented!("ImplItem::Verbatim `{}`", tokens),
-        };
-
-        match impl_item {
-            ImplItemVerbatim::Empty => {
-                self.hardbreak();
-            }
-            ImplItemVerbatim::Ellipsis => {
-                self.word("...");
-                self.hardbreak();
-            }
-            ImplItemVerbatim::ConstFlexible(impl_item) => {
-                self.flexible_item_const(&impl_item);
-            }
-            ImplItemVerbatim::FnFlexible(impl_item) => {
-                self.flexible_item_fn(&impl_item);
-            }
-            ImplItemVerbatim::TypeFlexible(impl_item) => {
-                self.flexible_item_type(&impl_item);
-            }
-        }
+        unimplemented!("ImplItem::Verbatim `{}`", tokens);
     }
 
     fn signature(&mut self, signature: &Signature) {

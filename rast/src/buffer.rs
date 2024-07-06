@@ -206,28 +206,6 @@ impl<'a> Cursor<'a> {
         None
     }
 
-    pub(crate) fn any_group(self) -> Option<(Cursor<'a>, Delimiter, DelimSpan, Cursor<'a>)> {
-        if let Entry::Group(group, end_offset) = self.entry() {
-            let delimiter = group.delimiter();
-            let span = group.delim_span();
-            let end_of_group = unsafe { self.ptr.add(*end_offset) };
-            let inside_of_group = unsafe { Cursor::create(self.ptr.add(1), end_of_group) };
-            let after_group = unsafe { Cursor::create(end_of_group, self.scope) };
-            return Some((inside_of_group, delimiter, span, after_group));
-        }
-
-        None
-    }
-
-    pub(crate) fn any_group_token(self) -> Option<(Group, Cursor<'a>)> {
-        if let Entry::Group(group, end_offset) = self.entry() {
-            let end_of_group = unsafe { self.ptr.add(*end_offset) };
-            let after_group = unsafe { Cursor::create(end_of_group, self.scope) };
-            return Some((group.clone(), after_group));
-        }
-
-        None
-    }
 
     /// If the cursor is pointing at a `Ident`, returns it along with a cursor
     /// pointing at the next `TokenTree`.
@@ -330,40 +308,8 @@ impl<'a> Cursor<'a> {
         }
     }
 
-    /// Returns the `Span` of the token immediately prior to the position of
-    /// this cursor, or of the current token if there is no previous one.
-    #[cfg(any(feature = "full", feature = "derive"))]
-    pub(crate) fn prev_span(mut self) -> Span {
-        if start_of_buffer(self) < self.ptr {
-            self.ptr = unsafe { self.ptr.offset(-1) };
-        }
-        self.span()
-    }
 
-    /// Skip over the next token that is not a None-delimited group, without
-    /// cloning it. Returns `None` if this cursor points to eof.
-    ///
-    /// This method treats `'lifetimes` as a single token.
-    pub(crate) fn skip(mut self) -> Option<Cursor<'a>> {
-        self.ignore_none();
 
-        let len = match self.entry() {
-            Entry::End(..) => return None,
-
-            // Treat lifetimes as a single tt for the purposes of 'skip'.
-            Entry::Punct(punct) if punct.as_char() == '\'' && punct.spacing() == Spacing::Joint => {
-                match unsafe { &*self.ptr.add(1) } {
-                    Entry::Ident(_) => 2,
-                    _ => 1,
-                }
-            }
-
-            Entry::Group(_, end_offset) => *end_offset,
-            _ => 1,
-        };
-
-        Some(unsafe { Cursor::create(self.ptr.add(len), self.scope) })
-    }
 }
 
 impl<'a> Copy for Cursor<'a> {}
@@ -392,9 +338,9 @@ impl<'a> PartialOrd for Cursor<'a> {
     }
 }
 
-pub(crate) fn same_scope(a: Cursor, b: Cursor) -> bool {
-    a.scope == b.scope
-}
+// pub(crate) fn same_scope(a: Cursor, b: Cursor) -> bool {
+//     a.scope == b.scope
+// }
 
 pub(crate) fn same_buffer(a: Cursor, b: Cursor) -> bool {
     start_of_buffer(a) == start_of_buffer(b)
@@ -413,9 +359,9 @@ pub(crate) fn cmp_assuming_same_buffer(a: Cursor, b: Cursor) -> Ordering {
     a.ptr.cmp(&b.ptr)
 }
 
-pub(crate) fn open_span_of_group(cursor: Cursor) -> Span {
-    match cursor.entry() {
-        Entry::Group(group, _) => group.span_open(),
-        _ => cursor.span(),
-    }
-}
+// pub(crate) fn open_span_of_group(cursor: Cursor) -> Span {
+//     match cursor.entry() {
+//         Entry::Group(group, _) => group.span_open(),
+//         _ => cursor.span(),
+//     }
+// }

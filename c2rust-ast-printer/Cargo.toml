@@ -20,4 +20,4 @@ log = "0.4"
 rast = { features = ["full", "proc-macro", "printing", "clone-impls"], path = "../rast" }
 proc-macro2 = "1.0.86"
 # prettyplease = {version="0.2", features = ["verbatim"]}
-pp = {features = ["verbatim"], path = "../pp"}
+pp = {path = "../pp"}

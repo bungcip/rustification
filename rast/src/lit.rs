@@ -1,11 +1,7 @@
-#[cfg(feature = "parsing")]
-use crate::lookahead;
-#[cfg(feature = "parsing")]
-use crate::parse::{Parse, Parser};
 use crate::{Error, Result};
 use proc_macro2::{Ident, Literal, Span};
-#[cfg(feature = "parsing")]
-use proc_macro2::{TokenStream, TokenTree};
+// #[cfg(feature = "parsing")]
+// use proc_macro2::{TokenStream, TokenTree};
 use std::ffi::{CStr, CString};
 use std::fmt::{self, Display};
 #[cfg(feature = "extra-traits")]
@@ -147,111 +143,6 @@ impl LitStr {
         String::from(value)
     }
 
-    /// Parse a syntax tree node from the content of this string literal.
-    ///
-    /// All spans in the syntax tree will point to the span of this `LitStr`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use rast::{Attribute, Error, Expr, Lit, Meta, Path, Result};
-    ///
-    /// // Parses the path from an attribute that looks like:
-    /// //
-    /// //     #[path = "a::b::c"]
-    /// //
-    /// // or returns `None` if the input is some other attribute.
-    /// fn get_path(attr: &Attribute) -> Result<Option<Path>> {
-    ///     if !attr.path().is_ident("path") {
-    ///         return Ok(None);
-    ///     }
-    ///
-    ///     if let Meta::NameValue(meta) = &attr.meta {
-    ///         if let Expr::Lit(expr) = &meta.value {
-    ///             if let Lit::Str(lit_str) = &expr.lit {
-    ///                 return lit_str.parse().map(Some);
-    ///             }
-    ///         }
-    ///     }
-    ///
-    ///     let message = "expected #[path = \"...\"]";
-    ///     Err(Error::new_spanned(attr, message))
-    /// }
-    /// ```
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn parse<T: Parse>(&self) -> Result<T> {
-        self.parse_with(T::parse)
-    }
-
-    /// Invoke parser on the content of this string literal.
-    ///
-    /// All spans in the syntax tree will point to the span of this `LitStr`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use proc_macro2::Span;
-    /// # use rast::{LitStr, Result};
-    /// #
-    /// # fn main() -> Result<()> {
-    /// #     let lit_str = LitStr::new("a::b::c", Span::call_site());
-    /// #
-    /// #     const IGNORE: &str = stringify! {
-    /// let lit_str: LitStr = /* ... */;
-    /// #     };
-    ///
-    /// // Parse a string literal like "a::b::c" into a Path, not allowing
-    /// // generic arguments on any of the path segments.
-    /// let basic_path = lit_str.parse_with(rast::Path::parse_mod_style)?;
-    /// #
-    /// #     Ok(())
-    /// # }
-    /// ```
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn parse_with<F: Parser>(&self, parser: F) -> Result<F::Output> {
-        use proc_macro2::Group;
-
-        // Token stream with every span replaced by the given one.
-        fn respan_token_stream(stream: TokenStream, span: Span) -> TokenStream {
-            stream
-                .into_iter()
-                .map(|token| respan_token_tree(token, span))
-                .collect()
-        }
-
-        // Token tree with every span replaced by the given one.
-        fn respan_token_tree(mut token: TokenTree, span: Span) -> TokenTree {
-            match &mut token {
-                TokenTree::Group(g) => {
-                    let stream = respan_token_stream(g.stream(), span);
-                    *g = Group::new(g.delimiter(), stream);
-                    g.set_span(span);
-                }
-                other => other.set_span(span),
-            }
-            token
-        }
-
-        // Parse string literal into a token stream with every span equal to the
-        // original literal's span.
-        let span = self.span();
-        let mut tokens = TokenStream::from_str(&self.value())?;
-        tokens = respan_token_stream(tokens, span);
-
-        let result = crate::parse::parse_scoped(parser, span, tokens)?;
-
-        let suffix = self.suffix();
-        if !suffix.is_empty() {
-            return Err(Error::new(
-                self.span(),
-                format!("unexpected suffix `{}` on string literal", suffix),
-            ));
-        }
-
-        Ok(result)
-    }
 
     pub fn span(&self) -> Span {
         self.repr.token.span()
@@ -799,14 +690,14 @@ macro_rules! lit_extra_traits {
             }
         }
 
-        #[cfg(feature = "parsing")]
-        pub_if_not_doc! {
-            #[doc(hidden)]
-            #[allow(non_snake_case)]
-            pub fn $ty(marker: lookahead::TokenMarker) -> $ty {
-                match marker {}
-            }
-        }
+        // #[cfg(feature = "parsing")]
+        // pub_if_not_doc! {
+        //     #[doc(hidden)]
+        //     #[allow(non_snake_case)]
+        //     pub fn $ty(marker: lookahead::TokenMarker) -> $ty {
+        //         match marker {}
+        //     }
+        // }
     };
 }
 
@@ -818,14 +709,6 @@ lit_extra_traits!(LitChar);
 lit_extra_traits!(LitInt);
 lit_extra_traits!(LitFloat);
 
-#[cfg(feature = "parsing")]
-pub_if_not_doc! {
-    #[doc(hidden)]
-    #[allow(non_snake_case)]
-    pub fn LitBool(marker: lookahead::TokenMarker) -> LitBool {
-        match marker {}
-    }
-}
 
 /// The style of a string literal, either plain quoted or a raw string like
 /// `r##"data"##`.
@@ -837,225 +720,6 @@ pub enum StrStyle {
     ///
     /// The unsigned integer is the number of `#` symbols used.
     Raw(usize),
-}
-
-#[cfg(feature = "parsing")]
-pub_if_not_doc! {
-    #[doc(hidden)]
-    #[allow(non_snake_case)]
-    pub fn Lit(marker: lookahead::TokenMarker) -> Lit {
-        match marker {}
-    }
-}
-
-#[cfg(feature = "parsing")]
-pub(crate) mod parsing {
-    use crate::buffer::Cursor;
-    use crate::error::Result;
-    use crate::lit::{
-        value, Lit, LitBool, LitByte, LitByteStr, LitCStr, LitChar, LitFloat, LitFloatRepr, LitInt,
-        LitIntRepr, LitStr,
-    };
-    use crate::parse::{Parse, ParseStream, Unexpected};
-    use crate::token::{self, Token};
-    use proc_macro2::{Literal, Punct, Span};
-    use std::cell::Cell;
-    use std::rc::Rc;
-
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    impl Parse for Lit {
-        fn parse(input: ParseStream) -> Result<Self> {
-            input.step(|cursor| {
-                if let Some((lit, rest)) = cursor.literal() {
-                    return Ok((Lit::new(lit), rest));
-                }
-
-                if let Some((ident, rest)) = cursor.ident() {
-                    let value = ident == "true";
-                    if value || ident == "false" {
-                        let lit_bool = LitBool {
-                            value,
-                            span: ident.span(),
-                        };
-                        return Ok((Lit::Bool(lit_bool), rest));
-                    }
-                }
-
-                if let Some((punct, rest)) = cursor.punct() {
-                    if punct.as_char() == '-' {
-                        if let Some((lit, rest)) = parse_negative_lit(punct, rest) {
-                            return Ok((lit, rest));
-                        }
-                    }
-                }
-
-                Err(cursor.error("expected literal"))
-            })
-        }
-    }
-
-    fn parse_negative_lit(neg: Punct, cursor: Cursor) -> Option<(Lit, Cursor)> {
-        let (lit, rest) = cursor.literal()?;
-
-        let mut span = neg.span();
-        span = span.join(lit.span()).unwrap_or(span);
-
-        let mut repr = lit.to_string();
-        repr.insert(0, '-');
-
-        if let Some((digits, suffix)) = value::parse_lit_int(&repr) {
-            let mut token: Literal = repr.parse().unwrap();
-            token.set_span(span);
-            return Some((
-                Lit::Int(LitInt {
-                    repr: Box::new(LitIntRepr {
-                        token,
-                        digits,
-                        suffix,
-                    }),
-                }),
-                rest,
-            ));
-        }
-
-        let (digits, suffix) = value::parse_lit_float(&repr)?;
-        let mut token: Literal = repr.parse().unwrap();
-        token.set_span(span);
-        Some((
-            Lit::Float(LitFloat {
-                repr: Box::new(LitFloatRepr {
-                    token,
-                    digits,
-                    suffix,
-                }),
-            }),
-            rest,
-        ))
-    }
-
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    impl Parse for LitStr {
-        fn parse(input: ParseStream) -> Result<Self> {
-            let head = input.fork();
-            match input.parse() {
-                Ok(Lit::Str(lit)) => Ok(lit),
-                _ => Err(head.error("expected string literal")),
-            }
-        }
-    }
-
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    impl Parse for LitByteStr {
-        fn parse(input: ParseStream) -> Result<Self> {
-            let head = input.fork();
-            match input.parse() {
-                Ok(Lit::ByteStr(lit)) => Ok(lit),
-                _ => Err(head.error("expected byte string literal")),
-            }
-        }
-    }
-
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    impl Parse for LitCStr {
-        fn parse(input: ParseStream) -> Result<Self> {
-            let head = input.fork();
-            match input.parse() {
-                Ok(Lit::CStr(lit)) => Ok(lit),
-                _ => Err(head.error("expected C string literal")),
-            }
-        }
-    }
-
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    impl Parse for LitByte {
-        fn parse(input: ParseStream) -> Result<Self> {
-            let head = input.fork();
-            match input.parse() {
-                Ok(Lit::Byte(lit)) => Ok(lit),
-                _ => Err(head.error("expected byte literal")),
-            }
-        }
-    }
-
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    impl Parse for LitChar {
-        fn parse(input: ParseStream) -> Result<Self> {
-            let head = input.fork();
-            match input.parse() {
-                Ok(Lit::Char(lit)) => Ok(lit),
-                _ => Err(head.error("expected character literal")),
-            }
-        }
-    }
-
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    impl Parse for LitInt {
-        fn parse(input: ParseStream) -> Result<Self> {
-            let head = input.fork();
-            match input.parse() {
-                Ok(Lit::Int(lit)) => Ok(lit),
-                _ => Err(head.error("expected integer literal")),
-            }
-        }
-    }
-
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    impl Parse for LitFloat {
-        fn parse(input: ParseStream) -> Result<Self> {
-            let head = input.fork();
-            match input.parse() {
-                Ok(Lit::Float(lit)) => Ok(lit),
-                _ => Err(head.error("expected floating point literal")),
-            }
-        }
-    }
-
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    impl Parse for LitBool {
-        fn parse(input: ParseStream) -> Result<Self> {
-            let head = input.fork();
-            match input.parse() {
-                Ok(Lit::Bool(lit)) => Ok(lit),
-                _ => Err(head.error("expected boolean literal")),
-            }
-        }
-    }
-
-    fn peek_impl(cursor: Cursor, peek: fn(ParseStream) -> bool) -> bool {
-        let scope = Span::call_site();
-        let unexpected = Rc::new(Cell::new(Unexpected::None));
-        let buffer = crate::parse::new_parse_buffer(scope, cursor, unexpected);
-        peek(&buffer)
-    }
-
-    macro_rules! impl_token {
-        ($display:literal $name:ty) => {
-            impl Token for $name {
-                fn peek(cursor: Cursor) -> bool {
-                    fn peek(input: ParseStream) -> bool {
-                        <$name as Parse>::parse(input).is_ok()
-                    }
-                    peek_impl(cursor, peek)
-                }
-
-                fn display() -> &'static str {
-                    $display
-                }
-            }
-
-            impl token::private::Sealed for $name {}
-        };
-    }
-
-    impl_token!("literal" Lit);
-    impl_token!("string literal" LitStr);
-    impl_token!("byte string literal" LitByteStr);
-    impl_token!("C-string literal" LitCStr);
-    impl_token!("byte literal" LitByte);
-    impl_token!("character literal" LitChar);
-    impl_token!("integer literal" LitInt);
-    impl_token!("floating point literal" LitFloat);
-    impl_token!("boolean literal" LitBool);
 }
 
 #[cfg(feature = "printing")]

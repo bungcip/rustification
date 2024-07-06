@@ -2,7 +2,7 @@ use crate::buffer::Cursor;
 use crate::error::{self, Error};
 use crate::sealed::lookahead::Sealed;
 use crate::span::IntoSpans;
-use crate::token::Token;
+// use crate::token::Token;
 use proc_macro2::Span;
 use std::cell::RefCell;
 
@@ -102,7 +102,7 @@ impl<'a> Lookahead1<'a> {
     /// - `input.peek(token::Brace)`
     pub fn peek<T: Peek>(&self, token: T) -> bool {
         let _ = token;
-        peek_impl(self, T::Token::peek, T::Token::display)
+        // peek_impl(self, T::Token::peek, T::Token::display)
     }
 
     /// Triggers an error at the current position of the parse stream.
@@ -146,13 +146,13 @@ impl<'a> Lookahead1<'a> {
 /// [`ParseStream::peek`]: crate::parse::ParseBuffer::peek
 pub trait Peek: Sealed {
     // Not public API.
-    #[doc(hidden)]
-    type Token: Token;
+    // #[doc(hidden)]
+    // type Token: Token;
 }
 
-impl<F: Copy + FnOnce(TokenMarker) -> T, T: Token> Peek for F {
-    type Token = T;
-}
+// impl<F: Copy + FnOnce(TokenMarker) -> T, T: Token> Peek for F {
+//     type Token = T;
+// }
 
 pub enum TokenMarker {}
 
@@ -162,4 +162,4 @@ impl<S> IntoSpans<S> for TokenMarker {
     }
 }
 
-impl<F: Copy + FnOnce(TokenMarker) -> T, T: Token> Sealed for F {}
+// impl<F: Copy + FnOnce(TokenMarker) -> T, T: Token> Sealed for F {}
