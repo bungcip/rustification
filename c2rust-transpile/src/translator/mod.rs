@@ -3217,7 +3217,9 @@ impl<'c> Translation<'c> {
             BadExpr => Err(generic_err!("convert_expr: expression kind not supported")),
             ShuffleVector(_, ref child_expr_ids) => self
                 .convert_shuffle_vector(ctx, child_expr_ids)
-                .map_err(|e| generic_loc_err!(self.ast_context.display_loc(src_loc), "{}", e.message)),
+                .map_err(|e| {
+                    generic_loc_err!(self.ast_context.display_loc(src_loc), "{}", e.message)
+                }),
             ConvertVector(..) => Err(generic_err!("convert vector not supported")),
 
             UnaryType(_ty, kind, opt_expr, arg_ty) => {

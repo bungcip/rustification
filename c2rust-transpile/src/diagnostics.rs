@@ -130,7 +130,6 @@ macro_rules! clang_err {
     }
 }
 
-
 impl Display for TranslationErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::TranslationErrorKind::*;

@@ -445,15 +445,10 @@ pub struct SwitchCases {
 }
 
 /// A Rust statement, or a C declaration, or a comment
-///
-/// `#[allow(clippy::large_enum_variant)]`ed instead of [`Box`]ing the large variant,
-/// [`Stmt`] (472 bytes), as doing so would cause a lot of code churn and refactoring.
-#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug)]
 pub enum StmtOrDecl {
     /// Rust statement that was translated from a non-compound and non-declaration C statement.
-    // TODO(kkysen): See if this should be boxed.
-    Stmt(Stmt), // 472 bytes, not [`Box`]ed yet as it would cause a lot of code churn
+    Stmt(Box<Stmt>),
 
     /// C declaration
     Decl(CDeclId), // 8 bytes
@@ -476,7 +471,7 @@ impl StmtOrDecl {
     /// initializer or only an initializer.
     fn place_decls(self, lift_me: &IndexSet<CDeclId>, store: &mut DeclStmtStore) -> Vec<Stmt> {
         match self {
-            StmtOrDecl::Stmt(s) => vec![s],
+            StmtOrDecl::Stmt(s) => vec![*s],
             StmtOrDecl::Decl(d) if lift_me.contains(&d) => {
                 store.extract_assign(d).unwrap().into_iter().collect()
             }
@@ -607,26 +602,26 @@ impl Cfg<Label, StmtOrDecl> {
                     ImplicitReturnType::Main => {
                         let ret_expr: Option<Box<Expr>> = Some(mk().lit_expr(mk().int_lit(0, "")));
                         wip.body
-                            .push(StmtOrDecl::Stmt(mk().semi_stmt(mk().return_expr(ret_expr))));
+                            .push(StmtOrDecl::Stmt(Box::new(mk().semi_stmt(mk().return_expr(ret_expr)))));
                     }
                     ImplicitReturnType::Void => {
                         wip.body
-                            .push(StmtOrDecl::Stmt(mk().semi_stmt(mk().return_expr(None))));
+                            .push(StmtOrDecl::Stmt(Box::new(mk().semi_stmt(mk().return_expr(None)))));
                     }
                     ImplicitReturnType::NoImplicitReturnType => {
                         // NOTE: emitting `ret_expr` is not necessarily an error. For instance,
                         // this statement exit may be dominated by one or more return statements.
                         let ret_expr: Box<Expr> =
                             translator.panic("Reached end of non-void function without returning");
-                        wip.body.push(StmtOrDecl::Stmt(mk().semi_stmt(ret_expr)));
+                        wip.body.push(StmtOrDecl::Stmt(Box::new(mk().semi_stmt(ret_expr))));
                     }
                     ImplicitReturnType::StmtExpr(ctx, expr_id, brk_label) => {
                         let (stmts, val) = translator.convert_expr(ctx, expr_id)?.discard_unsafe();
 
-                        wip.body.extend(stmts.into_iter().map(StmtOrDecl::Stmt));
-                        wip.body.push(StmtOrDecl::Stmt(mk().semi_stmt(
+                        wip.body.extend(stmts.into_iter().map(|x| StmtOrDecl::Stmt(Box::new(x))));
+                        wip.body.push(StmtOrDecl::Stmt(Box::new(mk().semi_stmt(
                             mk().break_expr_value(Some(brk_label.pretty_print()), Some(val)),
-                        )));
+                        ))));
                     }
                 };
 
@@ -1138,14 +1133,14 @@ struct WipBlock {
 impl Extend<Stmt> for WipBlock {
     fn extend<T: IntoIterator<Item = Stmt>>(&mut self, iter: T) {
         for stmt in iter.into_iter() {
-            self.body.push(StmtOrDecl::Stmt(stmt))
+            self.body.push(StmtOrDecl::Stmt(Box::new(stmt)))
         }
     }
 }
 
 impl WipBlock {
     pub fn push_stmt(&mut self, stmt: Stmt) {
-        self.body.push(StmtOrDecl::Stmt(stmt))
+        self.body.push(StmtOrDecl::Stmt(Box::new(stmt)))
     }
 
     pub fn push_decl(&mut self, decl: CDeclId) {
