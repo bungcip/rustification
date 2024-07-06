@@ -162,48 +162,10 @@ impl Printer {
         self.word(")");
     }
 
-    #[cfg(not(feature = "verbatim"))]
     fn type_verbatim(&mut self, ty: &TokenStream) {
         unimplemented!("Type::Verbatim `{}`", ty);
     }
 
-    #[cfg(feature = "verbatim")]
-    fn type_verbatim(&mut self, tokens: &TokenStream) {
-        // use rast::parse::{Parse, ParseStream, Result};
-        use rast::punctuated::Punctuated;
-        use rast::{token, FieldsNamed, Token, TypeParamBound};
-
-        enum TypeVerbatim {
-            Ellipsis,
-            AnonStruct(AnonStruct),
-            AnonUnion(AnonUnion),
-            DynStar(DynStar),
-            MutSelf(MutSelf),
-            NotType(NotType),
-        }
-
-        struct AnonStruct {
-            fields: FieldsNamed,
-        }
-
-        struct AnonUnion {
-            fields: FieldsNamed,
-        }
-
-        struct DynStar {
-            bounds: Punctuated<TypeParamBound, Token![+]>,
-        }
-
-        struct MutSelf {
-            ty: Option<Type>,
-        }
-
-        struct NotType {
-            inner: Type,
-        }
-
-        unimplemented!("Type::Verbatim `{}`", tokens);
-    }
 
     pub fn return_type(&mut self, ty: &ReturnType) {
         match ty {

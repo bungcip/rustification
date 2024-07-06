@@ -57,9 +57,9 @@ pub use crate::span::IntoSpans;
 // #[doc(hidden)]
 // pub use crate::token::printing::punct as print_punct;
 
-#[cfg(feature = "parsing")]
-#[doc(hidden)]
-pub use crate::token::private::CustomToken;
+// #[cfg(feature = "parsing")]
+// #[doc(hidden)]
+// pub use crate::token::private::CustomToken;
 
 #[cfg(feature = "proc-macro")]
 #[doc(hidden)]

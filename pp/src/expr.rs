@@ -4,7 +4,7 @@ use crate::iter::IterDelimited;
 use crate::path::PathKind;
 use crate::stmt;
 use crate::INDENT;
-use proc_macro2::TokenStream;
+// use proc_macro2::TokenStream;
 use rast::punctuated::Punctuated;
 use rast::{
     token, Arm, Attribute, BinOp, Block, Expr, ExprArray, ExprAssign, ExprAsync, ExprAwait,
@@ -57,7 +57,7 @@ impl Printer {
             Expr::Tuple(expr) => self.expr_tuple(expr),
             Expr::Unary(expr) => self.expr_unary(expr),
             Expr::Unsafe(expr) => self.expr_unsafe(expr),
-            Expr::Verbatim(expr) => self.expr_verbatim(expr),
+            // Expr::Verbatim(expr) => self.expr_verbatim(expr),
             Expr::While(expr) => self.expr_while(expr),
             Expr::Yield(expr) => self.expr_yield(expr),
             _ => unimplemented!("unknown Expr"),
@@ -665,117 +665,6 @@ impl Printer {
         self.end();
     }
 
-    #[cfg(not(feature = "verbatim"))]
-    fn expr_verbatim(&mut self, expr: &TokenStream) {
-        if !expr.is_empty() {
-            unimplemented!("Expr::Verbatim `{}`", expr);
-        }
-    }
-
-    #[cfg(feature = "verbatim")]
-    fn expr_verbatim(&mut self, tokens: &TokenStream) {
-        use rast::parse::discouraged::Speculative;
-        use rast::parse::{Parse, ParseStream, Result};
-        use rast::{parenthesized, Ident};
-
-        enum ExprVerbatim {
-            Empty,
-            Ellipsis,
-            Builtin(Builtin),
-            RawReference(RawReference),
-        }
-
-        struct Builtin {
-            attrs: Vec<Attribute>,
-            name: Ident,
-            args: TokenStream,
-        }
-
-        struct RawReference {
-            attrs: Vec<Attribute>,
-            mutable: bool,
-            expr: Expr,
-        }
-
-        mod kw {
-            rast::custom_keyword!(builtin);
-            rast::custom_keyword!(raw);
-        }
-
-        impl Parse for ExprVerbatim {
-            fn parse(input: ParseStream) -> Result<Self> {
-                let ahead = input.fork();
-                let attrs = ahead.call(Attribute::parse_outer)?;
-                let lookahead = ahead.lookahead1();
-                if input.is_empty() {
-                    Ok(ExprVerbatim::Empty)
-                } else if lookahead.peek(kw::builtin) {
-                    input.advance_to(&ahead);
-                    input.parse::<kw::builtin>()?;
-                    input.parse::<Token![#]>()?;
-                    let name: Ident = input.parse()?;
-                    let args;
-                    parenthesized!(args in input);
-                    let args: TokenStream = args.parse()?;
-                    Ok(ExprVerbatim::Builtin(Builtin { attrs, name, args }))
-                } else if lookahead.peek(Token![&]) {
-                    input.advance_to(&ahead);
-                    input.parse::<Token![&]>()?;
-                    input.parse::<kw::raw>()?;
-                    let mutable = input.parse::<Option<Token![mut]>>()?.is_some();
-                    if !mutable {
-                        input.parse::<Token![const]>()?;
-                    }
-                    let expr: Expr = input.parse()?;
-                    Ok(ExprVerbatim::RawReference(RawReference {
-                        attrs,
-                        mutable,
-                        expr,
-                    }))
-                } else if lookahead.peek(Token![...]) {
-                    input.parse::<Token![...]>()?;
-                    Ok(ExprVerbatim::Ellipsis)
-                } else {
-                    Err(lookahead.error())
-                }
-            }
-        }
-
-        let expr: ExprVerbatim = match rast::parse2(tokens.clone()) {
-            Ok(expr) => expr,
-            Err(_) => unimplemented!("Expr::Verbatim `{}`", tokens),
-        };
-
-        match expr {
-            ExprVerbatim::Empty => {}
-            ExprVerbatim::Ellipsis => {
-                self.word("...");
-            }
-            ExprVerbatim::Builtin(expr) => {
-                self.outer_attrs(&expr.attrs);
-                self.word("builtin # ");
-                self.ident(&expr.name);
-                self.word("(");
-                if !expr.args.is_empty() {
-                    self.cbox(INDENT);
-                    self.zerobreak();
-                    self.ibox(0);
-                    self.macro_rules_tokens(expr.args, false);
-                    self.end();
-                    self.zerobreak();
-                    self.offset(-INDENT);
-                    self.end();
-                }
-                self.word(")");
-            }
-            ExprVerbatim::RawReference(expr) => {
-                self.outer_attrs(&expr.attrs);
-                self.word("&raw ");
-                self.word(if expr.mutable { "mut " } else { "const " });
-                self.expr(&expr.expr);
-            }
-        }
-    }
 
     fn expr_while(&mut self, expr: &ExprWhile) {
         self.outer_attrs(&expr.attrs);

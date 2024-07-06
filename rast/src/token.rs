@@ -88,8 +88,8 @@
 //! [Printing]: https://docs.rs/quote/1.0/quote/trait.ToTokens.html
 //! [`Span`]: https://docs.rs/proc-macro2/1.0/proc_macro2/struct.Span.html
 
-#[cfg(feature = "parsing")]
-pub(crate) use self::private::CustomToken;
+// #[cfg(feature = "parsing")]
+// pub(crate) use self::private::CustomToken;
 use self::private::WithSpan;
 // #[cfg(feature = "parsing")]
 // use crate::buffer::Cursor;
@@ -120,8 +120,8 @@ use std::ops::{Deref, DerefMut};
 
 
 pub(crate) mod private {
-    #[cfg(feature = "parsing")]
-    use crate::buffer::Cursor;
+    // #[cfg(feature = "parsing")]
+    // use crate::buffer::Cursor;
     use proc_macro2::Span;
 
     // #[cfg(feature = "parsing")]
@@ -135,13 +135,13 @@ pub(crate) mod private {
         pub span: Span,
     }
 
-    // Not public API.
-    #[doc(hidden)]
-    #[cfg(feature = "parsing")]
-    pub trait CustomToken {
-        fn peek(cursor: Cursor) -> bool;
-        fn display() -> &'static str;
-    }
+//     // Not public API.
+//     #[doc(hidden)]
+//     #[cfg(feature = "parsing")]
+//     pub trait CustomToken {
+//         fn peek(cursor: Cursor) -> bool;
+//         fn display() -> &'static str;
+//     }
 }
 
 // #[cfg(feature = "parsing")]

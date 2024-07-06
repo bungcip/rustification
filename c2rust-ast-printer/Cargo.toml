@@ -19,5 +19,4 @@ log = "0.4"
 # syn = { version = "2.0", features = ["full", "proc-macro", "printing", "clone-impls"] }
 rast = { features = ["full", "proc-macro", "printing", "clone-impls"], path = "../rast" }
 proc-macro2 = "1.0.86"
-# prettyplease = {version="0.2", features = ["verbatim"]}
 pp = {path = "../pp"}

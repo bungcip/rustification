@@ -143,60 +143,10 @@ impl Printer {
         }
     }
 
-    #[cfg(not(feature = "verbatim"))]
     fn type_param_bound_verbatim(&mut self, bound: &TokenStream) {
         unimplemented!("TypeParamBound::Verbatim `{}`", bound);
     }
 
-    #[cfg(feature = "verbatim")]
-    fn type_param_bound_verbatim(&mut self, tokens: &TokenStream) {
-        use rast::parse::{Parse, ParseStream, Result};
-        use rast::{parenthesized, token, Token};
-
-        enum TypeParamBoundVerbatim {
-            Ellipsis,
-            TildeConst(TraitBound),
-        }
-
-        impl Parse for TypeParamBoundVerbatim {
-            fn parse(input: ParseStream) -> Result<Self> {
-                let content;
-                let (paren_token, content) = if input.peek(token::Paren) {
-                    (Some(parenthesized!(content in input)), &content)
-                } else {
-                    (None, input)
-                };
-                let lookahead = content.lookahead1();
-                if lookahead.peek(Token![~]) {
-                    content.parse::<Token![~]>()?;
-                    content.parse::<Token![const]>()?;
-                    let mut bound: TraitBound = content.parse()?;
-                    bound.paren_token = paren_token;
-                    Ok(TypeParamBoundVerbatim::TildeConst(bound))
-                } else if lookahead.peek(Token![...]) {
-                    content.parse::<Token![...]>()?;
-                    Ok(TypeParamBoundVerbatim::Ellipsis)
-                } else {
-                    Err(lookahead.error())
-                }
-            }
-        }
-
-        let bound: TypeParamBoundVerbatim = match rast::parse2(tokens.clone()) {
-            Ok(bound) => bound,
-            Err(_) => unimplemented!("TypeParamBound::Verbatim `{}`", tokens),
-        };
-
-        match bound {
-            TypeParamBoundVerbatim::Ellipsis => {
-                self.word("...");
-            }
-            TypeParamBoundVerbatim::TildeConst(trait_bound) => {
-                let tilde_const = true;
-                self.trait_bound(&trait_bound, tilde_const);
-            }
-        }
-    }
 
     fn const_param(&mut self, const_param: &ConstParam) {
         self.outer_attrs(&const_param.attrs);

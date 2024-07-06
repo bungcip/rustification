@@ -337,7 +337,6 @@ mod classify;
 
 mod custom_keyword;
 
-mod custom_punctuation;
 
 #[cfg(any(feature = "full", feature = "derive"))]
 mod data;
@@ -376,9 +375,9 @@ pub use crate::expr::{
     ExprYield,
 };
 
-#[cfg(feature = "parsing")]
-#[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-pub mod ext;
+// #[cfg(feature = "parsing")]
+// #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
+// pub mod ext;
 
 #[cfg(feature = "full")]
 mod file;
@@ -530,8 +529,8 @@ pub use crate::ty::{
     TypeSlice, TypeTraitObject, TypeTuple,
 };
 
-#[cfg(all(any(feature = "full", feature = "derive"), feature = "parsing"))]
-mod verbatim;
+// #[cfg(all(any(feature = "full", feature = "derive"), feature = "parsing"))]
+// mod verbatim;
 
 #[cfg(all(feature = "parsing", feature = "full"))]
 mod whitespace;
