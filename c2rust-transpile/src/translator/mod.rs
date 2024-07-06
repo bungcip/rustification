@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::mem;
 use std::ops::Index;
 use std::path::{self, PathBuf};
-use std::result::Result; // To override syn::Result from glob import
+use std::result::Result; // To override rast::Result from glob import
 
 use dtoa;
 
@@ -12,9 +12,9 @@ use indexmap::indexmap;
 use indexmap::{IndexMap, IndexSet};
 use log::{error, info, trace, warn};
 use proc_macro2::{Punct, Spacing::*, Span, TokenStream, TokenTree};
-use syn::spanned::Spanned as _;
-use syn::*;
-use syn::{BinOp, UnOp}; // To override c_ast::{BinOp,UnOp} from glob import
+use rast::spanned::Spanned as _;
+use rast::*;
+use rast::{BinOp, UnOp}; // To override c_ast::{BinOp,UnOp} from glob import
 
 use crate::diagnostics::TranslationResult;
 use crate::rust_ast::comment_store::CommentStore;
@@ -862,7 +862,7 @@ pub fn translate(
             all_items.extend(items);
 
             //s.print_remaining_comments();
-            syn::File {
+            rast::File {
                 shebang: None,
                 attrs,
                 items: all_items.into_iter().map(|x| *x).collect(),
@@ -1027,7 +1027,7 @@ fn make_submodule(
 /// Pretty-print the leading pragmas and extern crate declarations
 // Fixing this would require major refactors for marginal benefit.
 #[allow(clippy::vec_box)]
-fn arrange_header(t: &Translation, is_binary: bool) -> (Vec<syn::Attribute>, Vec<Box<Item>>) {
+fn arrange_header(t: &Translation, is_binary: bool) -> (Vec<rast::Attribute>, Vec<Box<Item>>) {
     let mut out_attrs = vec![];
     let mut out_items = vec![];
     if t.tcfg.emit_modules && !is_binary {
@@ -1078,7 +1078,7 @@ fn bool_to_int(val: Box<Expr>) -> Box<Expr> {
 }
 
 /// Add a src_loc = "line:col" attribute to an item/foreign_item
-fn add_src_loc_attr(attrs: &mut Vec<syn::Attribute>, src_loc: &Option<SrcLoc>) {
+fn add_src_loc_attr(attrs: &mut Vec<rast::Attribute>, src_loc: &Option<SrcLoc>) {
     if let Some(src_loc) = src_loc.as_ref() {
         let loc_str = format!("{}:{}", src_loc.line, src_loc.column);
         let meta = mk().meta_namevalue(vec!["c2rust", "src_loc"], loc_str);
@@ -1089,7 +1089,7 @@ fn add_src_loc_attr(attrs: &mut Vec<syn::Attribute>, src_loc: &Option<SrcLoc>) {
 }
 
 /// Get a mutable reference to the attributes of a ForeignItem
-fn foreign_item_attrs(item: &mut ForeignItem) -> Option<&mut Vec<syn::Attribute>> {
+fn foreign_item_attrs(item: &mut ForeignItem) -> Option<&mut Vec<rast::Attribute>> {
     use ForeignItem::*;
     Some(match item {
         Fn(ForeignItemFn { ref mut attrs, .. }) => attrs,
@@ -1102,7 +1102,7 @@ fn foreign_item_attrs(item: &mut ForeignItem) -> Option<&mut Vec<syn::Attribute>
 }
 
 /// Get a mutable reference to the attributes of an Item
-fn item_attrs(item: &mut Item) -> Option<&mut Vec<syn::Attribute>> {
+fn item_attrs(item: &mut Item) -> Option<&mut Vec<rast::Attribute>> {
     use Item::*;
     Some(match item {
         Const(ItemConst { ref mut attrs, .. }) => attrs,
@@ -3383,7 +3383,7 @@ impl<'c> Translation<'c> {
                             generic_err!("Expected Variable offsetof to be a side-effect free")
                         })?;
                     let expr = mk().cast_expr(expr, mk().ident_ty("usize"));
-                    use syn::__private::ToTokens;
+                    use rast::__private::ToTokens;
                     let index_expr = expr.to_token_stream();
 
                     // offset_of!(Struct, field[expr as usize]) as ty
@@ -3976,7 +3976,7 @@ impl<'c> Translation<'c> {
         let ident = split.next()?;
         let args = split.next()?.trim_end_matches(')');
 
-        let ts: TokenStream = syn::parse_str(args).ok()?;
+        let ts: TokenStream = rast::parse_str(args).ok()?;
         Some(WithStmts::new_val(mk().mac_expr(mk().mac(
             mk().path(ident),
             ts,

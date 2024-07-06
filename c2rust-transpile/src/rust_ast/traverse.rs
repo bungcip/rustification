@@ -1,4 +1,4 @@
-use syn::*;
+use rast::*;
 
 /// Traverse the AST in pre-order, which also happens to be the order of subtrees in the
 /// pretty-printed output.
@@ -86,7 +86,7 @@ impl<A: Traversable> Traversable for Vec<A> {
     }
 }
 
-impl<A: Clone + Traversable, B> Traversable for syn::punctuated::Punctuated<A, B> {
+impl<A: Clone + Traversable, B> Traversable for rast::punctuated::Punctuated<A, B> {
     fn traverse<T: Traversal>(mut self, t: &mut T) -> Self {
         self.iter_mut().for_each(|x| *x = x.clone().traverse(t));
         self

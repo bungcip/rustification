@@ -29,9 +29,9 @@ use proc_macro2::{Span, TokenStream};
 use smallvec::{smallvec, SmallVec};
 use std::collections::BTreeMap;
 use std::default::Default;
-use syn::__private::ToTokens;
-use syn::spanned::Spanned as _;
-use syn::*;
+use rast::__private::ToTokens;
+use rast::spanned::Spanned as _;
+use rast::*;
 
 #[derive(Default)]
 pub struct CommentStore {
@@ -280,7 +280,7 @@ impl traverse::Traversal for CommentTraverser {
 
 pub fn insert_comment_attrs(attrs: &mut Vec<Attribute>, new_comments: SmallVec<[&str; 1]>) {
     attrs.reserve(new_comments.len());
-    let eq: syn::Token![=] = Default::default();
+    let eq: rast::Token![=] = Default::default();
     fn make_comment_path() -> Path {
         let mut segments = punctuated::Punctuated::new();
         segments.push(PathSegment {

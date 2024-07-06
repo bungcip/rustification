@@ -30,8 +30,8 @@ use std::io;
 use std::io::Write;
 use std::ops::Deref;
 use std::ops::Index;
-use syn::Lit;
-use syn::{spanned::Spanned, Arm, Expr, Pat, Stmt};
+use rast::Lit;
+use rast::{spanned::Spanned, Arm, Expr, Pat, Stmt};
 
 use indexmap::indexset;
 use indexmap::{IndexMap, IndexSet};

@@ -13,7 +13,7 @@ pub mod comments {
 }
 
 pub enum MacHeader<'a> {
-    Path(&'a syn::Path),
+    Path(&'a rast::Path),
     Keyword(&'static str),
 }
 
@@ -92,24 +92,24 @@ fn strip_main_fn(s: &str) -> &str {
         .trim_end()
 }
 
-fn minimal_file(stmt: syn::Stmt) -> syn::File {
-    let item = syn::Item::Fn(main_fn(stmt));
-    syn::File {
+fn minimal_file(stmt: rast::Stmt) -> rast::File {
+    let item = rast::Item::Fn(main_fn(stmt));
+    rast::File {
         shebang: None,
         attrs: vec![],
         items: vec![item],
     }
 }
 
-fn main_fn(stmt: syn::Stmt) -> syn::ItemFn {
-    let generics = syn::Generics {
+fn main_fn(stmt: rast::Stmt) -> rast::ItemFn {
+    let generics = rast::Generics {
         lt_token: None,
         params: Default::default(),
         gt_token: None,
         where_clause: None,
     };
-    let ident = syn::Ident::new("main", proc_macro2::Span::call_site());
-    let sig = syn::Signature {
+    let ident = rast::Ident::new("main", proc_macro2::Span::call_site());
+    let sig = rast::Signature {
         constness: None,
         asyncness: None,
         unsafety: None,
@@ -120,35 +120,35 @@ fn main_fn(stmt: syn::Stmt) -> syn::ItemFn {
         paren_token: Default::default(),
         inputs: Default::default(),
         variadic: None,
-        output: syn::ReturnType::Default,
+        output: rast::ReturnType::Default,
     };
-    let block = Box::new(syn::Block {
+    let block = Box::new(rast::Block {
         brace_token: Default::default(),
         stmts: vec![stmt],
     });
-    syn::ItemFn {
+    rast::ItemFn {
         attrs: vec![],
-        vis: syn::Visibility::Inherited,
+        vis: rast::Visibility::Inherited,
         sig,
         block,
     }
 }
 
-fn ret_expr() -> syn::Expr {
-    syn::Expr::Return(syn::ExprReturn {
+fn ret_expr() -> rast::Expr {
+    rast::Expr::Return(rast::ExprReturn {
         attrs: vec![],
         return_token: Default::default(),
         expr: None,
     })
 }
 
-pub fn expr_to_string(e: &syn::Expr) -> String {
-    let s = to_string(move || minimal_file(syn::Stmt::Expr(e.clone(), None)));
+pub fn expr_to_string(e: &rast::Expr) -> String {
+    let s = to_string(move || minimal_file(rast::Stmt::Expr(e.clone(), None)));
     strip_main_fn(&s).trim_end_matches(';').to_owned()
 }
 
-pub fn path_to_string(p: &syn::Path) -> String {
-    let e = syn::Expr::Path(syn::ExprPath {
+pub fn path_to_string(p: &rast::Path) -> String {
+    let e = rast::Expr::Path(rast::ExprPath {
         attrs: vec![],
         qself: None,
         path: p.clone(),
@@ -156,9 +156,9 @@ pub fn path_to_string(p: &syn::Path) -> String {
     expr_to_string(&e)
 }
 
-pub fn pat_to_string(p: &syn::Pat) -> String {
+pub fn pat_to_string(p: &rast::Pat) -> String {
     let ret_expr = Box::new(ret_expr());
-    let e = syn::Expr::Let(syn::ExprLet {
+    let e = rast::Expr::Let(rast::ExprLet {
         attrs: vec![],
         let_token: Default::default(),
         pat: Box::new(p.clone()),
@@ -178,14 +178,14 @@ pub fn pat_to_string(p: &syn::Pat) -> String {
         .to_owned()
 }
 
-pub fn stmt_to_string(s: &syn::Stmt) -> String {
+pub fn stmt_to_string(s: &rast::Stmt) -> String {
     let s = to_string(move || minimal_file(s.clone()));
     strip_main_fn(&s).to_owned()
 }
 
 pub fn to_string<F>(f: F) -> String
 where
-    F: FnOnce() -> syn::File,
+    F: FnOnce() -> rast::File,
 {
-    prettyplease::unparse(&f())
+    pp::unparse(&f())
 }

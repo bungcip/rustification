@@ -6,7 +6,7 @@ use crate::{diagnostics::TranslationResult, generic_err};
 use super::*;
 use log::warn;
 use proc_macro2::{TokenStream, TokenTree};
-use syn::__private::ToTokens;
+use rast::__private::ToTokens;
 
 /// An argument direction specifier for a Rust asm! expression
 enum ArgDirSpec {

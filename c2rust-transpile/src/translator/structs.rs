@@ -14,7 +14,7 @@ use crate::translator::{ExprContext, Translation, PADDING_SUFFIX};
 use crate::with_stmts::WithStmts;
 use c2rust_ast_builder::mk;
 use c2rust_ast_printer::pprust;
-use syn::{
+use rast::{
     self, AttrStyle, BinOp as RBinOp, Expr, ExprAssign, ExprBinary, ExprBlock, ExprCast,
     ExprMethodCall, ExprUnary, Field, Meta, Stmt, Type,
 };
@@ -323,7 +323,7 @@ impl<'a> Translation<'a> {
                     let mut field = mk();
                     let field_attrs = attrs.iter().map(|attr| {
                         let ty_str = match &*attr.1 {
-                            Type::Path(syn::TypePath { path, .. }) => pprust::path_to_string(path),
+                            Type::Path(rast::TypePath { path, .. }) => pprust::path_to_string(path),
                             _ => unreachable!("Found type other than path"),
                         };
                         let field_attr_items = vec![
@@ -554,7 +554,7 @@ impl<'a> Translation<'a> {
 
         fields
             .into_iter()
-            .collect::<WithStmts<Vec<syn::FieldValue>>>()
+            .collect::<WithStmts<Vec<rast::FieldValue>>>()
             .and_then(|fields| {
                 let struct_expr = mk().struct_expr(name.as_str(), fields);
                 let local_variable = Box::new(mk().local(local_pat, None, Some(struct_expr)));
@@ -666,7 +666,7 @@ impl<'a> Translation<'a> {
 
         Ok(fields
             .into_iter()
-            .collect::<WithStmts<Vec<syn::FieldValue>>>()
+            .collect::<WithStmts<Vec<rast::FieldValue>>>()
             .map(|fields| mk().struct_expr(name.as_str(), fields)))
     }
 

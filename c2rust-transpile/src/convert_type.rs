@@ -5,7 +5,7 @@ use crate::{c_ast::*, generic_err};
 use c2rust_ast_builder::{mk, properties::*};
 use std::collections::{HashMap, HashSet};
 use std::ops::Index;
-use syn::*;
+use rast::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 enum FieldKey {

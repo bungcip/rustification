@@ -1,0 +1,49 @@
+[package]
+name = "rast"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "Rust AST data structure, builder, and pretty printer"
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["derive", "printing", "clone-impls", "proc-macro", "full", "extra-traits"]
+derive = []
+full = []
+parsing = []
+printing = ["dep:quote"]
+visit = []
+visit-mut = []
+fold = []
+clone-impls = []
+extra-traits = []
+proc-macro = ["proc-macro2/proc-macro", "quote?/proc-macro"]
+# test = ["syn-test-suite/all-features"]
+
+[dependencies]
+proc-macro2 = { version = "1.0.83", default-features = false }
+quote = { version = "1.0.35", optional = true, default-features = false }
+unicode-ident = "1"
+
+[dev-dependencies]
+anyhow = "1"
+automod = "1"
+insta = "1"
+ref-cast = "1"
+rustversion = "1"
+termcolor = "1"
+
+[target.'cfg(not(miri))'.dev-dependencies]
+flate2 = "1"
+rayon = "1"
+reqwest = { version = "0.12", features = ["blocking"] }
+tar = "0.4.16"
+walkdir = "2.3.2"

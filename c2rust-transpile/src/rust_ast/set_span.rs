@@ -1,6 +1,6 @@
 pub use c2rust_ast_printer::pprust::BytePos;
 use proc_macro2::Span;
-use syn::*;
+use rast::*;
 
 /// Set the span of an AST node.
 pub trait SetSpan {
@@ -81,15 +81,15 @@ macro_rules! set_span_impl {
 }
 
 /* required impls:
-syn::Stmt
-syn::Expr
-syn::TraitItem
-syn::ImplItem
-syn::Block
-syn::Local
-syn::FieldValue
-syn::Item
-syn::ForeignItem
+rast::Stmt
+rast::Expr
+rast::TraitItem
+rast::ImplItem
+rast::Block
+rast::Local
+rast::FieldValue
+rast::Item
+rast::ForeignItem
 */
 
 impl SetSpan for Stmt {

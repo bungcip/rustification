@@ -1,6 +1,6 @@
 use c2rust_ast_builder::{mk, Builder};
 use indexmap::{IndexMap, IndexSet};
-use syn::{ForeignItem, Ident, Item};
+use rast::{ForeignItem, Ident, Item};
 
 use std::borrow::Cow;
 use std::mem::swap;

@@ -2,7 +2,7 @@
 
 use super::*;
 use log::warn;
-use syn::{spanned::Spanned as _, ExprBreak, ExprIf, ExprReturn, ExprUnary, Stmt};
+use rast::{spanned::Spanned as _, ExprBreak, ExprIf, ExprReturn, ExprUnary, Stmt};
 
 use crate::rust_ast::{comment_store, set_span::SetSpan, BytePos, SpanExt};
 
@@ -612,7 +612,7 @@ impl StructureState {
                     } else {
                         span
                     };
-                    if let syn::Expr::If(ExprIf {
+                    if let rast::Expr::If(ExprIf {
                         cond,
                         then_branch,
                         else_branch: None,
@@ -620,7 +620,7 @@ impl StructureState {
                     }) = expr
                     {
                         if let [Stmt::Expr(
-                            syn::Expr::Break(ExprBreak {
+                            rast::Expr::Break(ExprBreak {
                                 label: None,
                                 expr: None,
                                 ..
@@ -671,7 +671,7 @@ impl StructureState {
 fn not(bool_expr: &Expr) -> Box<Expr> {
     match *bool_expr {
         Expr::Unary(ExprUnary {
-            op: syn::UnOp::Not(_),
+            op: rast::UnOp::Not(_),
             ref expr,
             ..
         }) => Box::new(unparen(expr).clone()),

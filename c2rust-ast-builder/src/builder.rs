@@ -3,13 +3,13 @@
 use std::str;
 
 use proc_macro2::{Literal, Punct, Spacing, Span, TokenStream, TokenTree};
+use rast::{__private::ToTokens, punctuated::Punctuated, *};
 use std::default::Default;
 use std::iter::FromIterator;
-use syn::{__private::ToTokens, punctuated::Punctuated, *};
 
 pub mod properties {
     use proc_macro2::Span;
-    use syn::{StaticMutability, Token};
+    use rast::{StaticMutability, Token};
 
     pub trait ToToken {
         type Token;

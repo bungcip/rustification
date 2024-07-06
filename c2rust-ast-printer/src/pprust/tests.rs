@@ -1,4 +1,4 @@
-use syn::token::Semi;
+use rast::token::Semi;
 
 use super::*;
 
@@ -13,7 +13,7 @@ fn test_expr_to_string() {
 
 #[test]
 fn test_pat_to_string() {
-    let wild_pat = syn::Pat::Wild(syn::PatWild {
+    let wild_pat = rast::Pat::Wild(rast::PatWild {
         attrs: vec![],
         underscore_token: Default::default(),
     });
@@ -23,13 +23,13 @@ fn test_pat_to_string() {
 #[test]
 fn test_path_to_string() {
     let name = "friendly_ident_name";
-    let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
-    let path = syn::Path::from(ident);
+    let ident = rast::Ident::new(name, proc_macro2::Span::call_site());
+    let path = rast::Path::from(ident);
     assert_eq!(path_to_string(&path), name);
 }
 
 #[test]
 fn test_stmt_to_string() {
-    let stmt = syn::Stmt::Expr(ret_expr(), Some(Semi::default()));
+    let stmt = rast::Stmt::Expr(ret_expr(), Some(Semi::default()));
     assert_eq!(stmt_to_string(&stmt), "return;");
 }

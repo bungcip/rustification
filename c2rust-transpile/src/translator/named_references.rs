@@ -10,7 +10,7 @@ fn is_lvalue(e: &Expr) -> bool {
     matches!(
         unparen(e),
         Unary(ExprUnary {
-            op: syn::UnOp::Deref(_),
+            op: rast::UnOp::Deref(_),
             ..
         }) | Path(..)
             | Field(..)
@@ -24,7 +24,7 @@ fn is_simple_lvalue(e: &Expr) -> bool {
     match *unparen(e) {
         Path(..) => true,
         Unary(ExprUnary {
-            op: syn::UnOp::Deref(_),
+            op: rast::UnOp::Deref(_),
             ref expr,
             ..
         })

@@ -10,6 +10,8 @@ members = [
     "c2rust-bitfields-derive",
     "c2rust-build-paths",
     "c2rust-transpile",
+    "rast",
+    "pp",
 ]
 exclude = [
     "c2rust-macros",
