@@ -277,14 +277,6 @@ pub struct Translation<'c> {
     cur_file: RefCell<Option<FileId>>,
 }
 
-fn simple_metaitem(name: &str) -> Meta {
-    mk().meta_path(name)
-}
-
-fn int_arg_metaitem(name: &str, arg: u64) -> Meta {
-    mk().meta_list(name, vec![arg])
-}
-
 fn cast_int(val: Box<Expr>, name: &str, need_lit_suffix: bool) -> Box<Expr> {
     let opt_literal_val = match &*val {
         Expr::Lit(ref l) => match &l.lit {
@@ -1634,7 +1626,7 @@ impl<'c> Translation<'c> {
                     self.use_crate(ExternCrate::C2RustBitfields);
                 }
 
-                let mut reprs = vec![simple_metaitem("C")];
+                let mut reprs = vec![mk().meta_path("C")];
                 let max_field_alignment = if is_packed {
                     // `__attribute__((packed))` forces a max alignment of 1,
                     // overriding `#pragma pack`; this is also what clang does
@@ -1643,8 +1635,8 @@ impl<'c> Translation<'c> {
                     max_field_alignment
                 };
                 match max_field_alignment {
-                    Some(1) => reprs.push(simple_metaitem("packed")),
-                    Some(mf) if mf > 1 => reprs.push(int_arg_metaitem("packed", mf)),
+                    Some(1) => reprs.push(mk().meta_path("packed")),
+                    Some(mf) if mf > 1 => reprs.push(mk().meta_list("packed", vec![mf])),
                     _ => {}
                 }
 
@@ -1677,8 +1669,8 @@ impl<'c> Translation<'c> {
                     // https://github.com/rust-lang/rust/issues/33626
                     let outer_ty = mk().path_ty(vec![name.clone()]);
                     let outer_reprs = vec![
-                        simple_metaitem("C"),
-                        int_arg_metaitem("align", alignment),
+                        mk().meta_path("C"),
+                        mk().meta_list("align", vec![alignment]),
                         // TODO: copy others from `reprs` above
                     ];
                     let repr_attr = mk().meta_list("repr", outer_reprs);

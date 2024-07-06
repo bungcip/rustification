@@ -7,7 +7,6 @@ use std::default::Default;
 use std::iter::FromIterator;
 use syn::{__private::ToTokens, punctuated::Punctuated, *};
 
-
 pub mod properties {
     use proc_macro2::Span;
     use syn::{StaticMutability, Token};
@@ -133,7 +132,6 @@ pub enum Extern {
     Implicit,
     Explicit(String),
 }
-
 
 fn use_tree_with_prefix(prefix: Path, leaf: UseTree) -> UseTree {
     let mut out = leaf;
@@ -336,14 +334,13 @@ impl Make<TokenStream> for Vec<String> {
         let mut first = true;
 
         for s in self {
-            if first == false{
+            if first == false {
                 tokens.push(TokenTree::Punct(Punct::new(',', Spacing::Alone)));
             } else {
                 first = false;
             }
 
             tokens.push(TokenTree::Ident(Ident::new(&s, Span::call_site())));
-
         }
         tokens.into_iter().collect::<TokenStream>()
     }
@@ -355,7 +352,7 @@ impl Make<TokenStream> for Vec<&str> {
         let mut first = true;
 
         for s in self {
-            if first == false{
+            if first == false {
                 tokens.push(TokenTree::Punct(Punct::new(',', Spacing::Alone)));
             } else {
                 first = false;
@@ -373,7 +370,7 @@ impl Make<TokenStream> for Vec<u64> {
         let mut first = true;
 
         for s in self {
-            if first == false{
+            if first == false {
                 tokens.push(TokenTree::Punct(Punct::new(',', Spacing::Alone)));
             } else {
                 first = false;
@@ -394,7 +391,7 @@ impl Make<TokenStream> for Vec<Meta> {
             if first == false {
                 let tt = TokenTree::Punct(Punct::new(',', Spacing::Alone));
                 tokens.extend(vec![tt]);
-            }else{
+            } else {
                 first = false;
             }
 
@@ -427,7 +424,6 @@ impl Make<GenericArgument> for Lifetime {
         GenericArgument::Lifetime(self)
     }
 }
-
 
 impl Make<Lit> for String {
     fn make(self, mk: &Builder) -> Lit {
@@ -513,7 +509,6 @@ impl Make<String> for u128 {
         self.to_string()
     }
 }
-
 
 #[derive(Clone, Debug)]
 pub struct Builder {
@@ -604,11 +599,8 @@ impl Builder {
         self
     }
 
-
     pub fn prepared_attr(self, meta: Meta) -> Self {
-        let attr = self
-            .clone()
-            .attribute(AttrStyle::Outer, meta);
+        let attr = self.clone().attribute(AttrStyle::Outer, meta);
         let mut attrs = self.attrs;
         attrs.push(attr);
         Builder { attrs, ..self }
@@ -635,7 +627,7 @@ impl Builder {
 
     pub fn single_attr<K>(self, key: K) -> Self
     where
-        K: Make<PathSegment>
+        K: Make<PathSegment>,
     {
         let mut segments = Punctuated::new();
         segments.push(key.make(&self));
@@ -707,7 +699,6 @@ impl Builder {
     {
         path.make(&self)
     }
-
 
     pub fn abs_path<Pa>(self, path: Pa) -> Path
     where
@@ -1031,14 +1022,16 @@ impl Builder {
     // Literals
 
     pub fn int_lit<S>(self, s: S, ty: &str) -> Lit
-    where S: Make<String>
+    where
+        S: Make<String>,
     {
         let s = s.make(&self);
         Lit::Int(LitInt::new(&format!("{}{}", s, ty), self.span))
     }
 
     pub fn int_unsuffixed_lit<S>(self, s: S) -> Lit
-    where S: Make<String>
+    where
+        S: Make<String>,
     {
         self.int_lit(s, "")
     }
@@ -1441,7 +1434,6 @@ impl Builder {
         } else {
             None
         };
-
 
         Variadic {
             dots: Token![...](self.span),
@@ -1986,8 +1978,7 @@ impl Builder {
         lt.make(&self)
     }
 
-    pub fn attribute(self, style: AttrStyle, meta: Meta) -> Attribute
-    {
+    pub fn attribute(self, style: AttrStyle, meta: Meta) -> Attribute {
         Attribute {
             style,
             pound_token: Token![#](self.span),
@@ -1997,9 +1988,7 @@ impl Builder {
     }
 
     pub fn meta_item_attr(mut self, style: AttrStyle, meta_item: Meta) -> Self {
-        let attr = self
-            .clone()
-            .attribute(style, meta_item);
+        let attr = self.clone().attribute(style, meta_item);
         self.attrs.push(attr);
         self
     }
@@ -2033,11 +2022,11 @@ impl Builder {
     pub fn meta_namevalue<K, V>(self, key: K, value: V) -> Meta
     where
         K: Make<Path>,
-        V: Make<Lit>
+        V: Make<Lit>,
     {
         let key = key.make(&self);
         let lit = value.make(&self);
-        let value = Expr::Lit(ExprLit{
+        let value = Expr::Lit(ExprLit {
             attrs: self.attrs,
             lit,
         });
