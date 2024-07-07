@@ -1,15 +1,7 @@
-// #[cfg(feature = "parsing")]
-// use crate::error::Result;
-// #[cfg(feature = "parsing")]
-// use crate::parse::{Parse, ParseStream, Parser};
 use crate::path::Path;
 use crate::token::{Brace, Bracket, Paren};
 use proc_macro2::extra::DelimSpan;
-// #[cfg(feature = "parsing")]
-// use proc_macro2::Delimiter;
 use proc_macro2::TokenStream;
-// #[cfg(feature = "parsing")]
-// use proc_macro2::TokenTree;
 
 ast_struct! {
     /// A macro invocation: `println!("{}", mac)`.
@@ -41,7 +33,7 @@ impl MacroDelimiter {
         }
     }
 
-    #[cfg(all(feature = "full", any(feature = "parsing", feature = "printing")))]
+    #[cfg(all(feature = "full", any(feature = "printing")))]
     pub(crate) fn is_brace(&self) -> bool {
         match self {
             MacroDelimiter::Brace(_) => true,

@@ -21,12 +21,7 @@
 //! ```
 
 use crate::drops::{NoDrop, TrivialDrop};
-// #[cfg(feature = "parsing")]
-// use crate::error::Result;
-// #[cfg(feature = "parsing")]
-// use crate::parse::{Parse, ParseStream};
-// #[cfg(feature = "parsing")]
-// use crate::token::Token;
+
 #[cfg(feature = "extra-traits")]
 use std::fmt::{self, Debug};
 #[cfg(feature = "extra-traits")]

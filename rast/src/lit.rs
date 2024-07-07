@@ -1,7 +1,5 @@
 use crate::{Error, Result};
 use proc_macro2::{Ident, Literal, Span};
-// #[cfg(feature = "parsing")]
-// use proc_macro2::{TokenStream, TokenTree};
 use std::ffi::{CStr, CString};
 use std::fmt::{self, Display};
 #[cfg(feature = "extra-traits")]
@@ -690,14 +688,6 @@ macro_rules! lit_extra_traits {
             }
         }
 
-        // #[cfg(feature = "parsing")]
-        // pub_if_not_doc! {
-        //     #[doc(hidden)]
-        //     #[allow(non_snake_case)]
-        //     pub fn $ty(marker: lookahead::TokenMarker) -> $ty {
-        //         match marker {}
-        //     }
-        // }
     };
 }
 

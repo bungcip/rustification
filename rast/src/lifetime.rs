@@ -1,5 +1,3 @@
-// #[cfg(feature = "parsing")]
-// use crate::lookahead;
 use proc_macro2::{Ident, Span};
 use std::cmp::Ordering;
 use std::fmt::{self, Display};

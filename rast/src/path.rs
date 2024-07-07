@@ -1,5 +1,3 @@
-#[cfg(feature = "parsing")]
-use crate::error::Result;
 use crate::expr::Expr;
 use crate::generics::TypeParamBound;
 use crate::ident::Ident;
@@ -90,18 +88,6 @@ impl Path {
         }
     }
 
-    /// An error if this path is not a single ident, as defined in `get_ident`.
-    #[cfg(feature = "parsing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    pub fn require_ident(&self) -> Result<&Ident> {
-        self.get_ident().ok_or_else(|| {
-            crate::error::new2(
-                self.segments.first().unwrap().ident.span(),
-                self.segments.last().unwrap().ident.span(),
-                "expected this path to be an identifier",
-            )
-        })
-    }
 }
 
 ast_struct! {

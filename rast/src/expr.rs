@@ -1,6 +1,4 @@
 use crate::attr::Attribute;
-// #[cfg(all(feature = "parsing", feature = "full"))]
-// use crate::error::Result;
 #[cfg(feature = "full")]
 use crate::generics::BoundLifetimes;
 use crate::ident::Ident;
@@ -9,8 +7,6 @@ use crate::lifetime::Lifetime;
 use crate::lit::Lit;
 use crate::mac::Macro;
 use crate::op::{BinOp, UnOp};
-// #[cfg(all(feature = "parsing", feature = "full"))]
-// use crate::parse::ParseStream;
 #[cfg(feature = "full")]
 use crate::pat::Pat;
 use crate::path::{AngleBracketedGenericArguments, Path, QSelf};
@@ -27,8 +23,6 @@ use quote::IdentFragment;
 #[cfg(feature = "printing")]
 use std::fmt::{self, Display};
 use std::hash::{Hash, Hasher};
-// #[cfg(all(feature = "parsing", feature = "full"))]
-// use std::mem;
 
 ast_enum_of_structs! {
     /// A Rust expression.

@@ -88,26 +88,15 @@
 //! [Printing]: https://docs.rs/quote/1.0/quote/trait.ToTokens.html
 //! [`Span`]: https://docs.rs/proc-macro2/1.0/proc_macro2/struct.Span.html
 
-// #[cfg(feature = "parsing")]
-// pub(crate) use self::private::CustomToken;
 use self::private::WithSpan;
-// #[cfg(feature = "parsing")]
-// use crate::buffer::Cursor;
-// #[cfg(feature = "parsing")]
-// use crate::error::Result;
-// #[cfg(feature = "parsing")]
-// use crate::lifetime::Lifetime;
-// #[cfg(feature = "parsing")]
-// use crate::parse::{Parse, ParseStream};
+
 use crate::span::IntoSpans;
 use proc_macro2::extra::DelimSpan;
 use proc_macro2::Span;
 #[cfg(feature = "printing")]
 use proc_macro2::TokenStream;
-#[cfg(any(feature = "parsing", feature = "printing"))]
+#[cfg(any(feature = "printing"))]
 use proc_macro2::{Delimiter, Ident};
-// #[cfg(feature = "parsing")]
-// use proc_macro2::{Literal, Punct, TokenTree};
 #[cfg(feature = "printing")]
 use quote::{ToTokens, TokenStreamExt};
 #[cfg(feature = "extra-traits")]
@@ -120,12 +109,7 @@ use std::ops::{Deref, DerefMut};
 
 
 pub(crate) mod private {
-    // #[cfg(feature = "parsing")]
-    // use crate::buffer::Cursor;
     use proc_macro2::Span;
-
-    // #[cfg(feature = "parsing")]
-    // pub trait Sealed {}
 
     /// Support writing `token.span` rather than `token.spans[0]` on tokens that
     /// hold a single span.
@@ -135,33 +119,11 @@ pub(crate) mod private {
         pub span: Span,
     }
 
-//     // Not public API.
-//     #[doc(hidden)]
-//     #[cfg(feature = "parsing")]
-//     pub trait CustomToken {
-//         fn peek(cursor: Cursor) -> bool;
-//         fn display() -> &'static str;
-//     }
 }
 
-// #[cfg(feature = "parsing")]
-// impl private::Sealed for Ident {}
 
 macro_rules! impl_low_level_token {
     ($display:literal $($path:ident)::+ $get:ident) => {
-        // #[cfg(feature = "parsing")]
-        // impl Token for $($path)::+ {
-        //     fn peek(cursor: Cursor) -> bool {
-        //         cursor.$get().is_some()
-        //     }
-
-        //     fn display() -> &'static str {
-        //         $display
-        //     }
-        // }
-
-        // #[cfg(feature = "parsing")]
-        // impl private::Sealed for $($path)::+ {}
     };
 }
 
@@ -171,19 +133,6 @@ impl_low_level_token!("token" TokenTree token_tree);
 impl_low_level_token!("group token" proc_macro2::Group any_group);
 impl_low_level_token!("lifetime" Lifetime lifetime);
 
-// #[cfg(feature = "parsing")]
-// impl<T: CustomToken> private::Sealed for T {}
-
-// #[cfg(feature = "parsing")]
-// impl<T: CustomToken> Token for T {
-//     fn peek(cursor: Cursor) -> bool {
-//         <Self as CustomToken>::peek(cursor)
-//     }
-
-//     fn display() -> &'static str {
-//         <Self as CustomToken>::display()
-//     }
-// }
 
 macro_rules! define_keywords {
     ($($token:literal pub struct $name:ident)*) => {
@@ -260,29 +209,6 @@ macro_rules! define_keywords {
                 }
             }
 
-            // #[cfg(feature = "parsing")]
-            // #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-            // impl Parse for $name {
-            //     fn parse(input: ParseStream) -> Result<Self> {
-            //         Ok($name {
-            //             span: parsing::keyword(input, $token)?,
-            //         })
-            //     }
-            // }
-
-            // #[cfg(feature = "parsing")]
-            // impl Token for $name {
-            //     fn peek(cursor: Cursor) -> bool {
-            //         parsing::peek_keyword(cursor, $token)
-            //     }
-
-            //     fn display() -> &'static str {
-            //         concat!("`", $token, "`")
-            //     }
-            // }
-
-            // #[cfg(feature = "parsing")]
-            // impl private::Sealed for $name {}
         )*
     };
 }
@@ -399,29 +325,6 @@ macro_rules! define_punctuation {
                 }
             }
 
-            // #[cfg(feature = "parsing")]
-            // #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-            // impl Parse for $name {
-            //     fn parse(input: ParseStream) -> Result<Self> {
-            //         Ok($name {
-            //             spans: parsing::punct(input, $token)?,
-            //         })
-            //     }
-            // }
-
-            // #[cfg(feature = "parsing")]
-            // impl Token for $name {
-            //     fn peek(cursor: Cursor) -> bool {
-            //         parsing::peek_punct(cursor, $token)
-            //     }
-
-            //     fn display() -> &'static str {
-            //         concat!("`", $token, "`")
-            //     }
-            // }
-
-            // #[cfg(feature = "parsing")]
-            // impl private::Sealed for $name {}
         )*
     };
 }
@@ -498,8 +401,6 @@ macro_rules! define_delimiters {
                 }
             }
 
-            // #[cfg(feature = "parsing")]
-            // impl private::Sealed for $name {}
         )*
     };
 }
@@ -516,9 +417,6 @@ impl ToTokens for Underscore {
     }
 }
 
-
-// #[cfg(feature = "parsing")]
-// impl private::Sealed for Underscore {}
 
 /// None-delimited group
 pub struct Group {
@@ -591,52 +489,6 @@ impl Group {
     }
 }
 
-// #[cfg(feature = "parsing")]
-// impl private::Sealed for Group {}
-
-// #[cfg(feature = "parsing")]
-// impl Token for Paren {
-//     fn peek(cursor: Cursor) -> bool {
-//         cursor.group(Delimiter::Parenthesis).is_some()
-//     }
-
-//     fn display() -> &'static str {
-//         "parentheses"
-//     }
-// }
-
-// #[cfg(feature = "parsing")]
-// impl Token for Brace {
-//     fn peek(cursor: Cursor) -> bool {
-//         cursor.group(Delimiter::Brace).is_some()
-//     }
-
-//     fn display() -> &'static str {
-//         "curly braces"
-//     }
-// }
-
-// #[cfg(feature = "parsing")]
-// impl Token for Bracket {
-//     fn peek(cursor: Cursor) -> bool {
-//         cursor.group(Delimiter::Bracket).is_some()
-//     }
-
-//     fn display() -> &'static str {
-//         "square brackets"
-//     }
-// }
-
-// #[cfg(feature = "parsing")]
-// impl Token for Group {
-//     fn peek(cursor: Cursor) -> bool {
-//         cursor.group(Delimiter::None).is_some()
-//     }
-
-//     fn display() -> &'static str {
-//         "invisible group"
-//     }
-// }
 
 define_keywords! {
     "abstract"    pub struct Abstract

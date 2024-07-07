@@ -1,7 +1,3 @@
-// #[cfg(feature = "parsing")]
-// use crate::error::Error;
-// #[cfg(feature = "parsing")]
-// use crate::error::Result;
 use crate::expr::Expr;
 use crate::mac::MacroDelimiter;
 use crate::path::Path;
@@ -182,10 +178,6 @@ impl Attribute {
     pub fn path(&self) -> &Path {
         self.meta.path()
     }
-
-
- 
-
 }
 
 ast_enum! {
@@ -276,51 +268,6 @@ impl Meta {
         }
     }
 
-    // /// Error if this is a `Meta::List` or `Meta::NameValue`.
-    // #[cfg(feature = "parsing")]
-    // #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    // pub fn require_path_only(&self) -> Result<&Path> {
-    //     let error_span = match self {
-    //         Meta::Path(path) => return Ok(path),
-    //         Meta::List(meta) => meta.delimiter.span().open(),
-    //         Meta::NameValue(meta) => meta.eq_token.span,
-    //     };
-    //     Err(Error::new(error_span, "unexpected token in attribute"))
-    // }
-
-    // #[cfg(feature = "parsing")]
-    // #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    // pub fn require_list(&self) -> Result<&MetaList> {
-    //     match self {
-    //         Meta::List(meta) => Ok(meta),
-    //         Meta::Path(path) => Err(crate::error::new2(
-    //             path.segments.first().unwrap().ident.span(),
-    //             path.segments.last().unwrap().ident.span(),
-    //             format!(
-    //                 "expected attribute arguments in parentheses: `{}(...)`",
-    //                 parsing::DisplayPath(path),
-    //             ),
-    //         )),
-    //         Meta::NameValue(meta) => Err(Error::new(meta.eq_token.span, "expected `(`")),
-    //     }
-    // }
-
-    // #[cfg(feature = "parsing")]
-    // #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-    // pub fn require_name_value(&self) -> Result<&MetaNameValue> {
-    //     match self {
-    //         Meta::NameValue(meta) => Ok(meta),
-    //         Meta::Path(path) => Err(crate::error::new2(
-    //             path.segments.first().unwrap().ident.span(),
-    //             path.segments.last().unwrap().ident.span(),
-    //             format!(
-    //                 "expected a value for this attribute: `{} = ...`",
-    //                 parsing::DisplayPath(path),
-    //             ),
-    //         )),
-    //         Meta::List(meta) => Err(Error::new(meta.delimiter.span().open(), "expected `=`")),
-    //     }
-    // }
 }
 
 impl MetaList {

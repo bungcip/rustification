@@ -310,10 +310,6 @@ extern crate proc_macro;
 #[macro_use]
 mod macros;
 
-// #[cfg(feature = "parsing")]
-// #[macro_use]
-// mod group;
-
 #[macro_use]
 pub mod token;
 
@@ -325,12 +321,8 @@ pub use crate::attr::{AttrStyle, Attribute, Meta, MetaList, MetaNameValue};
 
 mod bigint;
 
-#[cfg(feature = "parsing")]
-#[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-pub mod buffer;
 
 #[cfg(any(
-    all(feature = "parsing", feature = "full"),
     all(feature = "printing", any(feature = "full", feature = "derive")),
 ))]
 mod classify;
@@ -375,9 +367,6 @@ pub use crate::expr::{
     ExprYield,
 };
 
-// #[cfg(feature = "parsing")]
-// #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-// pub mod ext;
 
 #[cfg(feature = "full")]
 mod file;
@@ -433,21 +422,12 @@ pub use crate::lit::{
     Lit, LitBool, LitByte, LitByteStr, LitCStr, LitChar, LitFloat, LitInt, LitStr,
 };
 
-// #[cfg(feature = "parsing")]
-// mod lookahead;
-
 #[cfg(any(feature = "full", feature = "derive"))]
 mod mac;
 #[cfg(any(feature = "full", feature = "derive"))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "full", feature = "derive"))))]
 pub use crate::mac::{Macro, MacroDelimiter};
 
-#[cfg(all(feature = "parsing", any(feature = "full", feature = "derive")))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(all(feature = "parsing", any(feature = "full", feature = "derive"))))
-)]
-pub mod meta;
 
 #[cfg(any(feature = "full", feature = "derive"))]
 mod op;
@@ -455,15 +435,6 @@ mod op;
 #[cfg_attr(docsrs, doc(cfg(any(feature = "full", feature = "derive"))))]
 pub use crate::op::{BinOp, UnOp};
 
-// #[cfg(feature = "parsing")]
-// #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
-// pub mod parse;
-
-// #[cfg(all(feature = "parsing", feature = "proc-macro"))]
-// mod parse_macro_input;
-
-// #[cfg(all(feature = "parsing", feature = "printing"))]
-// mod parse_quote;
 
 #[cfg(feature = "full")]
 mod pat;
@@ -500,8 +471,6 @@ mod restriction;
 #[cfg_attr(docsrs, doc(cfg(any(feature = "full", feature = "derive"))))]
 pub use crate::restriction::{FieldMutability, VisRestricted, Visibility};
 
-// mod sealed;
-
 mod span;
 
 #[cfg(all(feature = "parsing", feature = "printing"))]
@@ -529,11 +498,6 @@ pub use crate::ty::{
     TypeSlice, TypeTraitObject, TypeTuple,
 };
 
-// #[cfg(all(any(feature = "full", feature = "derive"), feature = "parsing"))]
-// mod verbatim;
-
-#[cfg(all(feature = "parsing", feature = "full"))]
-mod whitespace;
 
 #[rustfmt::skip] // https://github.com/rust-lang/rustfmt/issues/6176
 mod gen {
