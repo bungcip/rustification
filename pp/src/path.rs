@@ -1,11 +1,11 @@
 use crate::algorithm::Printer;
 use crate::iter::IterDelimited;
 use crate::INDENT;
-use std::ptr;
 use rast::{
     AngleBracketedGenericArguments, AssocConst, AssocType, Constraint, Expr, GenericArgument,
     ParenthesizedGenericArguments, Path, PathArguments, PathSegment, QSelf,
 };
+use std::ptr;
 
 #[derive(Copy, Clone, PartialEq)]
 pub enum PathKind {

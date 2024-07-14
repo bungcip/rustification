@@ -718,7 +718,6 @@ impl Expr {
             segments: Punctuated::new(),
         },
     });
-
 }
 
 ast_enum! {
@@ -899,7 +898,6 @@ ast_enum! {
         Closed(Token![..=]),
     }
 }
-
 
 #[cfg(feature = "printing")]
 pub(crate) mod printing {

@@ -321,7 +321,6 @@ impl ErrorMessage {
     }
 }
 
-
 impl Debug for Error {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         if self.messages.len() == 1 {

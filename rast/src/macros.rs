@@ -138,8 +138,6 @@ macro_rules! generate_to_tokens {
     };
 }
 
-
-
 macro_rules! check_keyword_matches {
     (enum enum) => {};
     (pub pub) => {};

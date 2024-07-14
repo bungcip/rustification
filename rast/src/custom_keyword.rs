@@ -145,14 +145,6 @@ macro_rules! impl_to_tokens_for_custom_keyword {
 }
 
 // Not public API.
-#[cfg(not(feature = "printing"))]
-#[doc(hidden)]
-#[macro_export]
-macro_rules! impl_to_tokens_for_custom_keyword {
-    ($ident:ident) => {};
-}
-
-// Not public API.
 #[cfg(feature = "clone-impls")]
 #[doc(hidden)]
 #[macro_export]

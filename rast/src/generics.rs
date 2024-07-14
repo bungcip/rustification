@@ -535,7 +535,6 @@ ast_struct! {
     }
 }
 
-
 #[cfg(feature = "printing")]
 pub(crate) mod printing {
     use crate::attr::FilterAttrs;
@@ -816,9 +815,6 @@ pub(crate) mod printing {
 
             #[cfg(feature = "full")]
             Expr::Block(expr) => expr.to_tokens(tokens),
-
-            #[cfg(not(feature = "full"))]
-            Expr::Verbatim(expr) => expr.to_tokens(tokens),
 
             // ERROR CORRECTION: Add braces to make sure that the
             // generated code is valid.

@@ -166,7 +166,6 @@ impl Printer {
         unimplemented!("Type::Verbatim `{}`", ty);
     }
 
-
     pub fn return_type(&mut self, ty: &ReturnType) {
         match ty {
             ReturnType::Default => {}

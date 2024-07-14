@@ -267,13 +267,9 @@ impl Meta {
             Meta::NameValue(meta) => &meta.path,
         }
     }
-
 }
 
-impl MetaList {
-
-
-}
+impl MetaList {}
 
 #[cfg(feature = "printing")]
 pub(crate) trait FilterAttrs<'a> {

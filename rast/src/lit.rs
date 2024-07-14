@@ -141,7 +141,6 @@ impl LitStr {
         String::from(value)
     }
 
-
     pub fn span(&self) -> Span {
         self.repr.token.span()
     }
@@ -687,7 +686,6 @@ macro_rules! lit_extra_traits {
                 self.repr.token.to_string().hash(state);
             }
         }
-
     };
 }
 
@@ -698,7 +696,6 @@ lit_extra_traits!(LitByte);
 lit_extra_traits!(LitChar);
 lit_extra_traits!(LitInt);
 lit_extra_traits!(LitFloat);
-
 
 /// The style of a string literal, either plain quoted or a raw string like
 /// `r##"data"##`.

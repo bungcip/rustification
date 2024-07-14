@@ -251,9 +251,6 @@ impl<T, P> Punctuated<T, P> {
         self.inner.clear();
         self.last = None;
     }
-
-
-
 }
 
 #[cfg(feature = "clone-impls")]

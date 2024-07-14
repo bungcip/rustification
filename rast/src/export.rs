@@ -29,16 +29,13 @@ pub type bool = std::primitive::bool;
 #[doc(hidden)]
 pub type str = std::primitive::str;
 
-
 #[doc(hidden)]
 pub type Span = proc_macro2::Span;
 #[doc(hidden)]
 pub type TokenStream2 = proc_macro2::TokenStream;
 
-
 #[doc(hidden)]
 pub use crate::span::IntoSpans;
-
 
 #[cfg(feature = "proc-macro")]
 #[doc(hidden)]

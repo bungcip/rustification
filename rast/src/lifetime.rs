@@ -109,8 +109,6 @@ impl Hash for Lifetime {
     }
 }
 
-
-
 #[cfg(feature = "printing")]
 mod printing {
     use crate::lifetime::Lifetime;

@@ -315,7 +315,6 @@ ast_struct! {
     }
 }
 
-
 impl From<DeriveInput> for Item {
     fn from(input: DeriveInput) -> Item {
         match input.data {
@@ -876,7 +875,6 @@ ast_enum! {
     //     pub path: Box<Path>,
     // }
 }
-
 
 #[cfg(feature = "printing")]
 mod printing {

@@ -87,7 +87,6 @@ impl Path {
             None
         }
     }
-
 }
 
 ast_struct! {
@@ -265,7 +264,6 @@ ast_struct! {
         pub gt_token: Token![>],
     }
 }
-
 
 #[cfg(feature = "printing")]
 pub(crate) mod printing {

@@ -1,112 +1,14 @@
-//! Tokens representing Rust punctuation, keywords, and delimiters.
-//!
-//! The type names in this module can be difficult to keep straight, so we
-//! prefer to use the [`Token!`] macro instead. This is a type-macro that
-//! expands to the token type of the given token.
-//!
-//! [`Token!`]: crate::Token
-//!
-//! # Example
-//!
-//! The [`ItemStatic`] syntax tree node is defined like this.
-//!
-//! [`ItemStatic`]: crate::ItemStatic
-//!
-//! ```
-//! # use rast::{Attribute, Expr, Ident, Token, Type, Visibility};
-//! #
-//! pub struct ItemStatic {
-//!     pub attrs: Vec<Attribute>,
-//!     pub vis: Visibility,
-//!     pub static_token: Token![static],
-//!     pub mutability: Option<Token![mut]>,
-//!     pub ident: Ident,
-//!     pub colon_token: Token![:],
-//!     pub ty: Box<Type>,
-//!     pub eq_token: Token![=],
-//!     pub expr: Box<Expr>,
-//!     pub semi_token: Token![;],
-//! }
-//! ```
-//!
-//! # Parsing
-//!
-//! Keywords and punctuation can be parsed through the [`ParseStream::parse`]
-//! method. Delimiter tokens are parsed using the [`parenthesized!`],
-//! [`bracketed!`] and [`braced!`] macros.
-//!
-//! [`ParseStream::parse`]: crate::parse::ParseBuffer::parse()
-//! [`parenthesized!`]: crate::parenthesized!
-//! [`bracketed!`]: crate::bracketed!
-//! [`braced!`]: crate::braced!
-//!
-//! ```
-//! use rast::{Attribute, Result};
-//! use rast::parse::{Parse, ParseStream};
-//! #
-//! # enum ItemStatic {}
-//!
-//! // Parse the ItemStatic struct shown above.
-//! impl Parse for ItemStatic {
-//!     fn parse(input: ParseStream) -> Result<Self> {
-//!         # use rast::ItemStatic;
-//!         # fn parse(input: ParseStream) -> Result<ItemStatic> {
-//!         Ok(ItemStatic {
-//!             attrs: input.call(Attribute::parse_outer)?,
-//!             vis: input.parse()?,
-//!             static_token: input.parse()?,
-//!             mutability: input.parse()?,
-//!             ident: input.parse()?,
-//!             colon_token: input.parse()?,
-//!             ty: input.parse()?,
-//!             eq_token: input.parse()?,
-//!             expr: input.parse()?,
-//!             semi_token: input.parse()?,
-//!         })
-//!         # }
-//!         # unimplemented!()
-//!     }
-//! }
-//! ```
-//!
-//! # Other operations
-//!
-//! Every keyword and punctuation token supports the following operations.
-//!
-//! - [Peeking] — `input.peek(Token![...])`
-//!
-//! - [Parsing] — `input.parse::<Token![...]>()?`
-//!
-//! - [Printing] — `quote!( ... #the_token ... )`
-//!
-//! - Construction from a [`Span`] — `let the_token = Token![...](sp)`
-//!
-//! - Field access to its span — `let sp = the_token.span`
-//!
-//! [Peeking]: crate::parse::ParseBuffer::peek()
-//! [Parsing]: crate::parse::ParseBuffer::parse()
-//! [Printing]: https://docs.rs/quote/1.0/quote/trait.ToTokens.html
-//! [`Span`]: https://docs.rs/proc-macro2/1.0/proc_macro2/struct.Span.html
-
 use self::private::WithSpan;
-
 use crate::span::IntoSpans;
 use proc_macro2::extra::DelimSpan;
 use proc_macro2::Span;
-#[cfg(feature = "printing")]
 use proc_macro2::TokenStream;
-#[cfg(any(feature = "printing"))]
 use proc_macro2::{Delimiter, Ident};
-#[cfg(feature = "printing")]
 use quote::{ToTokens, TokenStreamExt};
-#[cfg(feature = "extra-traits")]
 use std::cmp;
-#[cfg(feature = "extra-traits")]
 use std::fmt::{self, Debug};
-#[cfg(feature = "extra-traits")]
 use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
-
 
 pub(crate) mod private {
     use proc_macro2::Span;
@@ -118,13 +20,10 @@ pub(crate) mod private {
     pub struct WithSpan {
         pub span: Span,
     }
-
 }
 
-
 macro_rules! impl_low_level_token {
-    ($display:literal $($path:ident)::+ $get:ident) => {
-    };
+    ($display:literal $($path:ident)::+ $get:ident) => {};
 }
 
 impl_low_level_token!("punctuation token" Punct punct);
@@ -132,7 +31,6 @@ impl_low_level_token!("literal" Literal literal);
 impl_low_level_token!("token" TokenTree token_tree);
 impl_low_level_token!("group token" proc_macro2::Group any_group);
 impl_low_level_token!("lifetime" Lifetime lifetime);
-
 
 macro_rules! define_keywords {
     ($($token:literal pub struct $name:ident)*) => {
@@ -417,7 +315,6 @@ impl ToTokens for Underscore {
     }
 }
 
-
 /// None-delimited group
 pub struct Group {
     pub span: Span,
@@ -488,7 +385,6 @@ impl Group {
         printing::delim(Delimiter::None, self.span, tokens, inner);
     }
 }
-
 
 define_keywords! {
     "abstract"    pub struct Abstract

@@ -35,4 +35,3 @@ pub(crate) fn xid_ok(symbol: &str) -> bool {
     }
     true
 }
-

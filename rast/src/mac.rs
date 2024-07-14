@@ -33,7 +33,6 @@ impl MacroDelimiter {
         }
     }
 
-    #[cfg(all(feature = "full", any(feature = "printing")))]
     pub(crate) fn is_brace(&self) -> bool {
         match self {
             MacroDelimiter::Brace(_) => true,
@@ -42,10 +41,7 @@ impl MacroDelimiter {
     }
 }
 
-impl Macro {
-
-}
-
+impl Macro {}
 
 #[cfg(feature = "printing")]
 mod printing {

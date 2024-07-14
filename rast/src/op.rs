@@ -76,7 +76,6 @@ ast_enum! {
     }
 }
 
-
 #[cfg(feature = "printing")]
 mod printing {
     use crate::op::{BinOp, UnOp};

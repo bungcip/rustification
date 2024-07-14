@@ -88,7 +88,6 @@ ast_struct! {
     }
 }
 
-
 #[cfg(feature = "printing")]
 mod printing {
     use crate::attr::FilterAttrs;

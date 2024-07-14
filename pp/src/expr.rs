@@ -665,7 +665,6 @@ impl Printer {
         self.end();
     }
 
-
     fn expr_while(&mut self, expr: &ExprWhile) {
         self.outer_attrs(&expr.attrs);
         if let Some(label) = &expr.label {
