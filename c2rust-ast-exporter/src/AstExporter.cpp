@@ -81,17 +81,11 @@ std::string make_realpath(std::string const &path) {
 }
 
 // Helper to smooth out differences between versions of clang
-#if CLANG_VERSION_MAJOR < 17
-Optional<APSInt> getIntegerConstantExpr(const Expr &E, const ASTContext &Ctx) {
-    return E.getIntegerConstantExpr(Ctx);
-}
-#else
 #include <optional>
 std::optional<APSInt> getIntegerConstantExpr(const Expr &E,
                                              const ASTContext &Ctx) {
     return E.getIntegerConstantExpr(Ctx);
 }
-#endif // CLANG_VERSION_MAJOR
 } // namespace
 
 class TranslateASTVisitor;
@@ -360,16 +354,11 @@ class TypeEncoder final : public TypeVisitor<TypeEncoder> {
             case BuiltinType::Bool: return TagBool;
             case BuiltinType::WChar_S: return TagSWChar;
             case BuiltinType::WChar_U: return TagUWChar;
-#if CLANG_VERSION_MAJOR >= 17
             case BuiltinType::SveCount: return TagSveCount;
             case BuiltinType::SveBool: return TagSveBool;
             case BuiltinType::SveBoolx2: return TagSveBoolx2;
             case BuiltinType::SveBoolx4: return TagSveBoolx4;
-#endif
-
-#if CLANG_VERSION_MAJOR >= 18
             case BuiltinType::Dependent: return TagDependent;
-#endif
             default:
                 auto pol = clang::PrintingPolicy(Context->getLangOpts());
                 auto warning = std::string("Encountered unsupported BuiltinType kind ") +
@@ -1432,11 +1421,7 @@ class TranslateASTVisitor final
                         cbor_encoder_create_array(&array, &entry, 2);
                         cbor_encode_int(&entry, 2);
                         cbor_encode_uint(&entry,
-#if CLANG_VERSION_MAJOR < 17
-                                         uintptr_t(designator.getField()));
-#else
-                                         uintptr_t(designator.getFieldDecl()));
-#endif // CLANG_VERSION_MAJOR
+                        uintptr_t(designator.getFieldDecl()));
                     } else if (designator.isArrayRangeDesignator()) {
                         cbor_encoder_create_array(&array, &entry, 3);
                         cbor_encode_int(&entry, 3);
@@ -2189,12 +2174,10 @@ class TranslateASTVisitor final
         return true;
     }
 
-#if CLANG_VERSION_MAJOR >= 7
     bool VisitFixedPointLiteral(FixedPointLiteral *L) {
         printWarning("Encountered unsupported fixed point literal", L);
         return true;
     }
-#endif // CLANG_VERSION_MAJOR
 
     bool VisitImaginaryLiteral(ImaginaryLiteral *L) {
         printWarning("Encountered unsupported imaginary literal", L);
@@ -2216,50 +2199,24 @@ class TranslateASTVisitor final
             // C and C++ supports different string types, so
             // we need to identify the string literal type
             switch (SL->getKind()) {
-#if CLANG_VERSION_MAJOR >= 18
             case clang::StringLiteralKind::Ordinary:
-#else
-            case clang::StringLiteral::StringKind::Ordinary:
-#endif // CLANG_VERSION_MAJOR
                 cbor_encode_uint(array, StringTypeTag::TagAscii);
                 break;
-#if CLANG_VERSION_MAJOR >= 18
             case clang::StringLiteralKind::Wide:
-#else
-            case clang::StringLiteral::StringKind::Wide:
-#endif // CLANG_VERSION_MAJOR
                 cbor_encode_uint(array, StringTypeTag::TagWide);
                 break;
-#if CLANG_VERSION_MAJOR >= 18
             case clang::StringLiteralKind::UTF8:
-#else
-            case clang::StringLiteral::StringKind::UTF8:
-#endif // CLANG_VERSION_MAJOR
                 cbor_encode_uint(array, StringTypeTag::TagUTF8);
                 break;
-#if CLANG_VERSION_MAJOR >= 18
             case clang::StringLiteralKind::UTF16:
-#else
-            case clang::StringLiteral::StringKind::UTF16:
-#endif // CLANG_VERSION_MAJOR
                 cbor_encode_uint(array, StringTypeTag::TagUTF16);
                 break;
-#if CLANG_VERSION_MAJOR >= 18
             case clang::StringLiteralKind::UTF32:
-#else
-            case clang::StringLiteral::StringKind::UTF32:
-#endif // CLANG_VERSION_MAJOR
                 cbor_encode_uint(array, StringTypeTag::TagUTF32);
                 break;
-#if CLANG_VERSION_MAJOR >= 17
-#if CLANG_VERSION_MAJOR >= 18
             case clang::StringLiteralKind::Unevaluated:
-#else // CLANG_VERSION_MAJOR >= 17
-            case clang::StringLiteral::StringKind::Unevaluated:
-#endif
                 cbor_encode_uint(array, StringTypeTag::TagUnevaluated);
                 break;
-#endif // CLANG_VERSION_MAJOR
             }
             // The size of the wchar_t type in C is implementation defined
             cbor_encode_uint(array, SL->getCharByteWidth());
