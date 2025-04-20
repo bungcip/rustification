@@ -190,7 +190,7 @@ impl<'c> Translation<'c> {
                 if is_string {
                     let v = ids.first().unwrap();
                     self.convert_expr(ctx.used(), *v)
-                } else if ids.len() == 0 {
+                } else if ids.is_empty() {
                     // this was likely a C array of the form `int x[16] = {}`,
                     // we'll emit that as [0; 16].
                     let len = mk().lit_expr(mk().int_unsuffixed_lit(n as u128));
@@ -223,8 +223,10 @@ impl<'c> Translation<'c> {
                         })
                         .chain(
                             // Pad out the array literal with default values to the desired size
-                            iter::repeat(self.implicit_default_expr(ty, ctx.is_static))
-                                .take(n - ids.len()),
+                            iter::repeat_n(
+                                self.implicit_default_expr(ty, ctx.is_static),
+                                n - ids.len(),
+                            ),
                         )
                         .collect::<TranslationResult<WithStmts<_>>>()?
                         .map(|vals| mk().array_expr(vals)))
@@ -257,7 +259,7 @@ impl<'c> Translation<'c> {
             CTypeKind::Enum(_) => {
                 let id = ids.first().unwrap();
                 self.convert_expr(ctx.used(), *id)
-            }            
+            }
             CTypeKind::Vector(CQualTypeId { ctype, .. }, len) => {
                 self.vector_list_initializer(ctx, ids, ctype, len)
             }

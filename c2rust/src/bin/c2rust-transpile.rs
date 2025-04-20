@@ -13,8 +13,7 @@ author = "- The C2Rust Project Developers <c2rust@immunant.com>
 - Alec Theriault <atheriault@galois.com>",
 version,
 about = "Translate C code to equivalent Rust code",
-long_about = None,
-trailing_var_arg = true)]
+long_about = None)]
 struct Args {
     /// Adds a prefix to all function names. Generally only useful for testing
     #[clap(long)]
@@ -73,7 +72,7 @@ struct Args {
     json_function_cfgs: bool,
 
     /// Dump into the DOT file visualizations liveness information
-    #[clap(long = "ddump-cfgs-liveness", requires = "dump-function-cfgs")]
+    #[clap(long = "ddump-cfgs-liveness")]
     dump_cfgs_liveness: bool,
 
     /// Dumps out to STDERR the intermediate structures produced by relooper

@@ -104,14 +104,13 @@ impl IdMapper {
     /// If the `old_id` is present in the mapper, make `other_old_id` map to the same value. Note
     /// that `other_old_id` should not already be in the mapper.
     pub fn merge_old(&mut self, old_id: ClangId, other_old_id: ClangId) -> Option<ImporterId> {
-        self.get_new(old_id).map(|new_id| {
+        self.get_new(old_id).inspect(|&new_id| {
             let inserted = self.old_to_new.insert(other_old_id, new_id).is_some();
             assert!(
                 !inserted,
                 "get_or_create_new: overwrote an old id at {}",
                 other_old_id
             );
-            new_id
         })
     }
 }

@@ -601,24 +601,28 @@ impl Cfg<Label, StmtOrDecl> {
                 match ret {
                     ImplicitReturnType::Main => {
                         let ret_expr: Option<Box<Expr>> = Some(mk().lit_expr(mk().int_lit(0, "")));
-                        wip.body
-                            .push(StmtOrDecl::Stmt(Box::new(mk().semi_stmt(mk().return_expr(ret_expr)))));
+                        wip.body.push(StmtOrDecl::Stmt(Box::new(
+                            mk().semi_stmt(mk().return_expr(ret_expr)),
+                        )));
                     }
                     ImplicitReturnType::Void => {
-                        wip.body
-                            .push(StmtOrDecl::Stmt(Box::new(mk().semi_stmt(mk().return_expr(None)))));
+                        wip.body.push(StmtOrDecl::Stmt(Box::new(
+                            mk().semi_stmt(mk().return_expr(None)),
+                        )));
                     }
                     ImplicitReturnType::NoImplicitReturnType => {
                         // NOTE: emitting `ret_expr` is not necessarily an error. For instance,
                         // this statement exit may be dominated by one or more return statements.
                         let ret_expr: Box<Expr> =
                             translator.panic("Reached end of non-void function without returning");
-                        wip.body.push(StmtOrDecl::Stmt(Box::new(mk().semi_stmt(ret_expr))));
+                        wip.body
+                            .push(StmtOrDecl::Stmt(Box::new(mk().semi_stmt(ret_expr))));
                     }
                     ImplicitReturnType::StmtExpr(ctx, expr_id, brk_label) => {
                         let (stmts, val) = translator.convert_expr(ctx, expr_id)?.discard_unsafe();
 
-                        wip.body.extend(stmts.into_iter().map(|x| StmtOrDecl::Stmt(Box::new(x))));
+                        wip.body
+                            .extend(stmts.into_iter().map(|x| StmtOrDecl::Stmt(Box::new(x))));
                         wip.body.push(StmtOrDecl::Stmt(Box::new(mk().semi_stmt(
                             mk().break_expr_value(Some(brk_label.pretty_print()), Some(val)),
                         ))));

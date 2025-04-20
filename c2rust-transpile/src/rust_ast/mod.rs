@@ -6,7 +6,10 @@ pub mod traverse;
 pub use c2rust_ast_printer::pprust::BytePos;
 use proc_macro2::Span;
 
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::{
+    ops::Div,
+    sync::atomic::{AtomicU32, Ordering},
+};
 
 static SPAN_LIMIT: AtomicU32 = AtomicU32::new(0);
 
@@ -15,7 +18,7 @@ fn raise_span_limit(_new_limit: u32) {
     let new_limit = 0x2000000;
     if new_limit >= limit {
         let delta = new_limit - limit;
-        let s = str::repeat("        ", (delta as usize + 7) / 8);
+        let s = str::repeat("        ", (delta as usize).div(8));
         use std::str::FromStr;
         /* used only for its side-effect of expanding the source map */
         let _ = proc_macro2::TokenStream::from_str(&s);

@@ -250,7 +250,7 @@ impl TypedAstContext {
     pub fn find_file_id(&self, path: &Path) -> Option<FileId> {
         self.files
             .iter()
-            .position(|f| f.path.as_ref().map_or(false, |p| p == path))
+            .position(|f| f.path.as_ref().is_some_and(|p| p == path))
     }
 
     pub fn file_id<T>(&self, located: &Located<T>) -> Option<FileId> {
@@ -324,8 +324,8 @@ impl TypedAstContext {
         match self.index(typ).kind {
             CTypeKind::Typedef(decl) => match &self.index(decl).kind {
                 CDeclKind::Typedef {
-                    name: name_, 
-                    typ: ty, 
+                    name: name_,
+                    typ: ty,
                     ..
                 } => {
                     if name_ == "__builtin_va_list" {

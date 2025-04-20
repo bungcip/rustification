@@ -193,14 +193,14 @@ impl<L: Make<Ident>> Make<Label> for L {
     }
 }
 
-impl<'a> Make<Path> for &'a str {
+impl Make<Path> for &str {
     fn make(self, mk: &Builder) -> Path {
         let v = vec![self];
         Make::<Path>::make(v, mk)
     }
 }
 
-impl<'a> Make<Visibility> for &'a str {
+impl Make<Visibility> for &str {
     fn make(self, mk_: &Builder) -> Visibility {
         match self {
             "pub" => Visibility::Public(Token![pub](mk_.span)),
@@ -222,7 +222,7 @@ impl<'a> Make<Visibility> for &'a str {
     }
 }
 
-impl<'a> Make<Abi> for &'a str {
+impl Make<Abi> for &str {
     fn make(self, mk: &Builder) -> Abi {
         Abi {
             extern_token: Token![extern](mk.span),
@@ -232,7 +232,7 @@ impl<'a> Make<Abi> for &'a str {
     }
 }
 
-impl<'a> Make<Extern> for &'a str {
+impl Make<Extern> for &str {
     fn make(self, _mk: &Builder) -> Extern {
         Extern::Explicit(self.to_owned())
     }
@@ -244,7 +244,7 @@ impl Make<Extern> for Abi {
     }
 }
 
-impl<'a> Make<Mutability> for &'a str {
+impl Make<Mutability> for &str {
     fn make(self, _mk: &Builder) -> Mutability {
         match self {
             "" | "imm" | "immut" | "immutable" => Mutability::Immutable,
@@ -254,7 +254,7 @@ impl<'a> Make<Mutability> for &'a str {
     }
 }
 
-impl<'a> Make<Unsafety> for &'a str {
+impl Make<Unsafety> for &str {
     fn make(self, _mk: &Builder) -> Unsafety {
         match self {
             "" | "safe" | "normal" => Unsafety::Normal,
@@ -264,7 +264,7 @@ impl<'a> Make<Unsafety> for &'a str {
     }
 }
 
-impl<'a> Make<Constness> for &'a str {
+impl Make<Constness> for &str {
     fn make(self, _mk: &Builder) -> Constness {
         match self {
             "" | "normal" | "not-const" => Constness::NotConst,
@@ -274,7 +274,7 @@ impl<'a> Make<Constness> for &'a str {
     }
 }
 
-impl<'a> Make<UnOp> for &'a str {
+impl Make<UnOp> for &str {
     fn make(self, _mk: &Builder) -> UnOp {
         match self {
             "deref" | "*" => UnOp::Deref(Default::default()),
@@ -2314,7 +2314,7 @@ fn parenthesize_if_necessary(mut outer: Expr) -> Expr {
         }
         Expr::Reference(ref mut er) => {
             parenthesize_if_gt(&mut er.expr);
-        }        
+        }
         Expr::Binary(ref mut eb) => {
             parenthesize_if_gt(&mut eb.left);
             // Because binops associate right, parenthesize same-precedence RHS

@@ -324,7 +324,7 @@ impl LLVMInfo {
             } else {
                 vec!["--shared-mode"]
             };
-            invoke_command(llvm_config.as_deref(), &args).map_or(false, |c| c == "static")
+            invoke_command(llvm_config.as_deref(), &args).is_some_and(|c| c == "static")
         };
 
         let link_mode = if link_statically {
