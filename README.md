@@ -248,7 +248,7 @@ If you have [`bear`](https://github.com/rizsotto/Bear) installed,
 it can be used similarly to `intercept-build`:
 
 ```sh
-bear <build command>
+bear -- <build command>
 ```
 
 #### ... with `compiledb`
