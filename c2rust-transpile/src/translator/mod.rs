@@ -1597,12 +1597,14 @@ impl<'c> Translation<'c> {
                 // Pre-declare all the field names, checking for duplicates
                 let mut has_pointers = false;
                 for &x in fields {
-                    if let CDeclKind::Field { ref name, ref typ, .. } = self.ast_context.index(x).kind {
+                    if let CDeclKind::Field {
+                        ref name, ref typ, ..
+                    } = self.ast_context.index(x).kind
+                    {
                         self.type_converter
                             .borrow_mut()
                             .declare_field_name(decl_id, x, name);
 
-                        
                         if self.ast_context.index(typ.ctype).kind.is_pointer() {
                             has_pointers = true;
                         }
@@ -1720,19 +1722,15 @@ impl<'c> Translation<'c> {
                         mk_ = mk_.generic_over(mk().lt_param(mk().ident("a")))
                     }
 
-                    vec![mk_.struct_item(
-                        name.clone(),
-                        field_entries,
-                        false,
-                    )]
+                    vec![mk_.struct_item(name.clone(), field_entries, false)]
                 };
 
                 // add unsafe implement for `Sync` traits if the struct contains pointers
                 if has_pointers {
                     let sync_impl_item = mk().unsafe_().impl_trait_item(
-                        mk().ident_ty(name.clone()), 
+                        mk().ident_ty(name.clone()),
                         mk().path("Sync"),
-                        vec![]
+                        vec![],
                     );
                     items.push(sync_impl_item);
                 }
@@ -2042,7 +2040,8 @@ impl<'c> Translation<'c> {
 
                 // Collect problematic static initializers and offload them to sections for the linker
                 // to initialize for us
-                let (ty, init, mutbl) = if self.static_initializer_is_uncompilable(initializer, typ) {
+                let (ty, init, mutbl) = if self.static_initializer_is_uncompilable(initializer, typ)
+                {
                     // Note: We don't pass has_static_duration through here. Extracted initializers
                     // are run outside of the static initializer.
                     let ConvertedVariable { ty, mutbl: _, init } =
@@ -2095,7 +2094,7 @@ impl<'c> Translation<'c> {
                 };
 
                 let mut static_def = static_def.span(span);
-                
+
                 if mutbl == Mutability::Mutable {
                     static_def = static_def.mutbl();
                 }

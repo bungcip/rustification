@@ -1615,9 +1615,9 @@ impl Builder {
         }))
     }
 
-    pub fn impl_trait_item<P>(self, ty: Box<Type>, traits_: P, items: Vec<ImplItem>) -> Box<Item> 
+    pub fn impl_trait_item<P>(self, ty: Box<Type>, traits_: P, items: Vec<ImplItem>) -> Box<Item>
     where
-        P: Make<Path>
+        P: Make<Path>,
     {
         let self_ty = ty;
         let traits_ = traits_.make(&self);
@@ -1634,7 +1634,6 @@ impl Builder {
             items,
         }))
     }
-
 
     pub fn extern_crate_item<I>(self, name: I, rename: Option<I>) -> Box<Item>
     where

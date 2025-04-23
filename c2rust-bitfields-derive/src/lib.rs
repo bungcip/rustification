@@ -6,7 +6,8 @@ use syn::parse::Error;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::{
-    parse_macro_input, Attribute, Field, Fields, Ident, ItemStruct, LitStr, Path, PathArguments, PathSegment, Token
+    parse_macro_input, Attribute, Field, Fields, Ident, ItemStruct, LitStr, Path, PathArguments,
+    PathSegment, Token,
 };
 
 #[cfg(target_endian = "big")]
@@ -32,21 +33,21 @@ fn parse_bitfield_attr(
     let mut bits_span = None;
 
     let mut is_padding = false;
-    attr.parse_nested_meta(|meta|{
-        if meta.path.is_ident("name"){
+    attr.parse_nested_meta(|meta| {
+        if meta.path.is_ident("name") {
             let value = meta.value()?;
             let s: LitStr = value.parse()?;
             name = Some(s.value());
-        }else if meta.path.is_ident("ty"){
+        } else if meta.path.is_ident("ty") {
             let value = meta.value()?;
             let s: LitStr = value.parse()?;
             ty = Some(s.value());
-        }else if meta.path.is_ident("bits"){
+        } else if meta.path.is_ident("bits") {
             let value = meta.value()?;
             let s: LitStr = value.parse()?;
             bits = Some(s.value());
             bits_span = Some(meta.path.span());
-        }else if meta.path.is_ident("padding"){
+        } else if meta.path.is_ident("padding") {
             is_padding = true;
         }
         Ok(())
