@@ -167,11 +167,11 @@ pub fn pat_to_string(p: &syn::Pat) -> String {
     });
     let expr_str = expr_to_string(&e);
     expr_str
-        .trim_start_matches("let")
+        .trim_start_matches("(let")
         .trim_start()
         .trim_end()
         .trim_end_matches(';')
-        .trim_end_matches("return")
+        .trim_end_matches("return)")
         .trim_end()
         .trim_end_matches('=')
         .trim_end()
