@@ -1263,6 +1263,7 @@ impl<'c> Translation<'c> {
                 "mutable_transmutes",
                 "unused_mut",
                 "unused_assignments",
+                "unused_unsafe",
             ],
         )];
 
@@ -1594,13 +1595,20 @@ impl<'c> Translation<'c> {
                 }
 
                 // Pre-declare all the field names, checking for duplicates
+                let mut has_pointers = false;
                 for &x in fields {
-                    if let CDeclKind::Field { ref name, .. } = self.ast_context.index(x).kind {
+                    if let CDeclKind::Field { ref name, ref typ, .. } = self.ast_context.index(x).kind {
                         self.type_converter
                             .borrow_mut()
                             .declare_field_name(decl_id, x, name);
+
+                        
+                        if self.ast_context.index(typ.ctype).kind.is_pointer() {
+                            has_pointers = true;
+                        }
                     }
                 }
+                let has_pointers = has_pointers;
 
                 // Gather up all the field names and field types
                 let (field_entries, contains_va_list) =
@@ -1637,7 +1645,7 @@ impl<'c> Translation<'c> {
                     _ => {}
                 }
 
-                if let Some(alignment) = manual_alignment {
+                let mut items = if let Some(alignment) = manual_alignment {
                     // This is the most complicated case: we have `align(N)` which
                     // might be mixed with or included into a `packed` structure,
                     // which Rust doesn't currently support; instead, we split
@@ -1678,7 +1686,7 @@ impl<'c> Translation<'c> {
                         .pub_()
                         .call_attr("derive", vec!["Copy", "Clone"])
                         .meta_item_attr(AttrStyle::Outer, repr_attr)
-                        .struct_item(name, vec![outer_field], true);
+                        .struct_item(name.clone(), vec![outer_field], true);
 
                     // Emit `const X_PADDING: usize = size_of(Outer) - size_of(Inner);`
                     let padding_name = self
@@ -1697,7 +1705,7 @@ impl<'c> Translation<'c> {
                         .const_item(padding_name, padding_ty, padding_value);
 
                     let structs = vec![outer_struct, inner_struct, padding_const];
-                    Ok(ConvertedDecl::Items(structs))
+                    structs
                 } else {
                     assert!(!self.ast_context.has_inner_struct_decl(decl_id));
                     let repr_attr = mk().meta_list("repr", reprs);
@@ -1712,12 +1720,30 @@ impl<'c> Translation<'c> {
                         mk_ = mk_.generic_over(mk().lt_param(mk().ident("a")))
                     }
 
-                    Ok(ConvertedDecl::Item(mk_.struct_item(
-                        name,
+                    vec![mk_.struct_item(
+                        name.clone(),
                         field_entries,
                         false,
-                    )))
+                    )]
+                };
+
+                // add unsafe implement for `Sync` traits if the struct contains pointers
+                if has_pointers {
+                    let sync_impl_item = mk().unsafe_().impl_trait_item(
+                        mk().ident_ty(name.clone()), 
+                        mk().path("Sync"),
+                        vec![]
+                    );
+                    items.push(sync_impl_item);
                 }
+
+                let converted_decl = if items.len() == 1 {
+                    ConvertedDecl::Item(items.pop().unwrap())
+                } else {
+                    ConvertedDecl::Items(items)
+                };
+
+                Ok(converted_decl)
             }
 
             Union {
@@ -2016,7 +2042,7 @@ impl<'c> Translation<'c> {
 
                 // Collect problematic static initializers and offload them to sections for the linker
                 // to initialize for us
-                let (ty, init) = if self.static_initializer_is_uncompilable(initializer, typ) {
+                let (ty, init, mutbl) = if self.static_initializer_is_uncompilable(initializer, typ) {
                     // Note: We don't pass has_static_duration through here. Extracted initializers
                     // are run outside of the static initializer.
                     let ConvertedVariable { ty, mutbl: _, init } =
@@ -2043,9 +2069,9 @@ impl<'c> Translation<'c> {
 
                     self.add_static_initializer_to_section(new_name, typ, &mut init)?;
 
-                    (ty, init)
+                    (ty, init, Mutability::Mutable)
                 } else {
-                    let ConvertedVariable { ty, mutbl: _, init } =
+                    let ConvertedVariable { ty, mutbl, init } =
                         self.convert_variable(ctx.static_(), initializer, typ)?;
                     let mut init = init?;
                     // TODO: Replace this by relying entirely on
@@ -2057,7 +2083,7 @@ impl<'c> Translation<'c> {
                         generic_err!("Expected no side-effects in static initializer")
                     })?;
 
-                    (ty, init)
+                    (ty, init, mutbl)
                 };
 
                 let static_def = if is_externally_visible {
@@ -2068,9 +2094,12 @@ impl<'c> Translation<'c> {
                     mk()
                 };
 
-                // Force mutability due to the potential for raw pointers occurring in the type
-                // and because we may be assigning to these variables in the external initializer
-                let mut static_def = static_def.span(span).mutbl();
+                let mut static_def = static_def.span(span);
+                
+                if mutbl == Mutability::Mutable {
+                    static_def = static_def.mutbl();
+                }
+
                 if has_thread_duration {
                     static_def = static_def.single_attr("thread_local");
                 }

@@ -16,7 +16,7 @@ pub mod properties {
         fn to_token(&self) -> Option<Self::Token>;
     }
 
-    #[derive(Debug, Copy, Clone)]
+    #[derive(Debug, Copy, Clone, PartialEq)]
     pub enum Mutability {
         Mutable,
         Immutable,
@@ -1614,6 +1614,27 @@ impl Builder {
             items,
         }))
     }
+
+    pub fn impl_trait_item<P>(self, ty: Box<Type>, traits_: P, items: Vec<ImplItem>) -> Box<Item> 
+    where
+        P: Make<Path>
+    {
+        let self_ty = ty;
+        let traits_ = traits_.make(&self);
+
+        Box::new(Item::Impl(ItemImpl {
+            attrs: self.attrs,
+            unsafety: self.unsafety.to_token(),
+            defaultness: Defaultness::Final.to_token(),
+            generics: self.generics,
+            trait_: Some((None, traits_, Token![for](self.span))),
+            self_ty: self_ty,
+            impl_token: Token![impl](self.span),
+            brace_token: token::Brace(self.span),
+            items,
+        }))
+    }
+
 
     pub fn extern_crate_item<I>(self, name: I, rename: Option<I>) -> Box<Item>
     where
