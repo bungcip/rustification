@@ -1,10 +1,10 @@
-use colored::Colorize;
+use colored::*;
+use env_logger::{Builder, Env};
+use std::io::Write;
 
-use fern::colors::ColoredLevelConfig;
-use log::{Level, SetLoggerError};
+use log::Level;
 use std::collections::HashSet;
 use std::fmt::{self, Display};
-use std::io;
 use std::str::FromStr;
 use strum_macros::{Display, EnumString};
 
@@ -29,43 +29,28 @@ pub(crate) use diag;
 pub fn init(mut enabled_warnings: HashSet<Diagnostic>, log_level: log::LevelFilter) {
     enabled_warnings.extend(DEFAULT_WARNINGS.iter().cloned());
 
-    let colors = ColoredLevelConfig::new();
-    let (max_level, logger) = fern::Dispatch::new()
-        .format(move |out, message, record| {
-            let level_label = match record.level() {
-                Level::Error => "error",
-                Level::Warn => "warning",
-                Level::Info => "info",
-                Level::Debug => "debug",
-                Level::Trace => "trace",
-            };
-            let target = record.target();
-            let warn_flag = Diagnostic::from_str(target)
-                .map(|_| format!(" [-W{}]", target))
-                .unwrap_or_default();
-            out.finish(format_args!(
-                "\x1B[{}m{}:\x1B[0m {}{}",
-                colors.get_color(&record.level()).to_fg_str(),
-                level_label,
-                message,
-                warn_flag,
-            ))
-        })
-        .level(log_level)
-        .filter(move |metadata| {
-            if enabled_warnings.contains(&Diagnostic::All) {
-                return true;
-            }
-            Diagnostic::from_str(metadata.target())
-                .map(|d| enabled_warnings.contains(&d))
-                .unwrap_or(true)
-        })
-        .chain(io::stderr())
-        .into_log();
-    // Ignore the [`SetLoggerError`] b/c we just want to make sure it's set at least once.
-    let _: Result<(), SetLoggerError> = log_reroute::init();
-    log_reroute::reroute_boxed(logger);
-    log::set_max_level(max_level);
+    let mut builder = Builder::from_env(Env::default().default_filter_or(log_level.to_string()));
+
+    builder.format(move |buf, record| {
+        let level = record.level();
+        let level_label = match level {
+            Level::Error => "error".red().bold(),
+            Level::Warn => "warning".yellow().bold(),
+            Level::Info => "info".green(),
+            Level::Debug => "debug".blue(),
+            Level::Trace => "trace".normal(),
+        };
+
+        let target = record.target();
+        let warn_flag = Diagnostic::from_str(target)
+            .map(|_| format!(" [-W{}]", target))
+            .unwrap_or_default();
+
+        writeln!(buf, "{}: {}{}", level_label, record.args(), warn_flag)
+    });
+
+    builder.filter(Some("rustification"), log_level);
+    builder.init();
 }
 
 #[derive(Debug, Clone)]
