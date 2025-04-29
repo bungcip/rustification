@@ -9,7 +9,7 @@ use syn::{__private::ToTokens, punctuated::Punctuated, *};
 
 pub mod properties {
     use proc_macro2::Span;
-    use syn::{StaticMutability, Token};
+    use syn::{PointerMutability, StaticMutability, Token};
 
     pub trait ToToken {
         type Token;
@@ -21,6 +21,7 @@ pub mod properties {
         Mutable,
         Immutable,
     }
+
     impl ToToken for Mutability {
         type Token = Token![mut];
         fn to_token(&self) -> Option<Self::Token> {
@@ -36,6 +37,13 @@ pub mod properties {
             match self {
                 Mutability::Mutable => StaticMutability::Mut(Token![mut](span)),
                 Mutability::Immutable => StaticMutability::None,
+            }
+        }
+
+        pub fn to_pointer_mutability(&self, span: Span) -> PointerMutability {
+            match self {
+                Mutability::Mutable => PointerMutability::Mut(Token![mut](span)),
+                Mutability::Immutable => PointerMutability::Const(Token![const](span)),
             }
         }
     }
@@ -935,6 +943,16 @@ impl Builder {
         })))
     }
 
+    pub fn raw_addr_expr(self, e: Box<Expr>) -> Box<Expr> {
+        Box::new(parenthesize_if_necessary(Expr::RawAddr(ExprRawAddr {
+            attrs: self.attrs,
+            and_token: Token![&](self.span),
+            raw: Token![raw](self.span),
+            mutability: self.mutbl.to_pointer_mutability(self.span),
+            expr: e,
+        })))
+    }
+
     pub fn mac_expr(self, mac: Macro) -> Box<Expr> {
         Box::new(Expr::Macro(ExprMacro {
             attrs: self.attrs,
@@ -1628,7 +1646,7 @@ impl Builder {
             defaultness: Defaultness::Final.to_token(),
             generics: self.generics,
             trait_: Some((None, traits_, Token![for](self.span))),
-            self_ty: self_ty,
+            self_ty,
             impl_token: Token![impl](self.span),
             brace_token: token::Brace(self.span),
             items,
@@ -2235,7 +2253,7 @@ fn expr_precedence(e: &Expr) -> u8 {
         Expr::Field(_ef) => 16,
         Expr::Call(_) | Expr::Index(_) => 15,
         Expr::Try(_et) => 14,
-        Expr::Unary(_) | Expr::Reference(_) => 13,
+        Expr::Unary(_) | Expr::Reference(_) | Expr::RawAddr(_) => 13,
         Expr::Cast(_ec) => 12,
         Expr::Binary(eb) => 2 + binop_precedence(&eb.op),
         Expr::Assign(_) => 1,
@@ -2334,6 +2352,9 @@ fn parenthesize_if_necessary(mut outer: Expr) -> Expr {
         }
         Expr::Reference(ref mut er) => {
             parenthesize_if_gt(&mut er.expr);
+        }
+        Expr::RawAddr(ref mut era) => {
+            parenthesize_if_gt(&mut era.expr);
         }
         Expr::Binary(ref mut eb) => {
             parenthesize_if_gt(&mut eb.left);

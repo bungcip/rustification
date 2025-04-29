@@ -2990,7 +2990,8 @@ impl<'c> Translation<'c> {
                 }
             }
             _ => {
-                let addr_lhs = mk().set_mutbl(mutbl).addr_of_expr(lhs);
+                // let addr_lhs = mk().set_mutbl(mutbl).addr_of_expr(lhs);
+                let addr_lhs = mk().set_mutbl(mutbl).raw_addr_expr(lhs);
 
                 let lhs_type = self.convert_type(lhs_type.ctype)?;
                 let ty = mk().set_mutbl(mutbl).ptr_ty(lhs_type);
