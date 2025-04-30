@@ -180,7 +180,7 @@ impl<Lbl: Hash + Eq + Clone> LoopInfo<Lbl> {
             // Widen the loop until it contains the `entry`, or it can no longer be widened.
             loop {
                 match self.loops.get(&loop_id) {
-                    Some((ref in_loop, parent_id)) => {
+                    Some((in_loop, parent_id)) => {
                         if in_loop.contains(&entry) {
                             break;
                         }

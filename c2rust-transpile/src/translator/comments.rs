@@ -2,7 +2,7 @@ use super::Translation;
 use crate::c_ast::iterators::{NodeVisitor, SomeId};
 use crate::c_ast::{CDeclId, CDeclKind, CommentContext, SrcLoc, TypedAstContext};
 use crate::rust_ast::comment_store::CommentStore;
-use crate::rust_ast::{pos_to_span, SpanExt};
+use crate::rust_ast::{SpanExt, pos_to_span};
 use log::debug;
 use proc_macro2::Span;
 use std::collections::{HashMap, HashSet};

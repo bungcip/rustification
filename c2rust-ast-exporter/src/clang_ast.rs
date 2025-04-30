@@ -6,7 +6,7 @@ use std::fmt::{Display, Formatter};
 use std::path::{Path, PathBuf};
 use std::{self, fmt};
 
-pub use serde_cbor::value::{from_value, Value};
+pub use serde_cbor::value::{Value, from_value};
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 

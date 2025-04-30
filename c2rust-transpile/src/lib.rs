@@ -31,7 +31,7 @@ use crate::c_ast::*;
 pub use crate::diagnostics::Diagnostic;
 use c2rust_ast_exporter as ast_exporter;
 
-use crate::build_files::{emit_build_files, get_build_dir, CrateConfig};
+use crate::build_files::{CrateConfig, emit_build_files, get_build_dir};
 use crate::compile_cmds::get_compile_commands;
 use crate::convert_type::RESERVED_NAMES;
 pub use crate::translator::ReplaceMode;
@@ -181,11 +181,7 @@ impl From<ExternCrate> for ExternCrateDetails {
 }
 
 fn char_to_ident(c: char) -> char {
-    if c.is_alphanumeric() {
-        c
-    } else {
-        '_'
-    }
+    if c.is_alphanumeric() { c } else { '_' }
 }
 
 fn str_to_ident<S: AsRef<str>>(s: S) -> String {

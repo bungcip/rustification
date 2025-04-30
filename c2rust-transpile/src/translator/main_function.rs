@@ -25,7 +25,7 @@ impl<'c> Translation<'c> {
                         "Type of main function {:?} was not a function type, got {:?}",
                         main_id,
                         k
-                    ))
+                    ));
                 }
             };
 

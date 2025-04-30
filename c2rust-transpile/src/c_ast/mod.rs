@@ -354,8 +354,7 @@ impl TypedAstContext {
         match resolved_ctype.kind {
             Struct(record_id) => {
                 if let CDeclKind::Struct {
-                    name: Some(ref nam),
-                    ..
+                    name: Some(nam), ..
                 } = &self[record_id].kind
                 {
                     nam == "__va_list_tag" || nam == "__va_list"
@@ -2112,7 +2111,10 @@ mod tests {
                             Ordering::Equal => "==",
                             Ordering::Greater => ">",
                         });
-                        assert_eq!(ab, ac, "Total order (transitivity) has been violated: {a} {ab} {b} and {b} {bc} {c}, but {a} {ac} {c}");
+                        assert_eq!(
+                            ab, ac,
+                            "Total order (transitivity) has been violated: {a} {ab} {b} and {b} {bc} {c}, but {a} {ac} {c}"
+                        );
                     }
                 }
             }

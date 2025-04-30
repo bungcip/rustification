@@ -78,11 +78,7 @@ pub trait SpanExt: Sized {
     }
 
     fn substitute_dummy(self, other: Self) -> Self {
-        if self.is_dummy() {
-            other
-        } else {
-            self
-        }
+        if self.is_dummy() { other } else { self }
     }
 }
 

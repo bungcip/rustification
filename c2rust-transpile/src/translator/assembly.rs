@@ -653,7 +653,7 @@ impl<'c> Translation<'c> {
             None => {
                 return Err(generic_err!(
                     "Cannot translate inline assembly for unfamiliar architecture",
-                ))
+                ));
             }
         };
 

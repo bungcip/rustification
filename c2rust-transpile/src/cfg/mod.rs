@@ -15,14 +15,14 @@
 //!   - convert the `Vec<Structure<Stmt>>` back into a `Vec<Stmt>`
 //!
 
-use crate::c_ast::iterators::{DFExpr, SomeId};
 use crate::c_ast::CLabelId;
+use crate::c_ast::iterators::{DFExpr, SomeId};
 use crate::diagnostics::TranslationResult;
 use crate::rust_ast::SpanExt;
 use c2rust_ast_printer::pprust;
 use proc_macro2::Span;
-use std::collections::hash_map::DefaultHasher;
 use std::collections::BTreeSet;
+use std::collections::hash_map::DefaultHasher;
 use std::fs::File;
 use std::hash::Hash;
 use std::hash::Hasher;
@@ -31,7 +31,7 @@ use std::io::Write;
 use std::ops::Deref;
 use std::ops::Index;
 use syn::Lit;
-use syn::{spanned::Spanned, Arm, Expr, Pat, Stmt};
+use syn::{Arm, Expr, Pat, Stmt, spanned::Spanned};
 
 use indexmap::indexset;
 use indexmap::{IndexMap, IndexSet};

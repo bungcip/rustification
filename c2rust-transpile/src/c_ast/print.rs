@@ -204,7 +204,7 @@ impl<W: Write> Printer<W> {
                 self.writer.write_all(b" ?: ")?;
                 self.print_expr(rhs, context)?;
             }
-            InitList(_, ref xs, _, _) => {
+            InitList(_, xs, _, _) => {
                 self.writer.write_all(b"{")?;
                 let mut started = false;
                 for x in xs {
@@ -701,7 +701,7 @@ impl<W: Write> Printer<W> {
             .unwrap_or_else(|| panic!("Could not find type with ID {:?}", type_id));
         use CTypeKind::*;
         match ty {
-            Pointer(ref qual_ty) => {
+            Pointer(qual_ty) => {
                 self.print_qtype(*qual_ty, None, context)?;
                 self.writer.write_all(b"*")?;
                 if let Some(i) = ident {
@@ -734,9 +734,9 @@ impl<W: Write> Printer<W> {
                     .map(|l| &l.kind)
                     .unwrap_or_else(|| panic!("Could not find enum decl"));
                 match decl {
-                    CDeclKind::Enum {
-                        name: Some(ref n), ..
-                    } => self.writer.write_fmt(format_args!(" {}", n))?,
+                    CDeclKind::Enum { name: Some(n), .. } => {
+                        self.writer.write_fmt(format_args!(" {}", n))?
+                    }
                     CDeclKind::Enum { name: None, .. } => unimplemented!(),
                     _ => panic!("An enum type is supposed to point to an enum decl"),
                 }

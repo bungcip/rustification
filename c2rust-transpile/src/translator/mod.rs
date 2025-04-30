@@ -20,9 +20,9 @@ use crate::diagnostics::TranslationResult;
 use crate::rust_ast::comment_store::CommentStore;
 use crate::rust_ast::item_store::ItemStore;
 use crate::rust_ast::set_span::SetSpan;
-use crate::rust_ast::{pos_to_span, SpanExt};
+use crate::rust_ast::{SpanExt, pos_to_span};
 use crate::translator::named_references::NamedReference;
-use c2rust_ast_builder::{mk, properties::*, Builder};
+use c2rust_ast_builder::{Builder, mk, properties::*};
 use c2rust_ast_printer::pprust::{self};
 
 use crate::c_ast::iterators::{DFExpr, SomeId};
@@ -30,9 +30,9 @@ use crate::cfg;
 use crate::convert_type::TypeConverter;
 use crate::renamer::Renamer;
 use crate::with_stmts::WithStmts;
-use crate::{c_ast, generic_loc_err};
-use crate::{c_ast::*, generic_err, RustChannel};
 use crate::{ExternCrate, ExternCrateDetails, TranspilerConfig};
+use crate::{RustChannel, c_ast::*, generic_err};
+use crate::{c_ast, generic_loc_err};
 use c2rust_ast_exporter::clang_ast::LRValue;
 
 mod assembly;
@@ -47,9 +47,9 @@ mod simd;
 mod structs;
 mod variadic;
 
-pub use crate::diagnostics::{TranslationError, TranslationErrorKind};
 use crate::CrateSet;
 use crate::PragmaVec;
+pub use crate::diagnostics::{TranslationError, TranslationErrorKind};
 
 pub const INNER_SUFFIX: &str = "_Inner";
 pub const PADDING_SUFFIX: &str = "_PADDING";
@@ -279,7 +279,7 @@ pub struct Translation<'c> {
 
 fn cast_int(val: Box<Expr>, name: &str, need_lit_suffix: bool) -> Box<Expr> {
     let opt_literal_val = match &*val {
-        Expr::Lit(ref l) => match &l.lit {
+        Expr::Lit(l) => match &l.lit {
             Lit::Int(i) => Some(i.base10_digits().parse::<u128>().unwrap()),
             _ => None,
         },
@@ -1089,10 +1089,10 @@ fn add_src_loc_attr(attrs: &mut Vec<syn::Attribute>, src_loc: &Option<SrcLoc>) {
 fn foreign_item_attrs(item: &mut ForeignItem) -> Option<&mut Vec<syn::Attribute>> {
     use ForeignItem::*;
     Some(match item {
-        Fn(ForeignItemFn { ref mut attrs, .. }) => attrs,
-        Static(ForeignItemStatic { ref mut attrs, .. }) => attrs,
-        Type(ForeignItemType { ref mut attrs, .. }) => attrs,
-        Macro(ForeignItemMacro { ref mut attrs, .. }) => attrs,
+        Fn(ForeignItemFn { attrs, .. }) => attrs,
+        Static(ForeignItemStatic { attrs, .. }) => attrs,
+        Type(ForeignItemType { attrs, .. }) => attrs,
+        Macro(ForeignItemMacro { attrs, .. }) => attrs,
         Verbatim(TokenStream { .. }) => return None,
         _ => return None,
     })
@@ -1102,21 +1102,21 @@ fn foreign_item_attrs(item: &mut ForeignItem) -> Option<&mut Vec<syn::Attribute>
 fn item_attrs(item: &mut Item) -> Option<&mut Vec<syn::Attribute>> {
     use Item::*;
     Some(match item {
-        Const(ItemConst { ref mut attrs, .. }) => attrs,
-        Enum(ItemEnum { ref mut attrs, .. }) => attrs,
-        ExternCrate(ItemExternCrate { ref mut attrs, .. }) => attrs,
-        Fn(ItemFn { ref mut attrs, .. }) => attrs,
-        ForeignMod(ItemForeignMod { ref mut attrs, .. }) => attrs,
-        Impl(ItemImpl { ref mut attrs, .. }) => attrs,
-        Macro(ItemMacro { ref mut attrs, .. }) => attrs,
-        Mod(ItemMod { ref mut attrs, .. }) => attrs,
-        Static(ItemStatic { ref mut attrs, .. }) => attrs,
-        Struct(ItemStruct { ref mut attrs, .. }) => attrs,
-        Trait(ItemTrait { ref mut attrs, .. }) => attrs,
-        TraitAlias(ItemTraitAlias { ref mut attrs, .. }) => attrs,
-        Type(ItemType { ref mut attrs, .. }) => attrs,
-        Union(ItemUnion { ref mut attrs, .. }) => attrs,
-        Use(ItemUse { ref mut attrs, .. }) => attrs,
+        Const(ItemConst { attrs, .. }) => attrs,
+        Enum(ItemEnum { attrs, .. }) => attrs,
+        ExternCrate(ItemExternCrate { attrs, .. }) => attrs,
+        Fn(ItemFn { attrs, .. }) => attrs,
+        ForeignMod(ItemForeignMod { attrs, .. }) => attrs,
+        Impl(ItemImpl { attrs, .. }) => attrs,
+        Macro(ItemMacro { attrs, .. }) => attrs,
+        Mod(ItemMod { attrs, .. }) => attrs,
+        Static(ItemStatic { attrs, .. }) => attrs,
+        Struct(ItemStruct { attrs, .. }) => attrs,
+        Trait(ItemTrait { attrs, .. }) => attrs,
+        TraitAlias(ItemTraitAlias { attrs, .. }) => attrs,
+        Type(ItemType { attrs, .. }) => attrs,
+        Union(ItemUnion { attrs, .. }) => attrs,
+        Use(ItemUse { attrs, .. }) => attrs,
         Verbatim(TokenStream { .. }) => return None,
         _ => return None,
     })
@@ -2132,8 +2132,7 @@ impl<'c> Translation<'c> {
 
                 trace!(
                     "Expanding macro {:?}: {:?}",
-                    decl_id,
-                    self.ast_context[decl_id]
+                    decl_id, self.ast_context[decl_id]
                 );
 
                 let maybe_replacement = self.canonical_macro_replacement(
@@ -2914,7 +2913,7 @@ impl<'c> Translation<'c> {
             elt = self.variable_array_base_type(elt);
             let ty = self.convert_type(elt)?;
             mk().path_ty(vec![
-                mk().path_segment_with_args("Vec", mk().angle_bracketed_args(vec![ty]))
+                mk().path_segment_with_args("Vec", mk().angle_bracketed_args(vec![ty])),
             ])
         } else {
             self.convert_type(typ.ctype)?
@@ -3097,7 +3096,7 @@ impl<'c> Translation<'c> {
                             .borrow_mut()
                             .insert(CDeclId(expr_id.0), "vla")
                             .unwrap(); // try using declref name?
-                                       // TODO: store the name corresponding to expr_id
+                        // TODO: store the name corresponding to expr_id
 
                         let local = mk().local(
                             mk().ident_pat(name),
@@ -3211,8 +3210,7 @@ impl<'c> Translation<'c> {
 
         trace!(
             "Converting expr {:?}: {:?}",
-            expr_id,
-            self.ast_context[expr_id]
+            expr_id, self.ast_context[expr_id]
         );
 
         if self.tcfg.translate_const_macros {
@@ -4890,7 +4888,7 @@ impl<'c> Translation<'c> {
                     .expect("Expected decl name");
                 self.add_import(decl_file_id, decl_id, ident_name);
             }
-            Function(CQualTypeId { ctype, .. }, ref params, ..) => {
+            Function(CQualTypeId { ctype, .. }, params, ..) => {
                 // Return Type
                 let type_kind = &self.ast_context[*ctype].kind;
 

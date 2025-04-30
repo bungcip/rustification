@@ -1,4 +1,4 @@
-use c2rust_ast_builder::{mk, Builder};
+use c2rust_ast_builder::{Builder, mk};
 use indexmap::{IndexMap, IndexSet};
 use syn::{ForeignItem, Ident, Item};
 

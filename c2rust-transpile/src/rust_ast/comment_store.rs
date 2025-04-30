@@ -21,12 +21,12 @@
 //!
 //! Comments cannot currently be attached before the close of a Block, or after all Items in a File.
 
-use crate::rust_ast::{pos_to_span, set_span::SetSpan, traverse, BytePos, SpanExt};
+use crate::rust_ast::{BytePos, SpanExt, pos_to_span, set_span::SetSpan, traverse};
 use c2rust_ast_printer::pprust::comments;
 use itertools::Itertools;
 use log::warn;
 use proc_macro2::{Span, TokenStream};
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 use std::collections::BTreeMap;
 use std::default::Default;
 use syn::__private::ToTokens;
@@ -173,7 +173,7 @@ impl CommentStore {
     /// Move any comments attached to the end of `span` to its beginning and
     /// return a new span for those comments.
     pub fn move_comments_to_begin(&mut self, span: Span) -> Span {
-        let span = if span.lo() != span.hi() {
+        if span.lo() != span.hi() {
             if span.lo() == BytePos(0) {
                 span.shrink_to_hi()
             } else {
@@ -195,16 +195,7 @@ impl CommentStore {
             }
         } else {
             span
-        };
-
-        /*// All comments attached to this span should become isolated.
-        if let Some(comments) = self.output_comments.get_mut(&span.lo()) {
-            for comment in comments {
-                comment.style = comments::CommentStyle::Isolated;
-            }
-        }*/
-
-        span
+        }
     }
 }
 

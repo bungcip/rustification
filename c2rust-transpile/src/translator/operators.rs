@@ -823,7 +823,7 @@ impl<'c> Translation<'c> {
                 match arg_kind {
                     // C99 6.5.3.2 para 4
                     CExprKind::Unary(_, c_ast::UnOp::Deref, target, _) => {
-                        return self.convert_expr(ctx, *target)
+                        return self.convert_expr(ctx, *target);
                     }
                     // An AddrOf DeclRef/Member is safe to not decay if the translator isn't already giving a hard
                     // yes to decaying (ie, BitCasts). So we only convert default to no decay.

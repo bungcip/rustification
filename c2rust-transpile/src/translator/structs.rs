@@ -5,12 +5,12 @@
 use std::collections::HashSet;
 use std::ops::Index;
 
-use super::named_references::NamedReference;
 use super::TranslationError;
+use super::named_references::NamedReference;
 use crate::c_ast::{BinOp, CDeclId, CDeclKind, CExprId, CRecordId, CTypeId};
 use crate::diagnostics::TranslationResult;
 use crate::generic_err;
-use crate::translator::{ExprContext, Translation, PADDING_SUFFIX};
+use crate::translator::{ExprContext, PADDING_SUFFIX, Translation};
 use crate::with_stmts::WithStmts;
 use c2rust_ast_builder::mk;
 use c2rust_ast_printer::pprust;
@@ -419,7 +419,7 @@ impl<'a> Translation<'a> {
             CDeclKind::Struct { fields: None, .. } => {
                 return Err(generic_err!(
                     "Attempted to zero-initialize forward-declared struct",
-                ))
+                ));
             }
 
             _ => panic!("Struct literal declaration mismatch"),

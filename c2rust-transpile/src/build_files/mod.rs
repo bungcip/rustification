@@ -9,12 +9,12 @@ use pathdiff::diff_paths;
 use serde_derive::Serialize;
 use serde_json::json;
 
-use super::compile_cmds::LinkCmd;
 use super::TranspilerConfig;
-use crate::get_module_name;
+use super::compile_cmds::LinkCmd;
 use crate::CrateSet;
 use crate::ExternCrateDetails;
 use crate::PragmaSet;
+use crate::get_module_name;
 
 #[derive(Debug, Copy, Clone)]
 pub enum BuildDirectoryContents {

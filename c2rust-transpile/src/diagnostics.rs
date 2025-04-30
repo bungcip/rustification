@@ -122,11 +122,17 @@ impl Display for TranslationErrorKind {
             Generic => {}
 
             VaCopyNotImplemented => {
-                return write!(f, "Rust does not yet support a C-compatible va_copy which is required to translate this function. See https://github.com/rust-lang/rust/pull/59625");
+                return write!(
+                    f,
+                    "Rust does not yet support a C-compatible va_copy which is required to translate this function. See https://github.com/rust-lang/rust/pull/59625"
+                );
             }
 
             InvalidClangAst(_) => {
-                return write!(f, "Exported Clang AST was invalid. Check warnings above for unimplemented features.");
+                return write!(
+                    f,
+                    "Exported Clang AST was invalid. Check warnings above for unimplemented features."
+                );
             }
         }
         Ok(())
@@ -167,7 +173,7 @@ impl TranslationError {
     pub fn add_loc(mut self, loc: Option<DisplaySrcSpan>) -> Self {
         match (&mut self.loc, loc) {
             (None, Some(x)) => self.loc = Some(vec![x]),
-            (Some(ref mut vec), Some(x)) => vec.push(x),
+            (Some(vec), Some(x)) => vec.push(x),
             _ => {}
         }
 

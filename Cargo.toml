@@ -21,7 +21,7 @@ exclude = [
 [workspace.package]
 version = "0.20.0"
 authors = ["bungcip <bungcip@gmail.com>"]
-edition = "2021"
+edition = "2024"
 readme = "README.md"
 homepage = "https://github.com/bungcip/rustification"
 repository = "https://github.com/bungcip/rustification"

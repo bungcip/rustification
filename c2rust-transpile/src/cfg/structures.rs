@@ -2,9 +2,9 @@
 
 use super::*;
 use log::warn;
-use syn::{spanned::Spanned as _, ExprBreak, ExprIf, ExprReturn, ExprUnary, Stmt};
+use syn::{ExprBreak, ExprIf, ExprReturn, ExprUnary, Stmt, spanned::Spanned as _};
 
-use crate::rust_ast::{comment_store, set_span::SetSpan, BytePos, SpanExt};
+use crate::rust_ast::{BytePos, SpanExt, comment_store, set_span::SetSpan};
 
 /// Convert a sequence of structures produced by Relooper back into Rust statements
 pub fn structured_cfg(
@@ -235,7 +235,7 @@ fn structured_cfg_help<S: StructuredStatement<E = Box<Expr>, P = Pat, L = Label,
                 let mut branch = |slbl: &StructureLabel<Stmt>| -> TranslationResult<S> {
                     use StructureLabel::*;
                     match slbl {
-                        Nested(ref nested) => {
+                        Nested(nested) => {
                             structured_cfg_help(exits.clone(), next, nested, used_loop_labels)
                         }
 
@@ -619,14 +619,16 @@ impl StructureState {
                         ..
                     }) = expr
                     {
-                        if let [Stmt::Expr(
-                            syn::Expr::Break(ExprBreak {
-                                label: None,
-                                expr: None,
-                                ..
-                            }),
-                            _token,
-                        )] = then_branch.stmts.as_slice()
+                        if let [
+                            Stmt::Expr(
+                                syn::Expr::Break(ExprBreak {
+                                    label: None,
+                                    expr: None,
+                                    ..
+                                }),
+                                _token,
+                            ),
+                        ] = then_branch.stmts.as_slice()
                         {
                             let e = mk().while_expr(
                                 not(cond),

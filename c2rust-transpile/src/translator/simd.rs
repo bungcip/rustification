@@ -156,7 +156,7 @@ impl<'c> Translation<'c> {
 
             // The majority of x86/64 SIMD is stable, however there are still some
             // bits that are behind a feature gate.
-            self.use_feature("stdsimd");
+            // self.use_feature("stdsimd");
 
             self.with_cur_file_item_store(|item_store| {
                 // REVIEW: Also a linear lookup
@@ -247,7 +247,7 @@ impl<'c> Translation<'c> {
             (Char, 32) | (Int, 8) | (LongLong, 4) => ("_mm256_setzero_si256", 32),
             (Char, 8) | (Int, 2) | (LongLong, 1) => {
                 // __m64 is still unstable as of rust 1.29
-                self.use_feature("stdsimd");
+                // self.use_feature("stdsimd");
 
                 ("_mm_setzero_si64", 8)
             }
@@ -256,7 +256,7 @@ impl<'c> Translation<'c> {
                     "Unsupported vector default initializer: {:?} x {}",
                     kind,
                     len
-                ))
+                ));
             }
         };
 
@@ -551,7 +551,7 @@ impl<'c> Translation<'c> {
                     if let CExprKind::DeclRef(_, decl_id, _) = expr {
                         let decl = &self.ast_context[*decl_id].kind;
 
-                        if let CDeclKind::Function { ref name, .. } = decl {
+                        if let CDeclKind::Function { name, .. } = decl {
                             return name.starts_with("__builtin_ia32_");
                         }
                     }
