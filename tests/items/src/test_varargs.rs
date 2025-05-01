@@ -9,7 +9,7 @@ use libc::c_char;
 use std::ffi::CString;
 
 #[link(name = "test")]
-extern "C" {
+unsafe extern "C" {
     fn call_printf();
 
     fn call_vprintf(_: *const c_char, ...);

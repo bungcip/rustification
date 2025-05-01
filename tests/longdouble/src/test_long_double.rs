@@ -33,7 +33,7 @@ pub fn test_long_double_casts() {
 
 pub fn test_global_f128s() {
     unsafe {
-        assert_eq!(rust_ld1, f128::new(1.0f64));
-        assert_eq!(rust_ld2, f128::new(3.0f64));
+        assert_eq!(*&raw const rust_ld1, f128::new(1.0f64));
+        assert_eq!(*&raw const rust_ld2, f128::new(3.0f64));
     }
 }

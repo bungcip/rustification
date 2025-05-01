@@ -5,7 +5,7 @@ use libc::c_int;
 use libc::c_uint;
 
 #[link(name = "test")]
-extern "C" {
+unsafe extern "C" {
     fn sizeofs(_: c_uint, _: *mut c_int);
 }
 

@@ -2,7 +2,7 @@ use crate::add::rust_add;
 use libc::c_uint;
 
 #[link(name = "test")]
-extern "C" {
+unsafe extern "C" {
     fn add(left: c_uint, right: c_uint) -> c_uint;
 }
 

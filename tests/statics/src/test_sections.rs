@@ -5,23 +5,23 @@ use libc::c_uint;
 
 pub fn test_sectioned_statics() {
     unsafe {
-        assert_eq!(rust_section_me, c_uint::max_value());
-        assert_eq!(rust_section_me2, 0i32);
-        assert_eq!(rust_section_me3, 3u32);
-        assert_eq!(rust_section_me4, 2u32);
-        assert_eq!(rust_section_me5, 2u32);
-        assert_eq!(rust_section_foo_b_field.a, 1);
-        assert_eq!(rust_section_foo_b_field.b, -1);
-        assert_eq!(rust_section_foo_b_field.c, 1.2);
-        assert_eq!(rust_section_num_params, 2);
+        assert_eq!((*&raw const rust_section_me), c_uint::max_value());
+        assert_eq!((*&raw const rust_section_me2), 0i32);
+        assert_eq!((*&raw const rust_section_me3), 3u32);
+        assert_eq!((*&raw const rust_section_me4), 2u32);
+        assert_eq!((*&raw const rust_section_me5), 2u32);
+        assert_eq!((*&raw const rust_section_foo_b_field).a, 1);
+        assert_eq!((*&raw const rust_section_foo_b_field).b, -1);
+        assert_eq!((*&raw const rust_section_foo_b_field).c, 1.2);
+        assert_eq!((*&raw const rust_section_num_params), 2);
         assert!(rust_if_expr == 30 || rust_if_expr == 31);
 
         // There's not really a way to test the function scoped static
         // directly since it's (rightly) private. But this does prove
         // that the previously uncompilable static is now being initialized
-        let ptr_deref = unsafe { *(rust_fn_scoped_static_init() as *const c_uint) };
+        let ptr_deref = *(rust_fn_scoped_static_init() as *const c_uint);
         assert_eq!(ptr_deref, c_uint::max_value() - 1);
-        assert_eq!(rust_section_me, c_uint::max_value() - 1);
+        assert_eq!((*&raw const rust_section_me), c_uint::max_value() - 1);
 
         rust_use_sectioned_array();
     }
@@ -42,12 +42,12 @@ pub fn test_sectioned_used_static() {
             .expect("Did not find expected static string in source");
         // The ordering of these attributes is not stable between LLVM versions
         assert!(
-            (lines[pos - 1] == "#[used]" && lines[pos - 2] == "#[link_section = \"barz\"]")
-                || (lines[pos - 2] == "#[used]" && lines[pos - 1] == "#[link_section = \"barz\"]")
+            (lines[pos - 1] == "#[used]" && lines[pos - 2] == r#"#[unsafe(link_section = "barz")]"#)
+                || (lines[pos - 2] == "#[used]" && lines[pos - 1] == r#"#[unsafe(link_section = "barz")]"#)
         );
 
         // This static is pub, but we want to ensure it has attributes applied
-        assert!(src.contains("#[link_section = \"fb\"]\npub static mut rust_initialized_extern: libc::c_int = 1 as libc::c_int;"));
-        assert!(src.contains("extern \"C\" {\n    #[link_name = \"no_attrs\"]\n    static mut rust_aliased_static: libc::c_int;"))
+        assert!(src.contains("#[unsafe(link_section = \"fb\")]\npub static mut rust_initialized_extern: libc::c_int = 1 as libc::c_int;"));
+        assert!(src.contains("unsafe extern \"C\" {\n    #[link_name = \"no_attrs\"]\n    static mut rust_aliased_static: libc::c_int;"));
     }
 }

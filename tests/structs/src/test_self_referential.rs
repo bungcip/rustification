@@ -1,7 +1,7 @@
 use crate::self_referential::Node;
 
 #[link(name = "test")]
-extern "C" {
+unsafe extern "C" {
     fn whatever(np: *mut Node);
 }
 

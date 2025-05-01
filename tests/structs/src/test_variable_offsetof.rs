@@ -3,7 +3,7 @@
 use crate::variable_offsetof::{rust_get_offset, rust_get_offset2, size_t};
 
 #[link(name = "test")]
-extern "C" {
+unsafe extern "C" {
     fn get_offset(_: size_t) -> size_t;
     fn get_offset2(_: size_t) -> size_t;
 }

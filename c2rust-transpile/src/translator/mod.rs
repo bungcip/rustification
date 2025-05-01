@@ -373,7 +373,7 @@ fn mk_linkage(in_extern_block: bool, new_name: &str, old_name: &str) -> Builder 
         if in_extern_block {
             mk() // There is no mangling by default in extern blocks anymore
         } else {
-            mk().single_attr("no_mangle") // Don't touch my name Rust!
+            mk().call_attr("unsafe", vec!["no_mangle"]) // Don't touch my name Rust!
         }
     } else if in_extern_block {
         mk().str_attr("link_name", old_name) // Look for this name
@@ -852,7 +852,8 @@ pub fn translate(
             all_items.extend(new_uses.into_items());
 
             if !foreign_items.is_empty() {
-                all_items.push(mk().extern_("C").foreign_items(foreign_items));
+                // in rust edition 2024, extern blocks must be unsafe
+                all_items.push(mk().extern_("C").unsafe_().foreign_items(foreign_items));
             }
 
             // Add the items accumulated
@@ -1002,7 +1003,7 @@ fn make_submodule(
     }
 
     if !foreign_items.is_empty() {
-        items.push(mk().extern_("C").foreign_items(foreign_items));
+        items.push(mk().unsafe_().extern_("C").foreign_items(foreign_items));
     }
 
     let module_builder = mk().vis("pub");
@@ -1264,6 +1265,9 @@ impl<'c> Translation<'c> {
                 "unused_mut",
                 "unused_assignments",
                 "unused_unsafe",
+                "unused_variables",
+                "unsafe_op_in_unsafe_fn",
+                "path_statements",
             ],
         )];
 
@@ -1504,7 +1508,9 @@ impl<'c> Translation<'c> {
                     "cfg_attr",
                     vec![
                         mk().meta_namevalue("target_os", "linux"),
-                        mk().meta_namevalue("link_section", ".init_array"),
+                        mk().meta_list("unsafe", vec![
+                            mk().meta_namevalue("link_section", ".init_array")
+                        ]),
                     ],
                 ),
             )
@@ -1514,7 +1520,9 @@ impl<'c> Translation<'c> {
                     "cfg_attr",
                     vec![
                         mk().meta_namevalue("target_os", "windows"),
-                        mk().meta_namevalue("link_section", ".CRT$XIB"),
+                        mk().meta_list("unsafe", vec![
+                            mk().meta_namevalue("link_section", ".CRT$XIB"),
+                        ]),
                     ],
                 ),
             )
@@ -1524,7 +1532,9 @@ impl<'c> Translation<'c> {
                     "cfg_attr",
                     vec![
                         mk().meta_namevalue("target_os", "macos"),
-                        mk().meta_namevalue("link_section", "__DATA,__mod_init_func"),
+                        mk().meta_list("unsafe", vec![
+                            mk().meta_namevalue("link_section", ".__DATA,__mod_init_func")
+                        ]),
                     ],
                 ),
             );
@@ -2108,7 +2118,9 @@ impl<'c> Translation<'c> {
                     static_def = match attr {
                         c_ast::Attribute::Used => static_def.single_attr("used"),
                         c_ast::Attribute::Section(name) => {
-                            static_def.str_attr("link_section", name)
+                            static_def.call_attr("unsafe", vec![
+                                mk().meta_namevalue("link_section", name)
+                            ])
                         }
                         _ => continue,
                     }
@@ -2799,7 +2811,7 @@ impl<'c> Translation<'c> {
                     let items = match self.convert_decl(ctx, decl_id)? {
                         Item(item) => vec![item],
                         ForeignItem(item) => {
-                            vec![mk().extern_("C").foreign_items(vec![*item])]
+                            vec![mk().unsafe_().extern_("C").foreign_items(vec![*item])]
                         }
                         Items(items) => items,
                         NoItem => return Ok(cfg::DeclStmtInfo::empty()),
@@ -3655,9 +3667,6 @@ impl<'c> Translation<'c> {
 
                         let lhs = self.convert_expr(ctx.used(), arr)?;
                         Ok(lhs.map(|lhs| {
-                            // stmts.extend(lhs.stmts_mut());
-                            // is_unsafe = is_unsafe || lhs.is_unsafe();
-
                             // Don't dereference the offset if we're still within the variable portion
                             if let Some(elt_type_id) = var_elt_type_id {
                                 let mul = self.compute_size_of_expr(elt_type_id);
@@ -4330,12 +4339,23 @@ impl<'c> Translation<'c> {
                             Ok(val)
                         } else {
                             let method = if is_const || ctx.is_static {
-                                "as_ptr"
+                                Mutability::Immutable
                             } else {
-                                "as_mut_ptr"
+                                Mutability::Mutable
                             };
 
-                            let call = val.map(|x| mk().method_call_expr(x, method, vec![]));
+                            let call = val.map(|x| mk().set_mutbl(method).raw_addr_expr(x));
+                            let target_ty = self.convert_type(pointee.ctype)?;
+                            let call = call.map(|x| {
+                                mk().method_call_expr(
+                                    x, 
+                                    mk().path_segment_with_args(
+                                        "cast",
+                                        mk().angle_bracketed_args(vec![target_ty]),
+                                    ),
+                                    vec![]
+                                )
+                            });
 
                             // Static arrays can now use as_ptr. Can also cast that const ptr to a
                             // mutable pointer as we do here:

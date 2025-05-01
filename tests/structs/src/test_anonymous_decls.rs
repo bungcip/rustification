@@ -3,6 +3,6 @@ use libc::{c_int, c_uint};
 
 pub fn test_anonymous_decl() {
     unsafe {
-        assert_eq!(rust_k.j.l, 0);
+        assert_eq!((*&raw const rust_k).j.l, 0);
     }
 }

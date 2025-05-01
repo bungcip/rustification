@@ -1,7 +1,7 @@
 use crate::uninitialized::{bar, baz, e, foo, rust_entry2, s, /*myint, myintp,*/ u};
 use libc::{c_int, c_uint};
 
-extern "C" {
+unsafe extern "C" {
     fn entry2(_: c_uint, _: *mut c_int);
 }
 

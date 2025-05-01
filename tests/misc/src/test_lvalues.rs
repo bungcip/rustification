@@ -2,7 +2,7 @@ use crate::lvalues::rust_lvalue;
 use libc::c_int;
 
 #[link(name = "test")]
-extern "C" {
+unsafe extern "C" {
     fn lvalue(_: *mut c_int);
 }
 

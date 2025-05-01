@@ -2,7 +2,7 @@ use crate::struct_with_exp::rust_struct_with_exp;
 use libc::{c_int, c_uint, size_t};
 
 #[link(name = "test")]
-extern "C" {
+unsafe extern "C" {
     fn struct_with_exp(_: c_uint, _: *mut c_int);
 }
 

@@ -9,7 +9,7 @@ use crate::bitfields::{
 };
 use std::mem::size_of;
 
-extern "C" {
+unsafe extern "C" {
     fn size_of_three_byte_date() -> usize;
     fn compare_three_byte_date(_: *const three_byte_date, _: u8, _: u8, _: u16) -> u8;
     fn write_three_byte_date(_: *mut three_byte_date, _: u8, _: u8, _: u16);
@@ -116,32 +116,32 @@ pub fn test_padded_bitfield() {
 pub fn test_static_bitfield() {
     // On C static
     unsafe {
-        assert_eq!(static_date.day(), 13);
+        assert_eq!((*&raw const static_date).day(), 13);
 
-        static_date.set_day(15);
+        (*&raw mut static_date).set_day(15);
 
-        assert_eq!(static_date.day(), 15);
+        assert_eq!((*&raw const static_date).day(), 15);
 
-        rust_write_three_byte_date(&mut static_date, 2, 4, 23);
+        rust_write_three_byte_date(&raw mut static_date, 2, 4, 23);
 
-        assert_eq!(static_date.day(), 2);
-        assert_eq!(static_date.month(), 4);
-        assert_eq!(static_date.year(), 23);
+        assert_eq!((*&raw const static_date).day(), 2);
+        assert_eq!((*&raw const static_date).month(), 4);
+        assert_eq!((*&raw const static_date).year(), 23);
     }
 
     // On translated static
     unsafe {
-        assert_eq!(rust_static_date.day(), 13);
+        assert_eq!((*&raw const rust_static_date).day(), 13);
 
-        rust_static_date.set_day(15);
+        (*&raw mut rust_static_date).set_day(15);
 
-        assert_eq!(rust_static_date.day(), 15);
+        assert_eq!((*&raw const rust_static_date).day(), 15);
 
-        rust_write_three_byte_date(&mut rust_static_date, 2, 4, 23);
+        rust_write_three_byte_date(&raw mut rust_static_date, 2, 4, 23);
 
-        assert_eq!(rust_static_date.day(), 2);
-        assert_eq!(rust_static_date.month(), 4);
-        assert_eq!(rust_static_date.year(), 23);
+        assert_eq!((*&raw const rust_static_date).day(), 2);
+        assert_eq!((*&raw const rust_static_date).month(), 4);
+        assert_eq!((*&raw const rust_static_date).year(), 23);
     }
 }
 
@@ -226,6 +226,6 @@ pub fn test_multiple_assignments() {
 
         rust_multiple_assignments();
 
-        assert_eq!(ma_results, rust_ma_results);
+        assert_eq!(ma_results, (*&raw const rust_ma_results));
     }
 }

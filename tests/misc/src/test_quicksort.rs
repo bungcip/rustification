@@ -2,7 +2,7 @@ use crate::qsort::{rust_partition, rust_quickSort, rust_swap};
 use libc::c_int;
 
 #[link(name = "test")]
-extern "C" {
+unsafe extern "C" {
     fn swap(_: *mut c_int, _: *mut c_int);
 
     fn partition(_: *mut c_int, _: c_int, _: c_int);

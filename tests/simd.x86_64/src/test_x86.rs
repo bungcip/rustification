@@ -21,7 +21,7 @@ use std::mem::transmute;
 // Our travis-ci machines don't support AVX2 so we conditionally compile those bits out
 
 #[link(name = "test")]
-extern "C" {
+unsafe extern "C" {
     fn unpack_128_2x128(data: __m128i, data_lo: *mut __m128i, data_hi: *mut __m128i);
 
     fn call_all() -> ShuffleVectors;

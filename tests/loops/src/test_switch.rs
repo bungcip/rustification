@@ -2,7 +2,7 @@ use crate::switch::rust_switch_val;
 use libc::c_int;
 
 #[link(name = "test")]
-extern "C" {
+unsafe extern "C" {
     fn switch_val(_: c_int) -> c_int;
 }
 

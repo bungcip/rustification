@@ -2,7 +2,7 @@ use crate::flex_array_members::rust_exercise_flex_arrays;
 use libc::{c_int, c_uint, size_t};
 
 #[link(name = "test")]
-extern "C" {
+unsafe extern "C" {
     fn exercise_flex_arrays(_: c_uint, _: *mut c_int);
 }
 

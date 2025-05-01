@@ -8,7 +8,7 @@ use crate::unused_conditionals::{
 use libc::{c_int, c_uint};
 
 #[link(name = "test")]
-extern "C" {
+unsafe extern "C" {
     fn entry(_: c_uint, _: *mut c_int);
 
     fn entry2(_: c_uint, _: *mut c_int);

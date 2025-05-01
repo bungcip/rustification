@@ -3,7 +3,7 @@ use libc::{c_int, c_uint, size_t};
 use std::mem::align_of;
 
 #[link(name = "test")]
-extern "C" {
+unsafe extern "C" {
     fn entry(_: c_uint, _: *mut c_int);
     fn alignment_of_aligned8_struct() -> size_t;
     fn alignment_entry(_: c_uint, _: *mut c_int);

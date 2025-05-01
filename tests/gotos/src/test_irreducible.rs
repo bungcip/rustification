@@ -2,7 +2,7 @@ use crate::irreducible::rust_irreducible;
 use libc::c_int;
 
 #[link(name = "test")]
-extern "C" {
+unsafe extern "C" {
     fn irreducible(_: c_int) -> c_int;
 }
 

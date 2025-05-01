@@ -2,7 +2,7 @@ use crate::storage::rust_entry;
 use libc::{c_int, c_uint};
 
 #[link(name = "test")]
-extern "C" {
+unsafe extern "C" {
     fn entry(_: c_uint, _: *mut c_int);
 }
 

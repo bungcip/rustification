@@ -5,28 +5,28 @@ use libc::{c_int, c_uint};
 use std::thread;
 
 #[link(name = "test")]
-extern "C" {
+unsafe extern "C" {
     fn thread_entry(_: c_uint, _: *mut c_int);
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 static mut gesi: u32 = 71;
-#[no_mangle]
+#[unsafe(no_mangle)]
 static mut rust_gesi: u32 = 71;
-#[no_mangle]
+#[unsafe(no_mangle)]
 static mut fesi: u32 = 113;
-#[no_mangle]
+#[unsafe(no_mangle)]
 static mut rust_fesi: u32 = 113;
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[thread_local]
 static mut geti: u32 = 147;
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[thread_local]
 static mut rust_geti: u32 = 147;
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[thread_local]
 static mut feti: u32 = 237;
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[thread_local]
 static mut rust_feti: u32 = 237;
 
@@ -42,10 +42,10 @@ fn run_test() {
 
     assert_eq!(buffer, rust_buffer);
     unsafe {
-        assert_eq!(gesi, rust_gesi);
-        assert_eq!(fesi, rust_fesi);
-        assert_eq!(geti, rust_geti);
-        assert_eq!(feti, rust_feti);
+        assert_eq!(*&raw const gesi, *&raw const rust_gesi);
+        assert_eq!(*&raw const fesi, *&raw const rust_fesi);
+        assert_eq!(*&raw const geti, *&raw const rust_geti);
+        assert_eq!(*&raw const feti, *&raw const rust_feti);
     }
 }
 
