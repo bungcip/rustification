@@ -1508,9 +1508,10 @@ impl<'c> Translation<'c> {
                     "cfg_attr",
                     vec![
                         mk().meta_namevalue("target_os", "linux"),
-                        mk().meta_list("unsafe", vec![
-                            mk().meta_namevalue("link_section", ".init_array")
-                        ]),
+                        mk().meta_list(
+                            "unsafe",
+                            vec![mk().meta_namevalue("link_section", ".init_array")],
+                        ),
                     ],
                 ),
             )
@@ -1520,9 +1521,10 @@ impl<'c> Translation<'c> {
                     "cfg_attr",
                     vec![
                         mk().meta_namevalue("target_os", "windows"),
-                        mk().meta_list("unsafe", vec![
-                            mk().meta_namevalue("link_section", ".CRT$XIB"),
-                        ]),
+                        mk().meta_list(
+                            "unsafe",
+                            vec![mk().meta_namevalue("link_section", ".CRT$XIB")],
+                        ),
                     ],
                 ),
             )
@@ -1532,9 +1534,10 @@ impl<'c> Translation<'c> {
                     "cfg_attr",
                     vec![
                         mk().meta_namevalue("target_os", "macos"),
-                        mk().meta_list("unsafe", vec![
-                            mk().meta_namevalue("link_section", ".__DATA,__mod_init_func")
-                        ]),
+                        mk().meta_list(
+                            "unsafe",
+                            vec![mk().meta_namevalue("link_section", ".__DATA,__mod_init_func")],
+                        ),
                     ],
                 ),
             );
@@ -2117,11 +2120,8 @@ impl<'c> Translation<'c> {
                 for attr in attrs {
                     static_def = match attr {
                         c_ast::Attribute::Used => static_def.single_attr("used"),
-                        c_ast::Attribute::Section(name) => {
-                            static_def.call_attr("unsafe", vec![
-                                mk().meta_namevalue("link_section", name)
-                            ])
-                        }
+                        c_ast::Attribute::Section(name) => static_def
+                            .call_attr("unsafe", vec![mk().meta_namevalue("link_section", name)]),
                         _ => continue,
                     }
                 }
@@ -4348,12 +4348,12 @@ impl<'c> Translation<'c> {
                             let target_ty = self.convert_type(pointee.ctype)?;
                             let call = call.map(|x| {
                                 mk().method_call_expr(
-                                    x, 
+                                    x,
                                     mk().path_segment_with_args(
                                         "cast",
                                         mk().angle_bracketed_args(vec![target_ty]),
                                     ),
-                                    vec![]
+                                    vec![],
                                 )
                             });
 
