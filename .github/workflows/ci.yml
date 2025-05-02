@@ -1,0 +1,70 @@
+name: Rust CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache Rust toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.rustup/toolchains
+            ~/.rustup/update-hashes
+            ~/.rustup/settings.toml
+          key: ${{ runner.os }}-rust-toolchain-${{ hashFiles('rust-toolchain') }}
+
+      - name: Cache Rust artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock', '**/c2rust-ast-exporter/**/CMakeLists.txt', '**/examples/**/CMakeLists.txt') }}
+
+      - name: Cache Python - pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+
+      - name: Provision Dev Package
+        run: |
+          sudo apt update && sudo apt install -y cmake python3
+
+      - name: Provision Rust
+        run: |
+          rustup update
+
+      - name: Provision Python Packages
+        run: python3 -m pip install -r scripts/requirements.txt
+      
+      - name: LLVM Install
+        uses: ZhongRuoyu/setup-llvm@v0.1.1
+        with:
+          llvm-version: 18
+
+      - name: Install dependencies
+        run: cargo fetch
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+      - name: Run tests
+        run: cargo test --release
+
+      - name: Compile release
+        run: cargo build --release
+
+      - name: Run testsuite
+        run: python3 scripts/test_translator.py tests
