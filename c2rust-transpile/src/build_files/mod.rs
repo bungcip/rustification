@@ -266,11 +266,7 @@ fn emit_rust_toolchain(tcfg: &TranspilerConfig, build_dir: &Path) {
     "#;
 
     let output_path = build_dir.join("rust-toolchain.toml");
-    dbg!(maybe_write_to_file(
-        &output_path,
-        output.to_string(),
-        tcfg.overwrite_existing
-    ));
+    maybe_write_to_file(&output_path, output.to_string(), tcfg.overwrite_existing);
 }
 
 fn emit_cargo_toml(

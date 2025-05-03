@@ -236,7 +236,10 @@ set_span_impl!(enum ImplItem, s via
 // set_span_impl!(struct Block, kw brace_token);
 impl SetSpan for Block {
     fn set_span(&mut self, s: Span) {
-        self.stmts[0].set_span(s);
+        // brace_token is DelimSpan so we can't set it
+        if self.stmts.is_empty() == false {
+            self.stmts[0].set_span(s);
+        }
     }
 }
 

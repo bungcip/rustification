@@ -71,7 +71,7 @@ fn get_ast_cbors(
             &mut res,
         );
         let reference = &*ptr; // SAFETY: ptr is valid until drop_export_result is called
-        hashmap = marshal_result(&reference);
+        hashmap = marshal_result(reference);
         drop_export_result(ptr);
     }
     hashmap
