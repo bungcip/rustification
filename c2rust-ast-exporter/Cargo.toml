@@ -26,7 +26,7 @@ bindgen = { version = "0.71", features = ["logging"] }
 clang-sys = "1.8"
 cmake = "0.1.49"
 env_logger = "0.11"
-c2rust-build-paths = { path = "../c2rust-build-paths", version = "0.20.0" }
+c2rust-build-paths = { path = "../c2rust-build-paths", version = "0.100.0" }
 
 [features]
 default = []

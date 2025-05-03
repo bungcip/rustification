@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-c2rust-bitfields = { path = "../../c2rust-bitfields", version = "0.20.0" }
+c2rust-bitfields = { path = "../../c2rust-bitfields", version = "0.100.0" }
 memoffset = "0.2"
 

@@ -15,10 +15,10 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
-c2rust-ast-builder = { version = "0.20.0", path = "../c2rust-ast-builder" }
-c2rust-ast-exporter = { version = "0.20.0", path = "../c2rust-ast-exporter" }
-c2rust-ast-printer = { version = "0.20.0", path = "../c2rust-ast-printer" }
-c2rust-bitfields = { version = "0.20.0", path = "../c2rust-bitfields" }
+c2rust-ast-builder = { version = "0.100.0", path = "../c2rust-ast-builder" }
+c2rust-ast-exporter = { version = "0.100.0", path = "../c2rust-ast-exporter" }
+c2rust-ast-printer = { version = "0.100.0", path = "../c2rust-ast-printer" }
+c2rust-bitfields = { version = "0.100.0", path = "../c2rust-bitfields" }
 colored = "3.0"
 dtoa = "1.0"
 thiserror = "2.0"
