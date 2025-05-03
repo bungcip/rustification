@@ -1,11 +1,11 @@
 use crate::structs::{rust_alignment_entry, rust_entry, Aligned8Struct};
-use libc::{c_int, c_uint, size_t};
+use core::ffi::{c_int, c_uint};
 use std::mem::align_of;
 
 #[link(name = "test")]
 unsafe extern "C" {
     fn entry(_: c_uint, _: *mut c_int);
-    fn alignment_of_aligned8_struct() -> size_t;
+    fn alignment_of_aligned8_struct() -> usize;
     fn alignment_entry(_: c_uint, _: *mut c_int);
 }
 

@@ -1,5 +1,5 @@
 use crate::lvalues::rust_lvalue;
-use libc::c_int;
+use core::ffi::c_int;
 
 #[link(name = "test")]
 unsafe extern "C" {

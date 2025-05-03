@@ -75,7 +75,7 @@ impl<'c> Translation<'c> {
                 Ok(val.map(|v| {
                     let val = mk().method_call_expr(v, "is_sign_negative", vec![]);
 
-                    mk().cast_expr(val, mk().path_ty(vec!["libc", "c_int"]))
+                    mk().cast_expr(val, mk().path_ty(vec!["ffi", "c_int"]))
                 }))
             }
             "__builtin_ffs" | "__builtin_ffsl" | "__builtin_ffsll" => {
@@ -253,7 +253,7 @@ impl<'c> Translation<'c> {
             "__builtin_object_size" => {
                 // We can't convert this to Rust, but it should be safe to always return -1/0
                 // (depending on the value of `type`), so we emit the following:
-                // `(if (type & 2) == 0 { -1isize } else { 0isize }) as libc::size_t`
+                // `(if (type & 2) == 0 { -1isize } else { 0isize }) as usize`
                 let ptr_arg = self.convert_expr(ctx.unused(), args[0])?;
                 let type_arg = self.convert_expr(ctx.used(), args[1])?;
                 ptr_arg.and_then(|_| {
@@ -277,7 +277,8 @@ impl<'c> Translation<'c> {
                             mk().block(vec![mk().expr_stmt(minus_one)]),
                             Some(mk().lit_expr(mk().int_lit(0, "isize"))),
                         );
-                        let size_t = mk().path_ty(vec!["libc", "size_t"]);
+                        // core::ffi don't have `size_t`, so we cast to `usize`
+                        let size_t = mk().path_ty(vec!["usize"]);
                         mk().cast_expr(if_expr, size_t)
                     }))
                 })
@@ -694,6 +695,8 @@ impl<'c> Translation<'c> {
         args: &[CExprId],
         arg_types: &[LibcFnArgType],
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
+        self.use_crate(ExternCrate::Libc);
+
         let name = &builtin_name[10..];
         let mem = mk().path_expr(vec!["libc", name]);
         let args = self.convert_exprs(ctx.used(), args)?;
@@ -707,7 +710,8 @@ impl<'c> Translation<'c> {
                     args.len()
                 ))?;
             }
-            let size_t = || mk().path_ty(vec!["libc", "size_t"]);
+            // core::ffi doesn't have `size_t`, so we cast to `usize`
+            let size_t = || mk().path_ty(vec!["usize"]);
             let args_casted = args
                 .into_iter()
                 .zip(arg_types)

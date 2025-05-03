@@ -191,7 +191,7 @@ impl<'c> Translation<'c> {
                 .is_some_and(|ty| self.ast_context.is_forward_declared_type(ty.ctype))
             {
                 real_arg_ty = Some(arg_ty.clone());
-                arg_ty = mk().mutbl().ptr_ty(mk().path_ty(vec!["libc", "c_void"]));
+                arg_ty = mk().mutbl().ptr_ty(mk().path_ty(vec!["ffi", "c_void"]));
             }
 
             val.and_then(|val| {

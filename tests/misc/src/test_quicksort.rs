@@ -1,5 +1,5 @@
 use crate::qsort::{rust_partition, rust_quickSort, rust_swap};
-use libc::c_int;
+use core::ffi::c_int;
 
 #[link(name = "test")]
 unsafe extern "C" {

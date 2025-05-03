@@ -1,5 +1,5 @@
 use crate::sub::rust_sub;
-use libc::c_uint;
+use core::ffi::c_uint;
 
 #[link(name = "test")]
 unsafe extern "C" {

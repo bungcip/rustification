@@ -247,6 +247,7 @@ pub struct Translation<'c> {
     pub features: RefCell<IndexSet<&'static str>>,
     sectioned_static_initializers: RefCell<Vec<Stmt>>,
     extern_crates: RefCell<CrateSet>,
+    global_uses: RefCell<indexmap::IndexSet<Box<Item>>>, // contains global 'use' declarations which be emitted in submodule and main module
 
     // Translation state and utilities
     type_converter: RefCell<TypeConverter>,
@@ -489,7 +490,8 @@ pub fn translate(
     };
 
     {
-        t.use_crate(ExternCrate::Libc);
+        // we convert libc type to core:ffi
+        t.use_mod(vec!["core", "ffi"]);
 
         // Sort the top-level declarations by file and source location so that we
         // preserve the ordering of all declarations in each file.
@@ -765,6 +767,7 @@ pub fn translate(
 
         let pragmas = t.get_pragmas();
         let crates = t.extern_crates.borrow().clone();
+        let global_uses = t.global_uses.borrow_mut().clone();
 
         let mut mod_items: Vec<Box<Item>> = Vec::new();
 
@@ -783,6 +786,7 @@ pub fn translate(
                     *file_id,
                     &mut new_uses,
                     &t.mod_names,
+                    &t.global_uses,
                     tcfg.reorganize_definitions,
                 );
                 let comments = t.comment_context.get_remaining_comments(*file_id);
@@ -838,6 +842,9 @@ pub fn translate(
         // pass all converted items to the Rust pretty printer
         let translation = pprust::to_string(|| {
             let (attrs, mut all_items) = arrange_header(&t, t.tcfg.is_binary(main_file.as_path()));
+
+            // global uses before everything else
+            all_items.extend(global_uses);
 
             all_items.extend(mod_items);
 
@@ -963,6 +970,7 @@ fn make_submodule(
     file_id: FileId,
     use_item_store: &mut ItemStore,
     mod_names: &RefCell<IndexMap<String, PathBuf>>,
+    global_uses: &RefCell<indexmap::IndexSet<Box<Item>>>,
     reorganize_definitions: bool,
 ) -> Box<Item> {
     let (mut items, foreign_items, uses) = item_store.drain();
@@ -996,6 +1004,11 @@ fn make_submodule(
         let use_path = vec!["self".into(), mod_name.clone()];
 
         use_item_store.add_use(use_path, &ident_name);
+    }
+
+    // add global uses
+    for item in global_uses.borrow().iter() {
+        items.push(item.clone());
     }
 
     for item in uses.into_items() {
@@ -1072,7 +1085,7 @@ fn arrange_header(t: &Translation, is_binary: bool) -> (Vec<syn::Attribute>, Vec
 
 /// Convert a boolean expression to a c_int
 fn bool_to_int(val: Box<Expr>) -> Box<Expr> {
-    mk().cast_expr(val, mk().path_ty(vec!["libc", "c_int"]))
+    mk().cast_expr(val, mk().path_ty(vec!["ffi", "c_int"]))
 }
 
 /// Add a src_loc = "line:col" attribute to an item/foreign_item
@@ -1206,7 +1219,7 @@ impl<'c> Translation<'c> {
                 "override", "priv", "proc", "pure", "sizeof", "typeof", "unsized", "virtual",
                 "async", "try", "yield", // Prevent use for other reasons
                 "main",  // prelude names
-                "drop", "Some", "None", "Ok", "Err",
+                "drop", "ffi", "Some", "None", "Ok", "Err",
             ])),
             zero_inits: RefCell::new(IndexMap::new()),
             function_context: RefCell::new(FuncContext::new()),
@@ -1220,12 +1233,20 @@ impl<'c> Translation<'c> {
             mod_names: RefCell::new(IndexMap::new()),
             main_file,
             extern_crates: RefCell::new(IndexSet::new()),
+            global_uses: RefCell::new(IndexSet::new()),
             cur_file: RefCell::new(None),
         }
     }
 
     fn use_crate(&self, extern_crate: ExternCrate) {
         self.extern_crates.borrow_mut().insert(extern_crate);
+    }
+
+    /// Add a new use to the current file in top of file
+    /// ex: use ::core:ffi;
+    fn use_mod(&self, mod_name: Vec<&'static str>) {
+        let decl = mk().use_simple_item(mod_name, None::<String>);
+        self.global_uses.borrow_mut().insert(decl);
     }
 
     pub fn cur_file(&self) -> FileId {
@@ -3272,7 +3293,7 @@ impl<'c> Translation<'c> {
                     UnTypeOp::PreferredAlignOf => self.compute_align_of_type(arg_ty.ctype, true)?,
                 };
 
-                Ok(result.map(|x| mk().cast_expr(x, mk().path_ty(vec!["libc", "c_ulong"]))))
+                Ok(result.map(|x| mk().cast_expr(x, mk().path_ty(vec!["ffi", "c_ulong"]))))
             }
 
             ConstantExpr(_ty, child, value) => {
@@ -4234,7 +4255,8 @@ impl<'c> Translation<'c> {
             CastKind::IntegralToPointer if self.ast_context.is_function_pointer(ty.ctype) => {
                 let target_ty = self.convert_type(ty.ctype)?;
                 val.and_then(|x| {
-                    let intptr_t = mk().path_ty(vec!["libc", "intptr_t"]);
+                    // core::ffi don't have a intptr_t type, so we use isize
+                    let intptr_t = mk().path_ty(vec!["isize"]);
                     let intptr = mk().cast_expr(x, intptr_t.clone());
                     Ok(WithStmts::new_unsafe_val(transmute_expr(
                         intptr_t, target_ty, intptr,
@@ -4275,8 +4297,9 @@ impl<'c> Translation<'c> {
                     })
                 } else if target_ty_ctype.is_pointer() && source_ty_kind.is_bool() {
                     val.and_then(|x| {
+                        // core:ffi don't have size_t so we cast it to usize
                         Ok(WithStmts::new_val(mk().cast_expr(
-                            mk().cast_expr(x, mk().path_ty(vec!["libc", "size_t"])),
+                            mk().cast_expr(x, mk().path_ty(vec!["usize"])),
                             target_ty,
                         )))
                     })

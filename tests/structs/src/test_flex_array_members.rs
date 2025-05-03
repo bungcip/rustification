@@ -1,5 +1,5 @@
 use crate::flex_array_members::rust_exercise_flex_arrays;
-use libc::{c_int, c_uint, size_t};
+use core::ffi::{c_int, c_uint};
 
 #[link(name = "test")]
 unsafe extern "C" {

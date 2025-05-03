@@ -2,7 +2,7 @@
 
 
 use crate::implicit_int::{identity as rust_identity, implicit_int as rust_implicit_int};
-use libc::{c_int, c_uint};
+use core::ffi::{c_int, c_uint};
 
 unsafe extern "C" {
     fn identity(_: c_int) -> c_int;

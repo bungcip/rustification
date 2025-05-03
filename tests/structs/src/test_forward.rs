@@ -1,5 +1,5 @@
 use crate::forward::rust_forward;
-use libc::{c_int, c_uint};
+use core::ffi::{c_int, c_uint};
 
 #[link(name = "test")]
 unsafe extern "C" {

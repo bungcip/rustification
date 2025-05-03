@@ -1,7 +1,7 @@
 #[cfg(not(target_os = "macos"))]
 use crate::attributes::{rust_no_attrs, rust_used_static, rust_used_static2, rust_used_static3};
 use crate::sections::*;
-use libc::c_uint;
+use core::ffi::c_uint;
 
 pub fn test_sectioned_statics() {
     unsafe {
@@ -38,7 +38,7 @@ pub fn test_sectioned_used_static() {
 
         let pos = lines
             .iter()
-            .position(|&x| x == "static mut rust_used_static4: libc::c_int = 1 as libc::c_int;")
+            .position(|&x| x == "static mut rust_used_static4: ffi::c_int = 1 as ffi::c_int;")
             .expect("Did not find expected static string in source");
         // The ordering of these attributes is not stable between LLVM versions
         assert!(
@@ -47,7 +47,7 @@ pub fn test_sectioned_used_static() {
         );
 
         // This static is pub, but we want to ensure it has attributes applied
-        assert!(src.contains("#[unsafe(link_section = \"fb\")]\npub static mut rust_initialized_extern: libc::c_int = 1 as libc::c_int;"));
-        assert!(src.contains("unsafe extern \"C\" {\n    #[link_name = \"no_attrs\"]\n    static mut rust_aliased_static: libc::c_int;"));
+        assert!(src.contains("#[unsafe(link_section = \"fb\")]\npub static mut rust_initialized_extern: ffi::c_int = 1 as ffi::c_int;"));
+        assert!(src.contains("unsafe extern \"C\" {\n    #[link_name = \"no_attrs\"]\n    static mut rust_aliased_static: ffi::c_int;"));
     }
 }

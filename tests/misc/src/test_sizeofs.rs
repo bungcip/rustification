@@ -1,8 +1,7 @@
 //! feature_core_intrinsics
 
 use crate::sizeofs::rust_sizeofs;
-use libc::c_int;
-use libc::c_uint;
+use core::ffi::{c_int, c_uint};
 
 #[link(name = "test")]
 unsafe extern "C" {

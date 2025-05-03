@@ -1,5 +1,5 @@
 use crate::shadowing::{rust_shadow, rust_twice};
-use libc::{c_int, c_uint};
+use core::ffi::{c_int, c_uint};
 
 #[link(name = "test")]
 unsafe extern "C" {
