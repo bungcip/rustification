@@ -145,7 +145,6 @@ dependencies = [
  "clang-sys",
  "cmake",
  "env_logger",
- "libc",
  "serde",
  "serde_bytes",
  "serde_cbor",
@@ -166,7 +165,6 @@ name = "c2rust-bitfields"
 version = "0.100.0"
 dependencies = [
  "c2rust-bitfields-derive",
- "libc",
 ]
 
 [[package]]
@@ -200,7 +198,6 @@ dependencies = [
  "handlebars",
  "indexmap",
  "itertools 0.14.0",
- "libc",
  "log",
  "log-reroute",
  "pathdiff",

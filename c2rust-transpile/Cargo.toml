@@ -27,7 +27,6 @@ env_logger = "0.11"
 handlebars = "6.3"
 indexmap = { version = "2.2", features = ["serde"] }
 itertools = "0.14"
-libc = "0.2"
 log = "0.4"
 log-reroute = "0.1"
 pathdiff = "0.2"
