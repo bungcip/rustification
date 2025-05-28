@@ -25,6 +25,7 @@ use itertools::Itertools;
 use log::{info, warn};
 use regex::Regex;
 use serde_derive::Serialize;
+pub use tempfile::TempDir;
 
 use crate::c_ast::Printer;
 use crate::c_ast::*;
@@ -228,8 +229,18 @@ fn get_module_name(
     file.to_str().map(String::from)
 }
 
-pub fn create_temp_compile_commands(sources: &[PathBuf]) -> PathBuf {
-    let temp_path = std::env::temp_dir().join("compile_commands.json");
+pub fn create_temp_compile_commands(sources: &[PathBuf]) -> (TempDir, PathBuf) {
+    // If we generate the same path here on every run, then we can't run
+    // multiple transpiles in parallel, so we need a unique path. But clang
+    // won't read this file unless it is named exactly "compile_commands.json",
+    // so we can't change the filename. Instead, create a temporary directory
+    // with a unique name, and put the file there.
+    let temp_dir = tempfile::Builder::new()
+        .prefix("c2rust-")
+        .tempdir()
+        .expect("Failed to create temporary directory for compile_commands.json");
+    let temp_path = temp_dir.path().join("compile_commands.json");
+
     let compile_commands: Vec<CompileCmd> = sources
         .iter()
         .map(|source_file| {
@@ -255,7 +266,7 @@ pub fn create_temp_compile_commands(sources: &[PathBuf]) -> PathBuf {
     file.write_all(json_content.as_bytes())
         .expect("Failed to write to temporary compile_commands.json");
 
-    temp_path
+    (temp_dir, temp_path)
 }
 
 /// Main entry point to transpiler. Called from CLI tools with the result of
