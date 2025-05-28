@@ -358,6 +358,7 @@ class TypeEncoder final : public TypeVisitor<TypeEncoder> {
             case BuiltinType::SveBool: return TagSveBool;
             case BuiltinType::SveBoolx2: return TagSveBoolx2;
             case BuiltinType::SveBoolx4: return TagSveBoolx4;
+            case BuiltinType::Float128: return TagFloat128;
             case BuiltinType::Dependent: return TagDependent;
             default:
                 auto pol = clang::PrintingPolicy(Context->getLangOpts());
@@ -1671,7 +1672,7 @@ class TranslateASTVisitor final
                              case AtomicExpr::AO ## ID:                 \
                                  cbor_encode_string(array, #ID);       \
                                  break;
-#include "clang/Basic/Builtins.def"
+#include "clang/Basic/Builtins.inc"
                          default: printError("Unknown atomic builtin: " +
                                              std::to_string(E->getOp()), E);
                          };
@@ -2107,8 +2108,8 @@ class TranslateASTVisitor final
 
                          // 2. Encode bitfield width if any
                          if (D->isBitField()) {
-                             cbor_encode_uint(
-                                 array, D->getBitWidthValue(*this->Context));
+                             const auto bitWidthValue = D->getBitWidthValue();
+                             cbor_encode_uint(array, bitWidthValue);
                          } else {
                              cbor_encode_null(array);
                          };

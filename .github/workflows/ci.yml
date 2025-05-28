@@ -52,7 +52,7 @@ jobs:
       - name: LLVM Install
         uses: ZhongRuoyu/setup-llvm@v0.1.1
         with:
-          llvm-version: 18
+          llvm-version: 20
 
       - name: Install dependencies
         run: cargo fetch
