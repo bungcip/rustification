@@ -1,6 +1,6 @@
 use serde_cbor::{Value, from_slice};
 use std::collections::HashMap;
-use std::ffi::{c_char, c_int, CStr, CString};
+use std::ffi::{CStr, CString, c_char, c_int};
 use std::io::{Error, ErrorKind};
 use std::path::Path;
 use std::slice;
