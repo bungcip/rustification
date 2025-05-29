@@ -515,7 +515,11 @@ impl<'a> Translation<'a> {
                         continue;
                     }
 
-                    let mut init = self.implicit_default_expr(ty.ctype, ctx.is_static)?;
+                    let mut init = self.implicit_default_expr(
+                        ty.ctype,
+                        ctx.is_static,
+                        ctx.inside_init_list_aop,
+                    )?;
                     if !init.is_pure() {
                         return Err(generic_err!("Expected no statements in field expression",));
                     }
@@ -647,7 +651,7 @@ impl<'a> Translation<'a> {
                     use_inner_type,
                     ..
                 } => {
-                    let mut field_init = self.implicit_default_expr(ctype, is_static)?;
+                    let mut field_init = self.implicit_default_expr(ctype, is_static, false)?;
                     if !field_init.is_pure() {
                         return Err(generic_err!("Expected no statements in field expression",));
                     }

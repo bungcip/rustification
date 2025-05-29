@@ -485,6 +485,35 @@ impl TypedAstContext {
         self.index(resolved_typ_id)
     }
 
+    /// check if variable and has static storage
+    pub fn is_static_variable(&self, expr: CExprId) -> bool {
+        match self.index(expr).kind {
+            CExprKind::DeclRef(_, decl_id, _) => {
+                if let CDeclKind::Variable {
+                    has_static_duration,
+                    ..
+                } = &self.index(decl_id).kind
+                {
+                    *has_static_duration
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+
+    /// check if expression is string literal
+    pub fn is_expr_string_literal(&self, expr: CExprId) -> bool {
+        match &self.index(expr).kind {
+            CExprKind::Literal(_, CLiteral::String(..)) => true,
+            _ => {
+                // check why false
+                false
+            }
+        }
+    }
+
     /// Pessimistically try to check if an expression has side effects. If it does, or we can't tell
     /// that it doesn't, return `false`.
     pub fn is_expr_pure(&self, expr: CExprId) -> bool {

@@ -131,6 +131,10 @@ impl<'c> Translation<'c> {
             }
 
             CLiteral::String(ref val, width) => {
+                println!(
+                    "CLiteral::String target ty : {}",
+                    self.debug_ctype_name(ty.ctype)
+                );
                 let mut val = val.to_owned();
 
                 let num_elems = match self.ast_context.resolve_type(ty.ctype).kind {
@@ -156,6 +160,12 @@ impl<'c> Translation<'c> {
                 let pointer = transmute_expr(source_ty, target_ty, byte_literal);
                 let array = mk().unary_expr(UnOp::Deref(Default::default()), pointer);
                 Ok(WithStmts::new_unsafe_val(array))
+
+                // let mut val = val.to_owned();
+                // let cstr_value = CString::new(val).unwrap();
+                // let cstr_literal = mk().lit_expr(cstr_value);
+                // let call = mk().method_call_expr(cstr_literal, "as_ptr", vec![]);
+                // Ok(WithStmts::new_val(call))
             }
         }
     }
@@ -170,7 +180,7 @@ impl<'c> Translation<'c> {
         opt_union_field_id: Option<CFieldId>,
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
         match self.ast_context.resolve_type(ty.ctype).kind {
-            CTypeKind::ConstantArray(ty, n) => {
+            CTypeKind::ConstantArray(member_ty, n) => {
                 // Convert all of the provided initializer values
 
                 // Need to check to see if the next item is a string literal,
@@ -180,9 +190,7 @@ impl<'c> Translation<'c> {
 
                 if ids.len() == 1 {
                     let v = ids.first().unwrap();
-                    if let CExprKind::Literal(_, CLiteral::String { .. }) =
-                        self.ast_context.index(*v).kind
-                    {
+                    if self.ast_context.is_expr_string_literal(*v) {
                         is_string = true;
                     }
                 }
@@ -194,15 +202,23 @@ impl<'c> Translation<'c> {
                     // this was likely a C array of the form `int x[16] = {}`,
                     // we'll emit that as [0; 16].
                     let len = mk().lit_expr(mk().int_unsuffixed_lit(n as u128));
-                    self.implicit_default_expr(ty, ctx.is_static)?
+                    self.implicit_default_expr(member_ty, ctx.is_static, ctx.inside_init_list_aop)?
                         .and_then(|default_value| {
                             Ok(WithStmts::new_val(mk().repeat_expr(default_value, len)))
                         })
                 } else {
+                    let mut ctx = ctx.used();
+
+                    // we mark the context as inside an array of string construction
+                    // eg: `const char *const aos[] = { "hi", "ho" };`
+                    if let Some(_) = self.check_type_is_constant_aop(ty.ctype) {
+                        ctx = ctx.inside_init_list_aop();
+                    }
+
                     Ok(ids
                         .iter()
                         .map(|id| {
-                            self.convert_expr(ctx.used(), *id)?.result_map(|x| {
+                            self.convert_expr(ctx, *id)?.result_map(|x| {
                                 // Array literals require all of their elements to be
                                 // the correct type; they will not use implicit casts to
                                 // change mut to const. This becomes a problem when an
@@ -224,7 +240,11 @@ impl<'c> Translation<'c> {
                         .chain(
                             // Pad out the array literal with default values to the desired size
                             iter::repeat_n(
-                                self.implicit_default_expr(ty, ctx.is_static),
+                                self.implicit_default_expr(
+                                    member_ty,
+                                    ctx.is_static,
+                                    ctx.inside_init_list_aop,
+                                ),
                                 n - ids.len(),
                             ),
                         )
@@ -291,7 +311,11 @@ impl<'c> Translation<'c> {
                 match self.ast_context.index(union_field_id).kind {
                     CDeclKind::Field { typ: field_ty, .. } => {
                         let val = if ids.is_empty() {
-                            self.implicit_default_expr(field_ty.ctype, ctx.is_static)?
+                            self.implicit_default_expr(
+                                field_ty.ctype,
+                                ctx.is_static,
+                                ctx.inside_init_list_aop,
+                            )?
                         } else {
                             self.convert_expr(ctx.used(), ids[0])?
                         };

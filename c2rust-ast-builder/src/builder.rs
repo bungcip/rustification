@@ -1,6 +1,6 @@
 //! Helpers for building AST nodes.  Normally used by calling `mk().some_node(args...)`.
 
-use std::str;
+use std::{ffi::CString, str};
 
 use proc_macro2::{Literal, Punct, Spacing, Span, TokenStream, TokenTree};
 use std::default::Default;
@@ -445,6 +445,12 @@ impl Make<Lit> for &String {
     }
 }
 
+impl Make<Lit> for CString {
+    fn make(self, mk: &Builder) -> Lit {
+        Lit::CStr(LitCStr::new(self.as_c_str(), mk.span))
+    }
+}
+
 impl Make<Lit> for &str {
     fn make(self, mk: &Builder) -> Lit {
         Lit::Str(LitStr::new(self, mk.span))
@@ -515,6 +521,17 @@ impl Make<String> for u64 {
 impl Make<String> for u128 {
     fn make(self, _mk: &Builder) -> String {
         self.to_string()
+    }
+}
+
+impl Make<TypeParamBound> for &str {
+    fn make(self, mk: &Builder) -> TypeParamBound {
+        TypeParamBound::Trait(TraitBound {
+            paren_token: None,
+            modifier: TraitBoundModifier::None,
+            lifetimes: None,
+            path: self.make(mk),
+        })
     }
 }
 
@@ -605,6 +622,29 @@ impl Builder {
     pub fn generic_over(mut self, param: GenericParam) -> Self {
         self.generics.params.push(param);
         self
+    }
+
+    pub fn where_clause(mut self, predicates: Vec<WherePredicate>) -> Self {
+        self.generics.where_clause = Some(WhereClause {
+            where_token: Token![where](self.span),
+            predicates: punct(predicates),
+        });
+        self
+    }
+
+    pub fn where_predicate<TPB>(self, ty: Box<Type>, bounds: Vec<TPB>) -> WherePredicate
+    where
+        TPB: Make<TypeParamBound>,
+    {
+        let bounds = bounds.into_iter().map(|x| x.make(&self)).collect();
+        let bounds = punct(bounds);
+
+        WherePredicate::Type(PredicateType {
+            lifetimes: None,
+            bounded_ty: *ty,
+            colon_token: Token![:](self.span),
+            bounds,
+        })
     }
 
     pub fn prepared_attr(self, meta: Meta) -> Self {
@@ -1899,6 +1939,17 @@ impl Builder {
         let ident = ident.make(&self);
         Field {
             ident: Some(ident),
+            vis: self.vis,
+            mutability: FieldMutability::None,
+            attrs: self.attrs,
+            ty: *ty,
+            colon_token: Some(Token![:](self.span)),
+        }
+    }
+
+    pub fn struct_unamed_field(self, ty: Box<Type>) -> Field {
+        Field {
+            ident: None,
             vis: self.vis,
             mutability: FieldMutability::None,
             attrs: self.attrs,

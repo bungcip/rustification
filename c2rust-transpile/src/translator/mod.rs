@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::char;
 use std::collections::HashMap;
+use std::ffi::CString;
 use std::mem;
 use std::ops::Index;
 use std::path::{self, PathBuf};
@@ -107,6 +108,10 @@ pub struct ExprContext {
     decay_ref: DecayRef,
     is_bitfield_write: bool,
 
+    // set this if expr is inside InitList of static variable declaration of array of pointer (AOP)
+    // ex: `static unsigned char *const z[] = {(unsigned char *)"Z"};`
+    inside_init_list_aop: bool,
+
     // We will be referring to the expression by address. In this context we
     // can't index arrays because they may legally go out of bounds. We also
     // need to explicitly cast function references to fn() so we get their
@@ -135,8 +140,20 @@ impl ExprContext {
         self.used
     }
     pub fn is_unused(&self) -> bool {
-        !self.used
+        self.used == false
     }
+
+    pub fn inside_init_list_aop(self) -> Self {
+        ExprContext {
+            inside_init_list_aop: true,
+            ..self
+        }
+    }
+
+    pub fn is_inside_init_list_aop(&self) -> bool {
+        self.inside_init_list_aop
+    }
+
     pub fn decay_ref(self) -> Self {
         ExprContext {
             decay_ref: DecayRef::Yes,
@@ -248,6 +265,7 @@ pub struct Translation<'c> {
     sectioned_static_initializers: RefCell<Vec<Stmt>>,
     extern_crates: RefCell<CrateSet>,
     global_uses: RefCell<indexmap::IndexSet<Box<Item>>>, // contains global 'use' declarations which be emitted in submodule and main module
+    has_static_array_of_pointer: RefCell<bool>, // flag which used to generate associated struct definition
 
     // Translation state and utilities
     type_converter: RefCell<TypeConverter>,
@@ -276,6 +294,27 @@ pub struct Translation<'c> {
     // expanded from. This is needed in order to note imports in items when
     // encountering DeclRefs.
     cur_file: RefCell<Option<FileId>>,
+}
+
+/// helper that transform an expression that access a wrapped pointer to ".0"
+/// eg: let x = PointerMut(c" ".as_ptr()); x.0
+fn access_to_wrapped_pointer(expr: Box<Expr>) -> Box<Expr> {
+    let expr2 = expr.clone(); // TODO: don't clone this, use a reference instead
+    if let Expr::Call(ExprCall { func, args, .. }) = *expr {
+        if args.len() != 1 {
+            return expr2;
+        }
+
+        if let Expr::Path(p) = *func {
+            let ident = p.path.segments[0].ident.to_string();
+            if ident == "PointerMut" || ident == "Pointer" {
+                // If the function is PointerMut or PointerConst, we access the wrapped pointer
+                // by using ".0" to get the inner value.
+                return mk().anon_field_expr(expr2, 0);
+            }
+        }
+    };
+    return expr2;
 }
 
 fn cast_int(val: Box<Expr>, name: &str, need_lit_suffix: bool) -> Box<Expr> {
@@ -483,6 +522,7 @@ pub fn translate(
         is_const: false,
         decay_ref: DecayRef::Default,
         is_bitfield_write: false,
+        inside_init_list_aop: false,
         needs_address: false,
         expecting_valistimpl: false,
         ternary_needs_parens: false,
@@ -763,6 +803,19 @@ pub fn translate(
 
             store.add_item(initializer_fn);
             store.add_item(initializer_static);
+        }
+
+        // generate struct for wrapping pointer for static variable
+        if *t.has_static_array_of_pointer.borrow() {
+            let mut_decls_items = t.generate_global_pointer_wrapper_struct(Mutability::Mutable);
+            let const_decls_items = t.generate_global_pointer_wrapper_struct(Mutability::Immutable);
+            let store = &mut t.items.borrow_mut()[&t.main_file];
+
+            store.add_item(mut_decls_items.0);
+            store.add_item(mut_decls_items.1);
+
+            store.add_item(const_decls_items.0);
+            store.add_item(const_decls_items.1);
         }
 
         let pragmas = t.get_pragmas();
@@ -1225,6 +1278,7 @@ impl<'c> Translation<'c> {
             function_context: RefCell::new(FuncContext::new()),
             potential_flexible_array_members: RefCell::new(IndexSet::new()),
             macro_expansions: RefCell::new(IndexMap::new()),
+            has_static_array_of_pointer: RefCell::new(false),
             comment_context,
             comment_store: RefCell::new(CommentStore::new()),
             spans: HashMap::new(),
@@ -1494,7 +1548,9 @@ impl<'c> Translation<'c> {
         typ: CQualTypeId,
         init: &mut Box<Expr>,
     ) -> TranslationResult<()> {
-        let mut default_init = self.implicit_default_expr(typ.ctype, true)?.to_expr();
+        let mut default_init = self
+            .implicit_default_expr(typ.ctype, true, false)?
+            .to_expr();
 
         std::mem::swap(init, &mut default_init);
 
@@ -1571,6 +1627,53 @@ impl<'c> Translation<'c> {
         let static_item = static_attributes.static_item("INIT_ARRAY", static_ty, static_val);
 
         (fn_item, static_item)
+    }
+
+    /// generate struct definition of PointerMut<T> / Pointer<T>
+    /// this struct serve as wrapper for *mut pointer / *const pointer in static declaration
+    /// because rust forbid pointer in static, so as workaround we create this struct
+    /// and implement unsafe impl Sync for it
+    fn generate_global_pointer_wrapper_struct(
+        &mut self,
+        mutbl_: Mutability,
+    ) -> (Box<Item>, Box<Item>) {
+        let name = match mutbl_ {
+            Mutability::Mutable => "PointerMut",
+            Mutability::Immutable => "Pointer",
+        };
+
+        let struct_item = mk()
+            .call_attr("derive", vec!["Copy", "Clone"])
+            .generic_over(mk().ty_param(mk().ident("T")))
+            .where_clause(vec![
+                mk().where_predicate(mk().ident_ty("T"), vec!["Copy", "Clone"]),
+            ])
+            .pub_()
+            .struct_item(
+                name,
+                vec![
+                    mk().pub_()
+                        .struct_unamed_field(mk().set_mutbl(mutbl_).ptr_ty(mk().ident_ty("T"))),
+                ],
+                true,
+            );
+
+        let sync_impl = mk()
+            .unsafe_()
+            .generic_over(mk().ty_param(mk().ident("T")))
+            .where_clause(vec![
+                mk().where_predicate(mk().path_ty(vec!["T"]), vec!["Copy", "Clone"]),
+            ])
+            .impl_trait_item(
+                mk().path_ty(vec![mk().path_segment_with_args(
+                    name,
+                    mk().angle_bracketed_args(vec![mk().path_ty(vec!["T"])]),
+                )]),
+                mk().path("Sync"),
+                vec![],
+            );
+
+        (struct_item, sync_impl)
     }
 
     fn convert_decl(&self, ctx: ExprContext, decl_id: CDeclId) -> TranslationResult<ConvertedDecl> {
@@ -2677,7 +2780,9 @@ impl<'c> Translation<'c> {
                     })?;
                 let ConvertedVariable { ty, mutbl: _, init } =
                     self.convert_variable(ctx.static_(), initializer, typ)?;
-                let default_init = self.implicit_default_expr(typ.ctype, true)?.to_expr();
+                let default_init = self
+                    .implicit_default_expr(typ.ctype, true, ctx.inside_init_list_aop)?
+                    .to_expr();
                 let comment = String::from("// Initialized in run_static_initializers");
                 let span = self
                     .comment_store
@@ -2753,7 +2858,7 @@ impl<'c> Translation<'c> {
                 stmts.append(init.stmts_mut());
                 let init = init.into_value();
 
-                let zeroed = self.implicit_default_expr(typ.ctype, false)?;
+                let zeroed = self.implicit_default_expr(typ.ctype, false, false)?;
                 let zeroed = if ctx.is_const {
                     zeroed.to_unsafe_pure_expr()
                 } else {
@@ -2933,23 +3038,57 @@ impl<'c> Translation<'c> {
         initializer: Option<CExprId>,
         typ: CQualTypeId,
     ) -> TranslationResult<ConvertedVariable> {
-        let init = match initializer {
-            Some(x) => self.convert_expr(ctx.used(), x),
-            None => self.implicit_default_expr(typ.ctype, ctx.is_static),
+        let type_kind = self.ast_context.resolve_type(typ.ctype).kind.clone();
+
+        println!(
+            "convert_variable, target_type {}, static={}",
+            self.debug_ctype_name(typ.ctype),
+            ctx.is_static
+        );
+
+        let ty = match type_kind {
+            // Variable declarations for variable-length arrays use the type of a pointer to the
+            // underlying array element
+            CTypeKind::VariableArray(mut elt, _) => {
+                elt = self.variable_array_base_type(elt);
+                let ty = self.convert_type(elt)?;
+                mk().path_ty(vec![
+                    mk().path_segment_with_args("Vec", mk().angle_bracketed_args(vec![ty])),
+                ])
+            }
+
+            CTypeKind::ConstantArray(_, size) if ctx.is_static => {
+                // for other array of pointer, we use PointerMut or PointerConst to wrap it
+                if let Some(cqt) = self.check_type_is_constant_aop(typ.ctype) {
+                    // need to generate PointerMut struct
+                    *self.has_static_array_of_pointer.borrow_mut() = true;
+
+                    let name = if cqt.qualifiers.is_const {
+                        "Pointer"
+                    } else {
+                        "PointerMut"
+                    };
+
+                    let rtype = self.convert_type(cqt.ctype)?;
+
+                    let pointer_type =
+                        mk().path_ty(vec![mk().path_segment_with_args(
+                            name,
+                            mk().angle_bracketed_args(vec![rtype]),
+                        )]);
+                    let size = mk().lit_expr(mk().int_unsuffixed_lit(size as u64));
+                    mk().array_ty(pointer_type, size)
+                } else {
+                    self.convert_type(typ.ctype)?
+                }
+            }
+
+            _ => self.convert_type(typ.ctype)?,
         };
 
-        // Variable declarations for variable-length arrays use the type of a pointer to the
-        // underlying array element
-        let ty = if let CTypeKind::VariableArray(mut elt, _) =
-            self.ast_context.resolve_type(typ.ctype).kind
-        {
-            elt = self.variable_array_base_type(elt);
-            let ty = self.convert_type(elt)?;
-            mk().path_ty(vec![
-                mk().path_segment_with_args("Vec", mk().angle_bracketed_args(vec![ty])),
-            ])
-        } else {
-            self.convert_type(typ.ctype)?
+        let init = match initializer {
+            Some(x) => self.convert_expr(ctx.used(), x),
+            None => self.implicit_default_expr(typ.ctype, ctx.is_static, ctx.inside_init_list_aop),
         };
 
         let mutbl = if typ.qualifiers.is_const {
@@ -2972,7 +3111,12 @@ impl<'c> Translation<'c> {
 
     /// Construct an expression for a NULL at any type, including forward declarations,
     /// function pointers, and normal pointers.
-    fn null_ptr(&self, type_id: CTypeId, is_static: bool) -> TranslationResult<Box<Expr>> {
+    fn null_ptr(
+        &self,
+        type_id: CTypeId,
+        is_static: bool,
+        inside_init_list_aop: bool,
+    ) -> TranslationResult<Box<Expr>> {
         if self.ast_context.is_function_pointer(type_id) {
             return Ok(mk().path_expr(vec!["None"]));
         }
@@ -2983,7 +3127,7 @@ impl<'c> Translation<'c> {
         };
         let ty = self.convert_type(type_id)?;
         let mut zero = mk().lit_expr(mk().int_unsuffixed_lit(0));
-        if is_static && !pointee.qualifiers.is_const {
+        if is_static && pointee.qualifiers.is_const == false {
             let mut qtype = pointee;
             qtype.qualifiers.is_const = true;
             let ty_ = self
@@ -2992,7 +3136,21 @@ impl<'c> Translation<'c> {
                 .convert_pointer(&self.ast_context, qtype)?;
             zero = mk().cast_expr(zero, ty_);
         }
-        Ok(mk().cast_expr(zero, ty))
+
+        let mut cast = mk().cast_expr(zero, ty);
+
+        // wrap it in a PointerMut or Pointer if it is a static array of pointers
+        if is_static && inside_init_list_aop {
+            let name = if pointee.qualifiers.is_const {
+                "Pointer"
+            } else {
+                "PointerMut"
+            };
+
+            cast = mk().call_expr(mk().ident_expr(name), vec![cast]);
+        }
+
+        Ok(cast)
     }
 
     fn addr_lhs(
@@ -3686,6 +3844,9 @@ impl<'c> Translation<'c> {
                             ref other => panic!("Unexpected array type {:?}", other),
                         };
 
+                        let is_array_of_pointer = self.check_type_is_constant_aop(t);
+                        let is_static_variable = self.ast_context.is_static_variable(arr);
+
                         let lhs = self.convert_expr(ctx.used(), arr)?;
                         Ok(lhs.map(|lhs| {
                             // Don't dereference the offset if we're still within the variable portion
@@ -3693,7 +3854,14 @@ impl<'c> Translation<'c> {
                                 let mul = self.compute_size_of_expr(elt_type_id);
                                 pointer_offset(lhs, rhs, mul, false, true)
                             } else {
-                                mk().index_expr(lhs, cast_int(rhs, "usize", false))
+                                let mut expr = mk().index_expr(lhs, cast_int(rhs, "usize", false));
+
+                                if is_array_of_pointer.is_some() && is_static_variable {
+                                    // if the array is pointer in static then just unwrap it
+                                    // i.e: array[0].0
+                                    expr = mk().anon_field_expr(expr, 0);
+                                }
+                                expr
                             }
                         }))
                     } else {
@@ -3888,7 +4056,9 @@ impl<'c> Translation<'c> {
                 self.convert_init_list(ctx, ty, ids, opt_union_field_id)
             }
 
-            ImplicitValueInit(ty) => self.implicit_default_expr(ty.ctype, ctx.is_static),
+            ImplicitValueInit(ty) => {
+                self.implicit_default_expr(ty.ctype, ctx.is_static, ctx.inside_init_list_aop)
+            }
 
             Predefined(_, val_id) => self.convert_expr(ctx, val_id),
 
@@ -4233,6 +4403,12 @@ impl<'c> Translation<'c> {
             }
         });
 
+        println!(
+            "convert cast kind: {:?} -> {:?} {:?}",
+            self.debug_ctype_name(source_ty.ctype),
+            self.debug_ctype_name(ty.ctype),
+            kind
+        );
         match kind {
             CastKind::BitCast | CastKind::NoOp => {
                 val.and_then(|x| {
@@ -4244,6 +4420,18 @@ impl<'c> Translation<'c> {
                         Ok(WithStmts::new_unsafe_val(transmute_expr(
                             source_ty, target_ty, x,
                         )))
+                    } else if ctx.is_inside_init_list_aop() {
+                        // for array-of pointer and static we wrap it inside PointerMut
+                        let target_ty = self.convert_type(ty.ctype)?;
+                        let x = access_to_wrapped_pointer(x);
+                        let cast_expr = mk().cast_expr(x, target_ty);
+                        let wrapper = match ty.qualifiers.is_const {
+                            true => "Pointer",
+                            false => "PointerMut",
+                        };
+                        let call = mk().call_expr(mk().path_expr(vec![wrapper]), vec![cast_expr]);
+
+                        Ok(WithStmts::new_val(call))
                     } else {
                         // Normal case
                         let target_ty = self.convert_type(ty.ctype)?;
@@ -4343,16 +4531,40 @@ impl<'c> Translation<'c> {
 
                 let expr_kind = expr.map(|e| &self.ast_context.index(e).kind);
                 match expr_kind {
-                    Some(&CExprKind::Literal(_, CLiteral::String(ref bytes, 1))) if is_const => {
-                        let target_ty = self.convert_type(ty.ctype)?;
+                    Some(&CExprKind::Literal(_, CLiteral::String(ref bytes, _))) if is_const => {
+                        // discard val and use the string literal as CStr literal
+                        // ex: c"hello".as_ptr()
+                        let bytes = bytes.to_owned();
+                        let cstr = match CString::new(bytes) {
+                            Ok(cstr) => cstr,
+                            Err(e) => {
+                                // we have interio NUL here, so we need to use byte literal
+                                // then cast it to pointer
+                                // ex: b"hello\0world\0".as_ptr()
 
-                        let mut bytes = bytes.to_owned();
-                        bytes.push(0);
-                        let byte_literal = mk().lit_expr(bytes);
-                        let val =
-                            mk().cast_expr(byte_literal, mk().ptr_ty(mk().path_ty(vec!["u8"])));
-                        let val = mk().cast_expr(val, target_ty);
-                        Ok(WithStmts::new_val(val))
+                                let mut bytes = e.into_vec();
+                                bytes.push(0);
+
+                                let source_ty = mk().ptr_ty(mk().path_ty("u8"));
+                                let target_ty = mk().ptr_ty(mk().path_ty(vec!["ffi", "c_char"]));
+
+                                let byte_literal = mk().lit_expr(bytes);
+                                let call = mk().method_call_expr(byte_literal, "as_ptr", vec![]);
+                                let pointer = transmute_expr(source_ty, target_ty, call);
+
+                                return Ok(WithStmts::new_val(pointer));
+                            }
+                        };
+
+                        let cstr_literal = mk().lit_expr(cstr);
+                        let expr = mk().method_call_expr(cstr_literal, "as_ptr", vec![]);
+
+                        if ctx.is_inside_init_list_aop() && ctx.is_static {
+                            let call = mk().call_expr(mk().path_expr(vec!["Pointer"]), vec![expr]);
+                            return Ok(WithStmts::new_val(call));
+                        }
+
+                        Ok(WithStmts::new_val(expr))
                     }
                     _ => {
                         // Variable length arrays are already represented as pointers.
@@ -4398,7 +4610,11 @@ impl<'c> Translation<'c> {
 
             CastKind::NullToPointer => {
                 assert!(val.stmts().is_empty());
-                Ok(WithStmts::new_val(self.null_ptr(ty.ctype, ctx.is_static)?))
+                Ok(WithStmts::new_val(self.null_ptr(
+                    ty.ctype,
+                    ctx.is_static,
+                    ctx.inside_init_list_aop,
+                )?))
             }
 
             CastKind::ToUnion => {
@@ -4549,6 +4765,7 @@ impl<'c> Translation<'c> {
         &self,
         ty_id: CTypeId,
         is_static: bool,
+        inside_init_list_aop: bool,
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
         let resolved_ty_id = self.ast_context.resolve_type_id(ty_id);
         let resolved_ty = &self.ast_context.index(resolved_ty_id).kind;
@@ -4577,12 +4794,12 @@ impl<'c> Translation<'c> {
                 )),
             }
         } else if let &CTypeKind::Pointer(_) = resolved_ty {
-            self.null_ptr(resolved_ty_id, is_static)
+            self.null_ptr(resolved_ty_id, is_static, inside_init_list_aop)
                 .map(WithStmts::new_val)
         } else if let &CTypeKind::ConstantArray(elt, sz) = resolved_ty {
             let sz = mk().lit_expr(mk().int_unsuffixed_lit(sz as u128));
             Ok(self
-                .implicit_default_expr(elt, is_static)?
+                .implicit_default_expr(elt, is_static, inside_init_list_aop)?
                 .map(|elt| mk().repeat_expr(elt, sz)))
         } else if let &CTypeKind::IncompleteArray(_) = resolved_ty {
             // Incomplete arrays are translated to zero length arrays
@@ -4597,7 +4814,7 @@ impl<'c> Translation<'c> {
             let inner = self.variable_array_base_type(elt);
             let count = self.compute_size_of_expr(ty_id).unwrap();
             Ok(self
-                .implicit_default_expr(inner, is_static)?
+                .implicit_default_expr(inner, is_static, inside_init_list_aop)?
                 .map(|val| vec_expr(val, count)))
         } else if let &CTypeKind::Vector(CQualTypeId { ctype, .. }, len) = resolved_ty {
             self.implicit_vector_default(ctype, len, is_static)
@@ -4677,7 +4894,7 @@ impl<'c> Translation<'c> {
 
                 let field = match self.ast_context.index(field_id).kind {
                     CDeclKind::Field { typ, .. } => self
-                        .implicit_default_expr(typ.ctype, is_static)?
+                        .implicit_default_expr(typ.ctype, is_static, false)?
                         .map(|field_init| {
                             let name = self
                                 .type_converter
@@ -5010,6 +5227,49 @@ impl<'c> Translation<'c> {
                 ..
             } if has_static_duration || has_thread_duration => {}
             ref e => unimplemented!("{:?}", e),
+        }
+    }
+
+    // check if the type is a constant array of pointer (i.e. unsigned char *const[])
+    fn check_type_is_constant_aop(&self, type_id: CTypeId) -> Option<CQualTypeId> {
+        let type_kind = &self.ast_context.resolve_type(type_id).kind;
+        if let CTypeKind::ConstantArray(ctype, _) = type_kind {
+            let type_kind = &self.ast_context.resolve_type(*ctype).kind;
+            if let CTypeKind::Pointer(cqt) = type_kind {
+                return Some(*cqt);
+            }
+        }
+        None
+    }
+
+    // display ctype name in nice format for debugging
+    fn debug_ctype_name(&self, ctype: CTypeId) -> String {
+        let type_kind = &self.ast_context.resolve_type(ctype).kind;
+        match type_kind {
+            CTypeKind::Pointer(pointee) => {
+                let pointee_name = self.debug_ctype_name(pointee.ctype);
+                let mut qualifiers = String::new();
+                if pointee.qualifiers.is_const {
+                    qualifiers.push_str("const ");
+                }
+                format!("Pointer({qualifiers}{pointee_name})")
+            }
+            CTypeKind::Typedef(decl_id) => {
+                let decl = self.ast_context.get_decl(decl_id).unwrap();
+                format!("{:?}", decl)
+            }
+            CTypeKind::ConstantArray(ctype, width) => {
+                format!(
+                    "ConstantArray({}, {})",
+                    width,
+                    self.debug_ctype_name(*ctype)
+                )
+            }
+            CTypeKind::Char => "char".to_string(),
+            CTypeKind::UChar => "unsigned char".to_string(),
+            CTypeKind::Short => "short".to_string(),
+            CTypeKind::UShort => "unsigned short".to_string(),
+            _ => format!("{:?}", type_kind),
         }
     }
 }
