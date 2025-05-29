@@ -93,7 +93,7 @@ class Config:
 
     CC_DB_JSON = "compile_commands.json"
 
-    CUSTOM_RUST_NAME = query_toml(path=Path(ROOT_DIR).joinpath("rust-toolchain.toml"), query=("toolchain", "channel"))
+    CUSTOM_RUST_NAME = "stable"
 
     LLVM_SKIP_SIGNATURE_CHECKS  = False
 

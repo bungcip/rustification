@@ -7,6 +7,7 @@ import sys
 import logging
 import argparse
 import re
+import shutil
 
 from common import (
     config as c,
@@ -34,7 +35,7 @@ from rust_file import (
 from typing import Any, Dict, Generator, List, Optional, Set, Iterable
 
 # Tools we will need
-clang = get_cmd_or_die("clang-18")
+clang = get_cmd_or_die("clang-20")
 rustc = get_cmd_or_die("rustc")
 diff = get_cmd_or_die("diff")
 ar = get_cmd_or_die("ar")
@@ -391,13 +392,13 @@ class TestDirectory:
         self.generated_files["c_obj"].extend(static_library.obj_files)
 
         rust_file_builder = RustFileBuilder()
-        rust_file_builder.add_features([
-            "extern_types",
-            "simd_ffi",
-            "linkage",
-            "register_tool",
-        ])
-        rust_file_builder.add_pragma("register_tool", ["c2rust"])
+        # rust_file_builder.add_features([
+        #     "extern_types",
+        #     "simd_ffi",
+        #     "linkage",
+        #     "register_tool",
+        # ])
+        # rust_file_builder.add_pragma("register_tool", ["c2rust"])
 
         # Ensure that path to rustc's lib dir is in`LD_LIBRARY_PATH`
         ld_lib_path = get_rust_toolchain_libpath()
@@ -495,6 +496,15 @@ class TestDirectory:
                                  body=[str(stmt) for stmt in test_main_body])
 
         rust_file_builder.add_function(test_main)
+
+        ## add rust-toolchain.toml when using nightly features
+        if len(rust_file_builder.features) > 0:
+            rust_toolchain = self.full_path + "/rust-toolchain.toml"
+            shutil.copy("./c2rust-transpile/src/build_files/generated-rust-toolchain.toml", rust_toolchain)
+            self.generated_files["rust_src"].append(rust_toolchain)
+
+            if "register_tool" in rust_file_builder.features:
+                rust_file_builder.add_pragma("register_tool", ["c2rust"])
 
         main_file = rust_file_builder.build(self.full_path + "/src/main.rs")
 
