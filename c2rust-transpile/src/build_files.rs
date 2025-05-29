@@ -76,11 +76,11 @@ pub fn emit_build_files(
 ) -> Option<PathBuf> {
     let mut reg = Handlebars::new();
 
-    reg.register_template_string("Cargo.toml", include_str!("Cargo.toml.hbs"))
+    reg.register_template_string("Cargo.toml", include_str!("build_files/Cargo.toml.hbs"))
         .unwrap();
-    reg.register_template_string("lib.rs", include_str!("lib.rs.hbs"))
+    reg.register_template_string("lib.rs", include_str!("build_files/lib.rs.hbs"))
         .unwrap();
-    reg.register_template_string("build.rs", include_str!("build.rs.hbs"))
+    reg.register_template_string("build.rs", include_str!("build_files/build.rs.hbs"))
         .unwrap();
 
     if !build_dir.exists() {
@@ -261,7 +261,7 @@ fn emit_lib_rs(
 /// on a nightly toolchain until the `c_variadics` feature is stable.
 fn emit_rust_toolchain(tcfg: &TranspilerConfig, build_dir: &Path) {
     let output_path = build_dir.join("rust-toolchain.toml");
-    let output = include_str!("generated-rust-toolchain.toml").to_string();
+    let output = include_str!("build_files/generated-rust-toolchain.toml").to_string();
     maybe_write_to_file(&output_path, output.to_string(), tcfg.overwrite_existing);
 }
 
