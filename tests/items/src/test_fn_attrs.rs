@@ -1,3 +1,4 @@
+//! feature_linkage,
 use crate::fn_attrs::{rust_ensure_use, rust_inline_extern, rust_noinline_nonstatic};
 
 pub fn test_fn_attrs() {

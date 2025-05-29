@@ -1,3 +1,4 @@
+//! feature_extern_types,
 use crate::forward::rust_forward;
 use core::ffi::{c_int, c_uint};
 

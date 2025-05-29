@@ -1,3 +1,4 @@
+//! feature_register_tool,
 use crate::modules::rust_modules;
 
 #[link(name = "test")]

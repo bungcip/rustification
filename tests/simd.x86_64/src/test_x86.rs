@@ -1,3 +1,4 @@
+//! feature_simd_ffi,
 use crate::x86::{
     rust_call_all, rust_call_all_used, rust_simd_fn_codegen, rust_static_m128, rust_static_m128d,
     rust_static_m128i, rust_static_m256, rust_static_m256d, rust_static_m256i,

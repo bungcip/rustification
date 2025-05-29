@@ -1,3 +1,4 @@
+//! feature_register_tool,
 use crate::comments::{rust_test_fn, CONSTANT, CONSTANT1};
 
 pub fn test_comments() {

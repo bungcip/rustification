@@ -1686,7 +1686,7 @@ pub enum CTypeKind {
     // ARM Scalable Vector Extension types
     // TODO: represent all the individual types in AArch64SVEACLETypes.def
     UnhandledSveType,
-    
+
     Float128,
 }
 
