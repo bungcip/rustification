@@ -314,7 +314,7 @@ fn access_to_wrapped_pointer(expr: Box<Expr>) -> Box<Expr> {
             }
         }
     };
-    return expr2;
+    expr2
 }
 
 fn cast_int(val: Box<Expr>, name: &str, need_lit_suffix: bool) -> Box<Expr> {
@@ -3040,12 +3040,6 @@ impl<'c> Translation<'c> {
     ) -> TranslationResult<ConvertedVariable> {
         let type_kind = self.ast_context.resolve_type(typ.ctype).kind.clone();
 
-        println!(
-            "convert_variable, target_type {}, static={}",
-            self.debug_ctype_name(typ.ctype),
-            ctx.is_static
-        );
-
         let ty = match type_kind {
             // Variable declarations for variable-length arrays use the type of a pointer to the
             // underlying array element
@@ -4403,12 +4397,6 @@ impl<'c> Translation<'c> {
             }
         });
 
-        println!(
-            "convert cast kind: {:?} -> {:?} {:?}",
-            self.debug_ctype_name(source_ty.ctype),
-            self.debug_ctype_name(ty.ctype),
-            kind
-        );
         match kind {
             CastKind::BitCast | CastKind::NoOp => {
                 val.and_then(|x| {
@@ -5243,33 +5231,33 @@ impl<'c> Translation<'c> {
     }
 
     // display ctype name in nice format for debugging
-    fn debug_ctype_name(&self, ctype: CTypeId) -> String {
-        let type_kind = &self.ast_context.resolve_type(ctype).kind;
-        match type_kind {
-            CTypeKind::Pointer(pointee) => {
-                let pointee_name = self.debug_ctype_name(pointee.ctype);
-                let mut qualifiers = String::new();
-                if pointee.qualifiers.is_const {
-                    qualifiers.push_str("const ");
-                }
-                format!("Pointer({qualifiers}{pointee_name})")
-            }
-            CTypeKind::Typedef(decl_id) => {
-                let decl = self.ast_context.get_decl(decl_id).unwrap();
-                format!("{:?}", decl)
-            }
-            CTypeKind::ConstantArray(ctype, width) => {
-                format!(
-                    "ConstantArray({}, {})",
-                    width,
-                    self.debug_ctype_name(*ctype)
-                )
-            }
-            CTypeKind::Char => "char".to_string(),
-            CTypeKind::UChar => "unsigned char".to_string(),
-            CTypeKind::Short => "short".to_string(),
-            CTypeKind::UShort => "unsigned short".to_string(),
-            _ => format!("{:?}", type_kind),
-        }
-    }
+    // fn debug_ctype_name(&self, ctype: CTypeId) -> String {
+    //     let type_kind = &self.ast_context.resolve_type(ctype).kind;
+    //     match type_kind {
+    //         CTypeKind::Pointer(pointee) => {
+    //             let pointee_name = self.debug_ctype_name(pointee.ctype);
+    //             let mut qualifiers = String::new();
+    //             if pointee.qualifiers.is_const {
+    //                 qualifiers.push_str("const ");
+    //             }
+    //             format!("Pointer({qualifiers}{pointee_name})")
+    //         }
+    //         CTypeKind::Typedef(decl_id) => {
+    //             let decl = self.ast_context.get_decl(decl_id).unwrap();
+    //             format!("{:?}", decl)
+    //         }
+    //         CTypeKind::ConstantArray(ctype, width) => {
+    //             format!(
+    //                 "ConstantArray({}, {})",
+    //                 width,
+    //                 self.debug_ctype_name(*ctype)
+    //             )
+    //         }
+    //         CTypeKind::Char => "char".to_string(),
+    //         CTypeKind::UChar => "unsigned char".to_string(),
+    //         CTypeKind::Short => "short".to_string(),
+    //         CTypeKind::UShort => "unsigned short".to_string(),
+    //         _ => format!("{:?}", type_kind),
+    //     }
+    // }
 }

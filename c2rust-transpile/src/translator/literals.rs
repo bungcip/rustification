@@ -131,10 +131,6 @@ impl<'c> Translation<'c> {
             }
 
             CLiteral::String(ref val, width) => {
-                println!(
-                    "CLiteral::String target ty : {}",
-                    self.debug_ctype_name(ty.ctype)
-                );
                 let mut val = val.to_owned();
 
                 let num_elems = match self.ast_context.resolve_type(ty.ctype).kind {
@@ -211,7 +207,7 @@ impl<'c> Translation<'c> {
 
                     // we mark the context as inside an array of string construction
                     // eg: `const char *const aos[] = { "hi", "ho" };`
-                    if let Some(_) = self.check_type_is_constant_aop(ty.ctype) {
+                    if self.check_type_is_constant_aop(ty.ctype).is_some() {
                         ctx = ctx.inside_init_list_aop();
                     }
 
