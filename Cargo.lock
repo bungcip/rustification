@@ -113,7 +113,6 @@ name = "c2rust"
 version = "0.100.0"
 dependencies = [
  "anyhow",
- "c2rust-build-paths",
  "c2rust-transpile",
  "clap",
  "env_logger",
@@ -141,7 +140,6 @@ name = "c2rust-ast-exporter"
 version = "0.100.0"
 dependencies = [
  "bindgen",
- "c2rust-build-paths",
  "clang-sys",
  "cmake",
  "env_logger",
@@ -174,13 +172,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "c2rust-build-paths"
-version = "0.100.0"
-dependencies = [
- "print_bytes",
 ]
 
 [[package]]
@@ -741,12 +732,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4895175b425cb1f87721b59f0f286c2092bd4af812243672510e1ac53e2e0ad"
 
 [[package]]
-name = "os_str_bytes"
-version = "7.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c86e2db86dd008b4c88c77a9bb83d9286bf77204e255bb3fda3b2eebcae66b62"
-
-[[package]]
 name = "pathdiff"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -826,16 +811,6 @@ checksum = "664ec5419c51e34154eec046ebcba56312d5a2fc3b09a06da188e1ad21afadf6"
 dependencies = [
  "proc-macro2",
  "syn",
-]
-
-[[package]]
-name = "print_bytes"
-version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9f1087018ec7a740e853a3493c9ab5e111b8b68bcdac2c0fcaf5323040c3964"
-dependencies = [
- "os_str_bytes",
- "windows-sys",
 ]
 
 [[package]]

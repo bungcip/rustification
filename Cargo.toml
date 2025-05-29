@@ -8,7 +8,6 @@ members = [
     "c2rust-ast-printer",
     "c2rust-bitfields",
     "c2rust-bitfields-derive",
-    "c2rust-build-paths",
     "c2rust-transpile",
 ]
 exclude = [

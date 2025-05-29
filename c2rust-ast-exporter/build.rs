@@ -1,9 +1,8 @@
-use c2rust_build_paths::find_llvm_config;
 use cmake::Config;
 use std::env;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::process::{self, Command};
+use std::process::{self, Command, Stdio};
 
 // Use `cargo build -vv` to get detailed output on this script's progress.
 
@@ -27,6 +26,45 @@ fn main() {
         }
         process::exit(1);
     }
+}
+
+pub fn find_llvm_config() -> Option<PathBuf> {
+    // Explicitly provided path in LLVM_CONFIG_PATH
+    env::var_os("LLVM_CONFIG_PATH")
+        .map(PathBuf::from)
+        .or_else(|| {
+            // Relative to LLVM_LIB_DIR
+            env::var_os("LLVM_LIB_DIR")
+                .map(PathBuf::from)
+                .map(|mut lib_dir| {
+                    lib_dir.push("../bin/llvm-config");
+                    lib_dir.canonicalize().unwrap()
+                })
+        })
+        .or_else(|| {
+            // In PATH
+            [
+                "llvm-config-20",
+                "llvm-config",
+                // Homebrew install locations on Intel macOS
+                "/usr/local/opt/llvm@20/bin/llvm-config",
+                "/usr/local/opt/llvm/bin/llvm-config",
+                // Homebrew install locations on Apple Silicon macOS
+                "/opt/homebrew/opt/llvm@20/bin/llvm-config",
+                "/opt/homebrew/opt/llvm/bin/llvm-config",
+            ]
+            .iter()
+            .map(Path::new)
+            .filter(|c| {
+                Command::new(c)
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .spawn()
+                    .is_ok()
+            })
+            .map(PathBuf::from)
+            .next()
+        })
 }
 
 fn check_clang_version() -> Result<(), String> {
