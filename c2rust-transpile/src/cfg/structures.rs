@@ -5,6 +5,7 @@ use log::warn;
 use syn::{ExprBreak, ExprIf, ExprReturn, ExprUnary, Stmt, spanned::Spanned as _};
 
 use crate::rust_ast::{BytePos, SpanExt, comment_store, set_span::SetSpan};
+use crate::transform;
 
 /// Convert a sequence of structures produced by Relooper back into Rust statements
 pub fn structured_cfg(
@@ -676,7 +677,7 @@ fn not(bool_expr: &Expr) -> Box<Expr> {
             op: syn::UnOp::Not(_),
             ref expr,
             ..
-        }) => Box::new(unparen(expr).clone()),
+        }) => Box::new(transform::unparen(expr).clone()),
         _ => mk().unary_expr("!", Box::new(bool_expr.clone())),
     }
 }

@@ -3,12 +3,13 @@
 //! corresponding to a single Rust expression.
 
 use super::*;
+use crate::transform;
 
 /// Check if something is a valid Rust lvalue. Inspired by `librustc::ty::expr_is_lval`.
 fn is_lvalue(e: &Expr) -> bool {
     use Expr::*;
     matches!(
-        unparen(e),
+        transform::unparen(e),
         Unary(ExprUnary {
             op: syn::UnOp::Deref(_),
             ..
@@ -21,7 +22,7 @@ fn is_lvalue(e: &Expr) -> bool {
 /// Check if something is a side-effect free Rust lvalue.
 fn is_simple_lvalue(e: &Expr) -> bool {
     use Expr::*;
-    match *unparen(e) {
+    match *transform::unparen(e) {
         Path(..) => true,
         Unary(ExprUnary {
             op: syn::UnOp::Deref(_),

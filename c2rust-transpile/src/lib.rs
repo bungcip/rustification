@@ -9,6 +9,7 @@ mod compile_cmds;
 pub mod convert_type;
 pub mod renamer;
 pub mod rust_ast;
+pub mod transform;
 pub mod translator;
 pub mod with_stmts;
 

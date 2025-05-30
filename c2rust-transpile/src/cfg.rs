@@ -19,6 +19,7 @@ use crate::c_ast::CLabelId;
 use crate::c_ast::iterators::{DFExpr, SomeId};
 use crate::diagnostics::TranslationResult;
 use crate::rust_ast::SpanExt;
+use crate::translator::context::ExprContext;
 use c2rust_ast_printer::pprust;
 use proc_macro2::Span;
 use std::collections::BTreeSet;

@@ -38,127 +38,128 @@ impl From<c_ast::BinOp> for BinOp {
 }
 
 impl<'c> Translation<'c> {
-    pub fn convert_binary_expr(
+    /// Translate a non-assignment binary operator. It is expected that the `lhs` and `rhs`
+    /// arguments be usable as rvalues.
+    pub(crate) fn convert_binary_operator(
         &self,
-        mut ctx: ExprContext,
-        type_id: CQualTypeId,
         op: c_ast::BinOp,
-        lhs: CExprId,
-        rhs: CExprId,
-        opt_lhs_type_id: Option<CQualTypeId>,
-        opt_res_type_id: Option<CQualTypeId>,
-    ) -> TranslationResult<WithStmts<Box<Expr>>> {
-        // If we're not making an assignment, a binop will require parens
-        // applied to ternary conditionals
-        if !op.is_assignment() {
-            ctx.ternary_needs_parens = true;
-        }
+        ty: Box<Type>,
+        ctype: CTypeId,
+        lhs_type: CQualTypeId,
+        rhs_type: CQualTypeId,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+        lhs_rhs_ids: Option<(CExprId, CExprId)>,
+    ) -> TranslationResult<Box<Expr>> {
+        let is_unsigned_integral_type = self
+            .ast_context
+            .index(ctype)
+            .kind
+            .is_unsigned_integral_type();
 
-        let lhs_loc = &self.ast_context[lhs].loc;
-        let rhs_loc = &self.ast_context[rhs].loc;
-        use c_ast::BinOp::*;
         match op {
-            Comma => {
-                // The value of the LHS of a comma expression is always discarded
-                self.convert_expr(ctx.unused(), lhs)?
-                    .and_then(|_| self.convert_expr(ctx, rhs))
+            c_ast::BinOp::Add => self.convert_addition(lhs_type, rhs_type, lhs, rhs),
+            c_ast::BinOp::Subtract => self.convert_subtraction(ty, lhs_type, rhs_type, lhs, rhs),
+
+            c_ast::BinOp::Multiply if is_unsigned_integral_type => {
+                Ok(mk().method_call_expr(lhs, "wrapping_mul", vec![rhs]))
+            }
+            c_ast::BinOp::Multiply => {
+                Ok(mk().binary_expr(BinOp::Mul(Default::default()), lhs, rhs))
             }
 
-            And | Or => {
-                let lhs = self.convert_condition(ctx, true, lhs)?;
-                let rhs = self.convert_condition(ctx, true, rhs)?;
-                lhs.map(|x| bool_to_int(mk().binary_expr(BinOp::from(op), x, rhs.to_expr())))
-                    .and_then(|out| {
-                        if ctx.is_unused() {
-                            Ok(WithStmts::new(
-                                vec![mk().semi_stmt(out)],
-                                self.panic_or_err("Binary expression is not supposed to be used"),
-                            ))
-                        } else {
-                            Ok(WithStmts::new_val(out))
-                        }
-                    })
+            c_ast::BinOp::Divide if is_unsigned_integral_type => {
+                Ok(mk().method_call_expr(lhs, "wrapping_div", vec![rhs]))
+            }
+            c_ast::BinOp::Divide => Ok(mk().binary_expr(BinOp::Div(Default::default()), lhs, rhs)),
+
+            c_ast::BinOp::Modulus if is_unsigned_integral_type => {
+                Ok(mk().method_call_expr(lhs, "wrapping_rem", vec![rhs]))
+            }
+            c_ast::BinOp::Modulus => Ok(mk().binary_expr(BinOp::Rem(Default::default()), lhs, rhs)),
+
+            c_ast::BinOp::BitXor => {
+                Ok(mk().binary_expr(BinOp::BitXor(Default::default()), lhs, rhs))
             }
 
-            // No sequence-point cases
-            AssignAdd | AssignSubtract | AssignMultiply | AssignDivide | AssignModulus
-            | AssignBitXor | AssignShiftLeft | AssignShiftRight | AssignBitOr | AssignBitAnd
-            | Assign => self.convert_assignment_operator(
-                ctx,
-                op,
-                type_id,
+            c_ast::BinOp::ShiftRight => {
+                Ok(mk().binary_expr(BinOp::Shr(Default::default()), lhs, rhs))
+            }
+            c_ast::BinOp::ShiftLeft => {
+                Ok(mk().binary_expr(BinOp::Shl(Default::default()), lhs, rhs))
+            }
+
+            c_ast::BinOp::EqualEqual => {
+                // Using is_none method for null comparison means we don't have to
+                // rely on the PartialEq trait as much and is also more idiomatic
+                let expr = if let Some((lhs_expr_id, rhs_expr_id)) = lhs_rhs_ids {
+                    let fn_eq_null = self.ast_context.is_function_pointer(lhs_type.ctype)
+                        && self.ast_context.is_null_expr(rhs_expr_id);
+                    let null_eq_fn = self.ast_context.is_function_pointer(rhs_type.ctype)
+                        && self.ast_context.is_null_expr(lhs_expr_id);
+
+                    if fn_eq_null {
+                        mk().method_call_expr(lhs, "is_none", vec![])
+                    } else if null_eq_fn {
+                        mk().method_call_expr(rhs, "is_none", vec![])
+                    } else {
+                        mk().binary_expr(BinOp::Eq(Default::default()), lhs, rhs)
+                    }
+                } else {
+                    mk().binary_expr(BinOp::Eq(Default::default()), lhs, rhs)
+                };
+
+                Ok(transform::bool_to_int(expr))
+            }
+            c_ast::BinOp::NotEqual => {
+                // Using is_some method for null comparison means we don't have to
+                // rely on the PartialEq trait as much and is also more idiomatic
+                let expr = if let Some((lhs_expr_id, rhs_expr_id)) = lhs_rhs_ids {
+                    let fn_eq_null = self.ast_context.is_function_pointer(lhs_type.ctype)
+                        && self.ast_context.is_null_expr(rhs_expr_id);
+                    let null_eq_fn = self.ast_context.is_function_pointer(rhs_type.ctype)
+                        && self.ast_context.is_null_expr(lhs_expr_id);
+
+                    if fn_eq_null {
+                        mk().method_call_expr(lhs, "is_some", vec![])
+                    } else if null_eq_fn {
+                        mk().method_call_expr(rhs, "is_some", vec![])
+                    } else {
+                        mk().binary_expr(BinOp::Ne(Default::default()), lhs, rhs)
+                    }
+                } else {
+                    mk().binary_expr(BinOp::Ne(Default::default()), lhs, rhs)
+                };
+
+                Ok(transform::bool_to_int(expr))
+            }
+            c_ast::BinOp::Less => Ok(transform::bool_to_int(mk().binary_expr(
+                BinOp::Lt(Default::default()),
                 lhs,
                 rhs,
-                opt_lhs_type_id,
-                opt_res_type_id,
-            ),
+            ))),
+            c_ast::BinOp::Greater => Ok(transform::bool_to_int(mk().binary_expr(
+                BinOp::Gt(Default::default()),
+                lhs,
+                rhs,
+            ))),
+            c_ast::BinOp::GreaterEqual => Ok(transform::bool_to_int(mk().binary_expr(
+                BinOp::Ge(Default::default()),
+                lhs,
+                rhs,
+            ))),
+            c_ast::BinOp::LessEqual => Ok(transform::bool_to_int(mk().binary_expr(
+                BinOp::Le(Default::default()),
+                lhs,
+                rhs,
+            ))),
 
-            _ => {
-                // Comparing references to pointers isn't consistently supported by rust
-                // and so we need to decay references to pointers to do so. See
-                // https://github.com/rust-lang/rust/issues/53772. This might be removable
-                // once the above issue is resolved.
-                if op == c_ast::BinOp::EqualEqual || op == c_ast::BinOp::NotEqual {
-                    ctx = ctx.decay_ref();
-                }
-
-                let ty = self.convert_type(type_id.ctype)?;
-
-                let lhs_type_id = self
-                    .ast_context
-                    .index(lhs)
-                    .kind
-                    .get_qual_type()
-                    .ok_or_else(|| {
-                        generic_loc_err!(
-                            self.ast_context.display_loc(lhs_loc),
-                            "bad lhs type for assignment"
-                        )
-                    })?;
-                let rhs_kind = &self.ast_context.index(rhs).kind;
-                let rhs_type_id = rhs_kind.get_qual_type().ok_or_else(|| {
-                    generic_loc_err!(
-                        self.ast_context.display_loc(rhs_loc),
-                        "bad rhs type for assignment"
-                    )
-                })?;
-
-                if ctx.is_unused() {
-                    Ok(self
-                        .convert_expr(ctx, lhs)?
-                        .and_then(|_| self.convert_expr(ctx, rhs))?
-                        .map(|_| self.panic_or_err("Binary expression is not supposed to be used")))
-                } else {
-                    let rhs_ctx = ctx;
-
-                    // When we use methods on pointers (ie wrapping_offset_from or offset)
-                    // we must ensure we have an explicit raw ptr for the self param, as
-                    // self references do not decay
-                    if op == c_ast::BinOp::Subtract || op == c_ast::BinOp::Add {
-                        let ty_kind = &self.ast_context.resolve_type(lhs_type_id.ctype).kind;
-
-                        if let CTypeKind::Pointer(_) = ty_kind {
-                            ctx = ctx.decay_ref();
-                        }
-                    }
-
-                    self.convert_expr(ctx, lhs)?.and_then(|lhs_val| {
-                        self.convert_expr(rhs_ctx, rhs)?.result_map(|rhs_val| {
-                            let expr_ids = Some((lhs, rhs));
-                            self.convert_binary_operator(
-                                op,
-                                ty,
-                                type_id.ctype,
-                                lhs_type_id,
-                                rhs_type_id,
-                                lhs_val,
-                                rhs_val,
-                                expr_ids,
-                            )
-                        })
-                    })
-                }
+            c_ast::BinOp::BitAnd => {
+                Ok(mk().binary_expr(BinOp::BitAnd(Default::default()), lhs, rhs))
             }
+            c_ast::BinOp::BitOr => Ok(mk().binary_expr(BinOp::BitOr(Default::default()), lhs, rhs)),
+
+            op => unimplemented!("Translation of binary operator {:?}", op),
         }
     }
 
@@ -233,7 +234,7 @@ impl<'c> Translation<'c> {
         }
     }
 
-    fn convert_assignment_operator(
+    pub(crate) fn convert_assignment_operator(
         &self,
         ctx: ExprContext,
         op: c_ast::BinOp,
@@ -490,131 +491,6 @@ impl<'c> Translation<'c> {
         })
     }
 
-    /// Translate a non-assignment binary operator. It is expected that the `lhs` and `rhs`
-    /// arguments be usable as rvalues.
-    fn convert_binary_operator(
-        &self,
-        op: c_ast::BinOp,
-        ty: Box<Type>,
-        ctype: CTypeId,
-        lhs_type: CQualTypeId,
-        rhs_type: CQualTypeId,
-        lhs: Box<Expr>,
-        rhs: Box<Expr>,
-        lhs_rhs_ids: Option<(CExprId, CExprId)>,
-    ) -> TranslationResult<Box<Expr>> {
-        let is_unsigned_integral_type = self
-            .ast_context
-            .index(ctype)
-            .kind
-            .is_unsigned_integral_type();
-
-        match op {
-            c_ast::BinOp::Add => self.convert_addition(lhs_type, rhs_type, lhs, rhs),
-            c_ast::BinOp::Subtract => self.convert_subtraction(ty, lhs_type, rhs_type, lhs, rhs),
-
-            c_ast::BinOp::Multiply if is_unsigned_integral_type => {
-                Ok(mk().method_call_expr(lhs, "wrapping_mul", vec![rhs]))
-            }
-            c_ast::BinOp::Multiply => {
-                Ok(mk().binary_expr(BinOp::Mul(Default::default()), lhs, rhs))
-            }
-
-            c_ast::BinOp::Divide if is_unsigned_integral_type => {
-                Ok(mk().method_call_expr(lhs, "wrapping_div", vec![rhs]))
-            }
-            c_ast::BinOp::Divide => Ok(mk().binary_expr(BinOp::Div(Default::default()), lhs, rhs)),
-
-            c_ast::BinOp::Modulus if is_unsigned_integral_type => {
-                Ok(mk().method_call_expr(lhs, "wrapping_rem", vec![rhs]))
-            }
-            c_ast::BinOp::Modulus => Ok(mk().binary_expr(BinOp::Rem(Default::default()), lhs, rhs)),
-
-            c_ast::BinOp::BitXor => {
-                Ok(mk().binary_expr(BinOp::BitXor(Default::default()), lhs, rhs))
-            }
-
-            c_ast::BinOp::ShiftRight => {
-                Ok(mk().binary_expr(BinOp::Shr(Default::default()), lhs, rhs))
-            }
-            c_ast::BinOp::ShiftLeft => {
-                Ok(mk().binary_expr(BinOp::Shl(Default::default()), lhs, rhs))
-            }
-
-            c_ast::BinOp::EqualEqual => {
-                // Using is_none method for null comparison means we don't have to
-                // rely on the PartialEq trait as much and is also more idiomatic
-                let expr = if let Some((lhs_expr_id, rhs_expr_id)) = lhs_rhs_ids {
-                    let fn_eq_null = self.ast_context.is_function_pointer(lhs_type.ctype)
-                        && self.ast_context.is_null_expr(rhs_expr_id);
-                    let null_eq_fn = self.ast_context.is_function_pointer(rhs_type.ctype)
-                        && self.ast_context.is_null_expr(lhs_expr_id);
-
-                    if fn_eq_null {
-                        mk().method_call_expr(lhs, "is_none", vec![])
-                    } else if null_eq_fn {
-                        mk().method_call_expr(rhs, "is_none", vec![])
-                    } else {
-                        mk().binary_expr(BinOp::Eq(Default::default()), lhs, rhs)
-                    }
-                } else {
-                    mk().binary_expr(BinOp::Eq(Default::default()), lhs, rhs)
-                };
-
-                Ok(bool_to_int(expr))
-            }
-            c_ast::BinOp::NotEqual => {
-                // Using is_some method for null comparison means we don't have to
-                // rely on the PartialEq trait as much and is also more idiomatic
-                let expr = if let Some((lhs_expr_id, rhs_expr_id)) = lhs_rhs_ids {
-                    let fn_eq_null = self.ast_context.is_function_pointer(lhs_type.ctype)
-                        && self.ast_context.is_null_expr(rhs_expr_id);
-                    let null_eq_fn = self.ast_context.is_function_pointer(rhs_type.ctype)
-                        && self.ast_context.is_null_expr(lhs_expr_id);
-
-                    if fn_eq_null {
-                        mk().method_call_expr(lhs, "is_some", vec![])
-                    } else if null_eq_fn {
-                        mk().method_call_expr(rhs, "is_some", vec![])
-                    } else {
-                        mk().binary_expr(BinOp::Ne(Default::default()), lhs, rhs)
-                    }
-                } else {
-                    mk().binary_expr(BinOp::Ne(Default::default()), lhs, rhs)
-                };
-
-                Ok(bool_to_int(expr))
-            }
-            c_ast::BinOp::Less => Ok(bool_to_int(mk().binary_expr(
-                BinOp::Lt(Default::default()),
-                lhs,
-                rhs,
-            ))),
-            c_ast::BinOp::Greater => Ok(bool_to_int(mk().binary_expr(
-                BinOp::Gt(Default::default()),
-                lhs,
-                rhs,
-            ))),
-            c_ast::BinOp::GreaterEqual => Ok(bool_to_int(mk().binary_expr(
-                BinOp::Ge(Default::default()),
-                lhs,
-                rhs,
-            ))),
-            c_ast::BinOp::LessEqual => Ok(bool_to_int(mk().binary_expr(
-                BinOp::Le(Default::default()),
-                lhs,
-                rhs,
-            ))),
-
-            c_ast::BinOp::BitAnd => {
-                Ok(mk().binary_expr(BinOp::BitAnd(Default::default()), lhs, rhs))
-            }
-            c_ast::BinOp::BitOr => Ok(mk().binary_expr(BinOp::BitOr(Default::default()), lhs, rhs)),
-
-            op => unimplemented!("Translation of binary operator {:?}", op),
-        }
-    }
-
     fn convert_addition(
         &self,
         lhs_type_id: CQualTypeId,
@@ -653,7 +529,7 @@ impl<'c> Translation<'c> {
             let mut offset = mk().method_call_expr(lhs, "offset_from", vec![rhs]);
 
             if let Some(sz) = self.compute_size_of_expr(pointee.ctype) {
-                let div = cast_int(sz, "isize", false);
+                let div = transform::cast_int(sz, "isize", false);
                 offset = mk().binary_expr(BinOp::Div(Default::default()), offset, div);
             }
 
