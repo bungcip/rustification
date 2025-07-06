@@ -367,6 +367,7 @@ impl<'c> Translation<'c> {
             )),
 
             CastKind::VectorSplat => Err(generic_err!("TODO vector splat casts not supported",)),
+            CastKind::AtomicToNonAtomic | CastKind::NonAtomicToAtomic => Ok(val),
         }
     }
 

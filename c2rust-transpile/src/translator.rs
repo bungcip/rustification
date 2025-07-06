@@ -1780,7 +1780,7 @@ impl<'c> Translation<'c> {
                             return true;
                         }
 
-                        // None assignments don't prove enough type information unless there are follow-up assignments
+                        // None assignments don't provide enough type information unless there are follow-up assignments
                         if let Some(CExprKind::ImplicitCast(_, _, CastKind::NullToPointer, _, _)) =
                             initializer_kind
                         {
@@ -2015,10 +2015,10 @@ impl<'c> Translation<'c> {
             });
         }
         let ty = self.convert_type(type_id)?;
-        self.compute_size_of_ty(ty)
+        self.mk_size_of_ty_expr(ty)
     }
 
-    fn compute_size_of_ty(&self, ty: Box<Type>) -> TranslationResult<WithStmts<Box<Expr>>> {
+    fn mk_size_of_ty_expr(&self, ty: Box<Type>) -> TranslationResult<WithStmts<Box<Expr>>> {
         let name = "size_of";
         let params = mk().angle_bracketed_args(vec![ty]);
         let path = vec![

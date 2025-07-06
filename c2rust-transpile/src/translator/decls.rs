@@ -205,8 +205,8 @@ impl<'c> Translation<'c> {
                         .resolve_decl_suffix_name(decl_id, PADDING_SUFFIX)
                         .to_owned();
                     let padding_ty = mk().path_ty(vec!["usize"]);
-                    let outer_size = self.compute_size_of_ty(outer_ty)?.to_expr();
-                    let inner_size = self.compute_size_of_ty(inner_ty)?.to_expr();
+                    let outer_size = self.mk_size_of_ty_expr(outer_ty)?.to_expr();
+                    let inner_size = self.mk_size_of_ty_expr(inner_ty)?.to_expr();
                     let padding_value =
                         mk().binary_expr(BinOp::Sub(Default::default()), outer_size, inner_size);
                     let padding_const = mk()
@@ -801,7 +801,7 @@ impl<'c> Translation<'c> {
             Vector(..) => {
                 // Handled in `import_simd_typedef`
             }
-            TypeOfExpr(_) | BuiltinFn => {}
+            TypeOfExpr(_) | BuiltinFn | Atomic(..) => {}
             UnhandledSveType => {
                 // TODO: handle SVE types
             }

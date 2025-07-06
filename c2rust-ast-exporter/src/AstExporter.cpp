@@ -251,6 +251,8 @@ class TypeEncoder final : public TypeVisitor<TypeEncoder> {
 
     void VisitVariableArrayType(const VariableArrayType *T);
 
+    void VisitAtomicType(const AtomicType *AT);
+
     void VisitIncompleteArrayType(const IncompleteArrayType *T) {
         auto t = T->getElementType();
         auto qt = encodeQualType(t);
@@ -1860,10 +1862,6 @@ class TranslateASTVisitor final
         // Use the type from the definition in case the extern was an incomplete
         // type
         auto T = def->getType();
-        if (isa<AtomicType>(T)) {
-            printC11AtomicError(def);
-            abort();
-        }
 
         auto loc = is_defn ? def->getLocation() : VD->getLocation();
 
@@ -1948,10 +1946,6 @@ class TranslateASTVisitor final
         auto byteSize = 0;
 
         auto t = D->getTypeForDecl();
-        if (isa<AtomicType>(t)) {
-            printC11AtomicError(D);
-            abort();
-        }
 
         auto loc = D->getLocation();
         std::vector<void *> childIds;
@@ -2026,10 +2020,6 @@ class TranslateASTVisitor final
         // exit early via code like `if (!D->isCompleteDefinition()) return true;`.
 
         auto t = D->getTypeForDecl();
-        if (isa<AtomicType>(t)) {
-            printC11AtomicError(D);
-            abort();
-        }
 
         std::vector<void *> childIds;
         for (auto x : D->enumerators()) {
@@ -2089,10 +2079,6 @@ class TranslateASTVisitor final
 
         std::vector<void *> childIds;
         auto t = D->getType();
-        if (isa<AtomicType>(t)) {
-            printC11AtomicError(D);
-            abort();
-        }
 
         auto record = D->getParent();
         const ASTRecordLayout &layout =
@@ -2304,11 +2290,6 @@ class TranslateASTVisitor final
             CharSourceRange::getCharRange(E->getSourceRange()));
     }
 
-    void printC11AtomicError(Decl *D) {
-        std::string msg = "C11 Atomics are not supported. Aborting.";
-        printError(msg, D);
-    }
-
     void printError(std::string Message, Decl *D) {
         auto DiagBuilder =
                 getDiagBuilder(D->getLocation(), DiagnosticsEngine::Error);
@@ -2390,15 +2371,18 @@ void TypeEncoder::VisitVariableArrayType(const VariableArrayType *T) {
 
     VisitQualType(t);
 }
-//
-//void TypeEncoder::VisitAtomicType(const AtomicType *AT) {
-//    std::string msg =
-//            "C11 Atomic types are not supported. Aborting.";
-////    auto horse = AT->get
-////    astEncoder->printError(msg, AT);
-//    AT->getValueType()->dump();
-//    abort();
-//}
+
+void TypeEncoder::VisitAtomicType(const AtomicType *AT) {
+  auto t = AT->getValueType();
+  auto qt = encodeQualType(t);
+
+  encodeType(AT, TagAtomicType, [qt](CborEncoder *local) {
+      cbor_encode_uint(local, qt);
+  });
+
+  VisitQualType(t);
+}
+
 
 class TranslateConsumer : public clang::ASTConsumer {
     Outputs *outputs;
