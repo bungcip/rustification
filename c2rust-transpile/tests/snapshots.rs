@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use c2rust_transpile::{ReplaceMode, TranspilerConfig};
+use c2rust_transpile::{ReplaceMode, TranspilerConfig, RustChannel};
 
 fn config() -> TranspilerConfig {
     TranspilerConfig {
@@ -48,7 +48,7 @@ fn config() -> TranspilerConfig {
 }
 
 fn transpile(c_path: &Path) {
-    let status = Command::new("clang")
+    let status = Command::new("clang-20")
         .args(&["-c", "-o", "/dev/null"])
         .arg(c_path)
         .status();
@@ -56,7 +56,7 @@ fn transpile(c_path: &Path) {
 
     let (_temp_dir, temp_path) =
         c2rust_transpile::create_temp_compile_commands(&[c_path.to_owned()]);
-    c2rust_transpile::transpile(config(), &temp_path, &[]);
+    let channel = c2rust_transpile::transpile(config(), &temp_path, &[]);
     let cwd = current_dir().unwrap();
     let c_path = c_path.strip_prefix(&cwd).unwrap();
     let rs_path = c_path.with_extension("rs");
@@ -64,8 +64,14 @@ fn transpile(c_path: &Path) {
     let debug_expr = format!("cat {}", rs_path.display());
     insta::assert_snapshot!("transpile", &rs, &debug_expr);
 
+    let mut args = vec![];
+    if channel == RustChannel::Nightly {
+        args.push("+nightly");
+    }
+    args.extend(["--crate-type", "lib", "--edition", "2024"]);
+
     let status = Command::new("rustc")
-        .args(&["--crate-type", "lib", "--edition", "2021"])
+        .args(&args)
         .arg(&rs_path)
         .status();
     assert!(status.unwrap().success());

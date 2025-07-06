@@ -272,7 +272,8 @@ pub fn create_temp_compile_commands(sources: &[PathBuf]) -> (TempDir, PathBuf) {
 
 /// Main entry point to transpiler. Called from CLI tools with the result of
 /// clap::App::get_matches().
-pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]) {
+/// return RustChannel indicating the Rust channel used for transpilation.
+pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]) -> RustChannel {
     diagnostics::init(tcfg.enabled_warnings.clone(), tcfg.log_level);
 
     let build_dir = get_build_dir(&tcfg, cc_db);
@@ -385,7 +386,7 @@ pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]
             if modules_skipped {
                 // If we skipped a file, we may not have collected all required pragmas
                 warn!("Can't emit build files after incremental transpiler run; skipped.");
-                return;
+                return RustChannel::Stable;
             }
 
             let ccfg = CrateConfig {
@@ -408,7 +409,7 @@ pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]
 
     if num_transpiled_files == 0 {
         warn!("No C files found in compile_commands.json; nothing to do.");
-        return;
+        return RustChannel::Stable;
     }
 
     if tcfg.emit_build_files {
@@ -424,6 +425,12 @@ pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]
     }
 
     tcfg.check_if_all_binaries_used(&transpiled_modules);
+
+    if use_nightly {
+        RustChannel::Nightly
+    } else {
+        RustChannel::Stable
+    }
 }
 
 /// Ensure that clang can locate the system headers on macOS 10.14+.

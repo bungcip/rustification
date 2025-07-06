@@ -50,7 +50,7 @@ pub fn init(mut enabled_warnings: HashSet<Diagnostic>, log_level: log::LevelFilt
     });
 
     builder.filter(Some("rustification"), log_level);
-    builder.init();
+    let _ = builder.try_init();
 }
 
 #[derive(Debug, Clone)]

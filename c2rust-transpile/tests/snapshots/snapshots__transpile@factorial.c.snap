@@ -9,16 +9,20 @@ input_file: c2rust-transpile/tests/snapshots/factorial.c
     non_camel_case_types,
     non_snake_case,
     non_upper_case_globals,
+    path_statements,
+    unsafe_op_in_unsafe_fn,
     unused_assignments,
-    unused_mut
+    unused_mut,
+    unused_unsafe,
+    unused_variables
 )]
-#[no_mangle]
-pub unsafe extern "C" fn factorial(mut n: std::ffi::c_ushort) -> std::ffi::c_ushort {
-    let mut result: std::ffi::c_ushort = 1 as std::ffi::c_int as std::ffi::c_ushort;
-    let mut i: std::ffi::c_ushort = 1 as std::ffi::c_int as std::ffi::c_ushort;
-    while (i as std::ffi::c_int) < n as std::ffi::c_int {
-        result = (result as std::ffi::c_int * i as std::ffi::c_int)
-            as std::ffi::c_ushort;
+use core::ffi;
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn factorial(mut n: ffi::c_ushort) -> ffi::c_ushort {
+    let mut result: ffi::c_ushort = 1 as ffi::c_int as ffi::c_ushort;
+    let mut i: ffi::c_ushort = 1 as ffi::c_int as ffi::c_ushort;
+    while (i as ffi::c_int) < n as ffi::c_int {
+        result = (result as ffi::c_int * i as ffi::c_int) as ffi::c_ushort;
         i = i.wrapping_add(1);
         i;
     }
