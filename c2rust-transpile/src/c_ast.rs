@@ -1720,7 +1720,7 @@ pub enum CTypeKind {
 
     Float128,
     // Atomic types (6.7.2.4)
-    Atomic(CQualTypeId),    
+    Atomic(CQualTypeId),
 }
 
 impl CTypeKind {

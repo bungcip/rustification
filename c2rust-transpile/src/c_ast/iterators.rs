@@ -293,8 +293,8 @@ fn immediate_type_children(kind: &CTypeKind) -> Vec<SomeId> {
         | Reference(qtype)
         | Attributed(qtype, _)
         | BlockPointer(qtype)
-        | Vector(qtype, _) 
-        | Atomic(qtype) => {            
+        | Vector(qtype, _)
+        | Atomic(qtype) => {
             intos![qtype.ctype]
         }
 

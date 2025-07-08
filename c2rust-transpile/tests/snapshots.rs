@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use c2rust_transpile::{ReplaceMode, TranspilerConfig, RustChannel};
+use c2rust_transpile::{ReplaceMode, RustChannel, TranspilerConfig};
 
 fn config() -> TranspilerConfig {
     TranspilerConfig {
@@ -70,10 +70,7 @@ fn transpile(c_path: &Path) {
     }
     args.extend(["--crate-type", "lib", "--edition", "2024"]);
 
-    let status = Command::new("rustc")
-        .args(&args)
-        .arg(&rs_path)
-        .status();
+    let status = Command::new("rustc").args(&args).arg(&rs_path).status();
     assert!(status.unwrap().success());
     let rlib_path = {
         let mut file_name = OsString::new();
