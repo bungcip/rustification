@@ -47,3 +47,4 @@ llvm-static = ["c2rust-ast-exporter/llvm-static"]
 
 [dev-dependencies]
 insta = { version = "1.15", features = ["glob"] }
+c2rust-bitfields = { version = "0.100.0", path = "../c2rust-bitfields" } ## only used on doctest
