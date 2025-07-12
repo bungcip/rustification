@@ -18,7 +18,6 @@ workspace = true
 c2rust-ast-builder = { version = "0.100.0", path = "../c2rust-ast-builder" }
 c2rust-ast-exporter = { version = "0.100.0", path = "../c2rust-ast-exporter" }
 c2rust-ast-printer = { version = "0.100.0", path = "../c2rust-ast-printer" }
-c2rust-bitfields = { version = "0.100.0", path = "../c2rust-bitfields" }
 colored = "3.0"
 dtoa = "1.0"
 thiserror = "2.0"
@@ -28,7 +27,6 @@ handlebars = "6.3"
 indexmap = { version = "2.2", features = ["serde"] }
 itertools = "0.14"
 log = "0.4"
-log-reroute = "0.1"
 pathdiff = "0.2"
 proc-macro2 = "1.0.86"
 regex = "1"

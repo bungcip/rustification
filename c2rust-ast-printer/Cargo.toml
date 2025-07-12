@@ -15,7 +15,6 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
-log = "0.4"
 syn = { version = "2.0", features = ["full", "proc-macro", "printing", "clone-impls"] }
 proc-macro2 = "1.0.86"
 prettyplease = {version="0.2", features = ["verbatim"]}
