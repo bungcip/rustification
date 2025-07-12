@@ -48,7 +48,7 @@ fn config() -> TranspilerConfig {
 }
 
 fn transpile(c_path: &Path) {
-    let status = Command::new("clang-20")
+    let status = Command::new("clang")
         .args(&["-c", "-o", "/dev/null"])
         .arg(c_path)
         .status();
@@ -66,6 +66,7 @@ fn transpile(c_path: &Path) {
 
     let mut args = vec![];
     if channel == RustChannel::Nightly {
+        println!("Using nightly Rust for {}", rs_path.display());
         args.push("+nightly");
     }
     args.extend(["--crate-type", "lib", "--edition", "2024"]);

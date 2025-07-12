@@ -11,6 +11,14 @@ fn main() {
 
     let llvm_info = LLVMInfo::new();
 
+    if llvm_info.llvm_major_version < 21 {
+        eprintln!(
+            "rustification need LLVM version >= 21, but current version is {}",
+            llvm_info.llvm_major_version
+        );
+        process::exit(1);
+    }
+
     if env::var("DOCS_RS").is_err() {
         // Build the exporter library and link it (and its dependencies)
         // But only when not in `docs.rs`, as it has no network access
@@ -215,12 +223,13 @@ fn build_native(llvm_info: &LLVMInfo) {
     } else {
         // Link against these Clang libs. The ordering here is important! Libraries
         // must be listed before their dependencies when statically linking.
-        let mut clang_libs = vec![
+        let clang_libs = vec![
             "clangTooling",
             "clangFrontend",
             "clangParse",
             "clangSema",
             "clangSupport",
+            "clangAPINotes",
             "clangAnalysis",
             "clangASTMatchers",
             "clangSerialization",
@@ -233,14 +242,6 @@ fn build_native(llvm_info: &LLVMInfo) {
             "clangLex",
             "clangBasic",
         ];
-        if llvm_info.llvm_major_version >= 18 {
-            // insert after clangSupport
-            let sema_pos = clang_libs
-                .iter()
-                .position(|&r| r == "clangSupport")
-                .unwrap();
-            clang_libs.insert(sema_pos + 1, "clangAPINotes");
-        }
 
         for lib in &clang_libs {
             println!("cargo:rustc-link-lib={}", lib);

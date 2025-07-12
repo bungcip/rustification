@@ -35,7 +35,7 @@ from rust_file import (
 from typing import Any, Dict, Generator, List, Optional, Set, Iterable
 
 # Tools we will need
-clang = get_cmd_or_die("clang-20")
+clang = get_cmd_or_die("clang")
 rustc = get_cmd_or_die("rustc")
 diff = get_cmd_or_die("diff")
 ar = get_cmd_or_die("ar")

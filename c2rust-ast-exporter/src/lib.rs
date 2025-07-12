@@ -7,17 +7,6 @@ use std::slice;
 
 pub mod clang_ast;
 
-pub fn get_clang_major_version() -> Option<u32> {
-    let s = unsafe { CStr::from_ptr(clang_version()) };
-    s.to_str()
-        .unwrap()
-        .split('.')
-        .next()
-        .unwrap()
-        .parse::<u32>()
-        .ok()
-}
-
 pub fn get_untyped_ast(
     file_path: &Path,
     cc_db: &Path,
@@ -93,8 +82,6 @@ unsafe extern "C" {
 
     // void drop_export_result(ExportResult *result);
     fn drop_export_result(ptr: *mut ffi::ExportResult);
-
-    fn clang_version() -> *const c_char;
 }
 
 fn marshal_result(result: &ffi::ExportResult) -> HashMap<String, Vec<u8>> {
