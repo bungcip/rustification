@@ -1,7 +1,6 @@
 use crate::rust_ast::set_span::SetSpan;
 use crate::translator::{
     ConvertedVariable, MacroExpansion, PADDING_SUFFIX, TranslationError, mk_linkage,
-    signed_int_expr,
 };
 use c2rust_ast_builder::mk;
 use indexmap::IndexSet;
@@ -342,8 +341,8 @@ impl<'c> Translation<'c> {
                 }
                 let ty = mk().path_ty(mk().path(vec![enum_name]));
                 let val = match value {
-                    ConstIntExpr::I(value) => signed_int_expr(value),
-                    ConstIntExpr::U(value) => mk().lit_expr(mk().int_unsuffixed_lit(value as u128)),
+                    ConstIntExpr::I(value) => mk().lit_expr(mk().int_unsuffixed_lit(value)),
+                    ConstIntExpr::U(value) => mk().lit_expr(mk().int_unsuffixed_lit(value)),
                 };
 
                 Ok(ConvertedDecl::Item(

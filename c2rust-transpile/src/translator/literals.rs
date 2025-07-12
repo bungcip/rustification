@@ -62,9 +62,9 @@ impl<'c> Translation<'c> {
         let underlying_type_id =
             underlying_type_id.expect("Attempt to construct value of forward declared enum");
         let value = match self.ast_context.resolve_type(underlying_type_id.ctype).kind {
-            CTypeKind::UInt => mk().lit_expr(mk().int_unsuffixed_lit((value as u32) as u128)),
-            CTypeKind::ULong => mk().lit_expr(mk().int_unsuffixed_lit((value as u64) as u128)),
-            _ => signed_int_expr(value),
+            CTypeKind::UInt => mk().lit_expr(mk().int_unsuffixed_lit(value as u32)),
+            CTypeKind::ULong => mk().lit_expr(mk().int_unsuffixed_lit(value as u64)),
+            _ => mk().lit_expr(mk().int_unsuffixed_lit(value)),
         };
 
         let target_ty = self.convert_type(enum_type_id).unwrap();
@@ -92,16 +92,7 @@ impl<'c> Translation<'c> {
                     }
                     None => {
                         // Fallback for characters outside of the valid Unicode range
-                        if (val as i32) < 0 {
-                            mk().unary_expr(
-                                "-",
-                                mk().lit_expr(
-                                    mk().int_lit((val as i32).unsigned_abs() as u128, "i32"),
-                                ),
-                            )
-                        } else {
-                            mk().lit_expr(mk().int_lit(val as u128, "i32"))
-                        }
+                        mk().lit_expr(mk().int_lit(val as i32, "i32"))
                     }
                 };
                 Ok(WithStmts::new_val(expr))
@@ -143,7 +134,7 @@ impl<'c> Translation<'c> {
                 val.resize(size, 0);
 
                 let u8_ty = mk().path_ty(vec!["u8"]);
-                let width_lit = mk().lit_expr(mk().int_unsuffixed_lit(val.len() as u128));
+                let width_lit = mk().lit_expr(mk().int_unsuffixed_lit(val.len()));
                 let array_ty = mk().array_ty(u8_ty, width_lit);
                 let source_ty = mk().ref_ty(array_ty);
                 let mutbl = if ty.qualifiers.is_const {
@@ -197,7 +188,7 @@ impl<'c> Translation<'c> {
                 } else if ids.is_empty() {
                     // this was likely a C array of the form `int x[16] = {}`,
                     // we'll emit that as [0; 16].
-                    let len = mk().lit_expr(mk().int_unsuffixed_lit(n as u128));
+                    let len = mk().lit_expr(mk().int_unsuffixed_lit(n));
                     self.implicit_default_expr(member_ty, ctx.is_static, ctx.inside_init_list_aop)?
                         .and_then(|default_value| {
                             Ok(WithStmts::new_val(mk().repeat_expr(default_value, len)))

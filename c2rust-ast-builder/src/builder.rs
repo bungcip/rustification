@@ -469,6 +469,13 @@ impl Make<Lit> for u8 {
     }
 }
 
+impl Make<Lit> for u64 {
+    fn make(self, mk: &Builder) -> Lit {
+        let s: String = self.make(mk);
+        Lit::Int(LitInt::new(&s, mk.span))
+    }
+}
+
 impl Make<Lit> for char {
     fn make(self, mk: &Builder) -> Lit {
         Lit::Char(LitChar::new(self, mk.span))
@@ -500,6 +507,12 @@ impl Make<Signature> for Box<FnDecl> {
     }
 }
 
+impl Make<String> for u32 {
+    fn make(self, _mk: &Builder) -> String {
+        self.to_string()
+    }
+}
+
 impl Make<String> for i32 {
     fn make(self, _mk: &Builder) -> String {
         self.to_string()
@@ -513,6 +526,12 @@ impl Make<String> for i64 {
 }
 
 impl Make<String> for u64 {
+    fn make(self, _mk: &Builder) -> String {
+        self.to_string()
+    }
+}
+
+impl Make<String> for usize {
     fn make(self, _mk: &Builder) -> String {
         self.to_string()
     }

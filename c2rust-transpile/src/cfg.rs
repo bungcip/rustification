@@ -87,7 +87,7 @@ impl Label {
         self.hash(&mut s);
         let as_num = s.finish();
 
-        mk().lit_expr(as_num as u128)
+        mk().lit_expr(as_num)
     }
 
     fn to_string_expr(&self) -> Box<Expr> {
@@ -99,7 +99,7 @@ impl Label {
         self.hash(&mut s);
         let as_num = s.finish();
 
-        mk().int_lit(as_num as u128, "")
+        mk().int_unsuffixed_lit(as_num)
     }
 
     fn to_string_lit(&self) -> Lit {

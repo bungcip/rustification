@@ -244,17 +244,6 @@ fn mk_linkage(in_extern_block: bool, new_name: &str, old_name: &str) -> Builder 
     }
 }
 
-pub fn signed_int_expr(value: i64) -> Box<Expr> {
-    if value < 0 {
-        mk().unary_expr(
-            UnOp::Neg(Default::default()),
-            mk().lit_expr(mk().int_lit(u128::from(value.unsigned_abs()), "")),
-        )
-    } else {
-        mk().lit_expr(mk().int_lit(value as u128, ""))
-    }
-}
-
 // This should only be used for tests
 fn prefix_names(translation: &mut Translation, prefix: &str) {
     for (&decl_id, ref mut decl) in translation.ast_context.iter_mut_decls() {
@@ -2055,14 +2044,8 @@ impl<'c> Translation<'c> {
 
     pub fn convert_constant(&self, constant: ConstIntExpr) -> TranslationResult<Box<Expr>> {
         let expr = match constant {
-            ConstIntExpr::U(n) => mk().lit_expr(mk().int_unsuffixed_lit(n as u128)),
-
-            ConstIntExpr::I(n) if n >= 0 => mk().lit_expr(mk().int_unsuffixed_lit(n as u128)),
-
-            ConstIntExpr::I(n) => mk().unary_expr(
-                UnOp::Neg(Default::default()),
-                mk().lit_expr(mk().int_unsuffixed_lit(n.unsigned_abs() as u128)),
-            ),
+            ConstIntExpr::U(n) => mk().lit_expr(mk().int_unsuffixed_lit(n)),
+            ConstIntExpr::I(n) => mk().lit_expr(mk().int_unsuffixed_lit(n)),
         };
         Ok(expr)
     }

@@ -799,7 +799,7 @@ impl<'c> Translation<'c> {
             self.null_ptr(resolved_ty_id, is_static, inside_init_list_aop)
                 .map(WithStmts::new_val)
         } else if let &CTypeKind::ConstantArray(elt, sz) = resolved_ty {
-            let sz = mk().lit_expr(mk().int_unsuffixed_lit(sz as u128));
+            let sz = mk().lit_expr(mk().int_unsuffixed_lit(sz));
             Ok(self
                 .implicit_default_expr(elt, is_static, inside_init_list_aop)?
                 .map(|elt| mk().repeat_expr(elt, sz)))

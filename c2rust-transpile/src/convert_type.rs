@@ -365,7 +365,7 @@ impl TypeConverter {
 
             CTypeKind::ConstantArray(element, count) => {
                 let ty = self.convert(ctxt, element)?;
-                Ok(mk().array_ty(ty, mk().lit_expr(mk().int_unsuffixed_lit(count as u128))))
+                Ok(mk().array_ty(ty, mk().lit_expr(mk().int_unsuffixed_lit(count))))
             }
 
             CTypeKind::IncompleteArray(element) => {
