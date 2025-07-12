@@ -21,7 +21,7 @@ serde_bytes = "0.11"
 serde_cbor = "0.11"
 
 [build-dependencies]
-bindgen = { version = "0.71", features = ["logging"] }
+bindgen = { version = "0.72", features = ["logging"] }
 clang-sys = "1.8"
 cmake = "0.1.49"
 env_logger = "0.11"
