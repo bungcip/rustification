@@ -1,5 +1,6 @@
 ---
 source: c2rust-transpile/tests/snapshots.rs
+assertion_line: 67
 expression: cat tests/snapshots/factorial.rs
 input_file: c2rust-transpile/tests/snapshots/factorial.c
 ---

@@ -1,0 +1,38 @@
+#![allow(
+    dead_code,
+    mutable_transmutes,
+    non_camel_case_types,
+    non_snake_case,
+    non_upper_case_globals,
+    path_statements,
+    unsafe_op_in_unsafe_fn,
+    unused_assignments,
+    unused_mut,
+    unused_unsafe,
+    unused_variables
+)]
+use core::ffi;
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rotate_left_8(mut x: ffi::c_uchar) -> ffi::c_uchar {
+    return x.rotate_left(1 as ffi::c_int as ffi::c_uchar as u32);
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rotate_left_16(mut x: ffi::c_ushort) -> ffi::c_ushort {
+    return x.rotate_left(2 as ffi::c_int as ffi::c_ushort as u32);
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rotate_left_32(mut x: ffi::c_uint) -> ffi::c_uint {
+    return x.rotate_left(3 as ffi::c_int as ffi::c_uint as u32);
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rotate_right_8(mut x: ffi::c_uchar) -> ffi::c_uchar {
+    return x.rotate_right(1 as ffi::c_int as ffi::c_uchar as u32);
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rotate_right_16(mut x: ffi::c_ushort) -> ffi::c_ushort {
+    return x.rotate_right(2 as ffi::c_int as ffi::c_ushort as u32);
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rotate_right_32(mut x: ffi::c_uint) -> ffi::c_uint {
+    return x.rotate_right(3 as ffi::c_int as ffi::c_uint as u32);
+}

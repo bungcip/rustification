@@ -1,8 +1,7 @@
 use std::env::current_dir;
-use std::ffi::OsString;
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::Path;
+use std::process::{Command, Stdio};
 
 use c2rust_transpile::{ReplaceMode, RustChannel, TranspilerConfig};
 
@@ -47,7 +46,7 @@ fn config() -> TranspilerConfig {
     }
 }
 
-fn transpile(c_path: &Path) {
+fn transpile(platform: Option<&str>, c_path: &Path) {
     let status = Command::new("clang")
         .args(&["-c", "-o", "/dev/null"])
         .arg(c_path)
@@ -62,28 +61,45 @@ fn transpile(c_path: &Path) {
     let rs_path = c_path.with_extension("rs");
     let rs = fs::read_to_string(&rs_path).unwrap();
     let debug_expr = format!("cat {}", rs_path.display());
-    insta::assert_snapshot!("transpile", &rs, &debug_expr);
+
+    let name = platform
+        .map(|platform| ["transpile", platform].join("-"))
+        .unwrap_or("transpile".into());
+
+    insta::assert_snapshot!(name, &rs, &debug_expr);
 
     let mut args = vec![];
     if channel == RustChannel::Nightly {
         println!("Using nightly Rust for {}", rs_path.display());
         args.push("+nightly");
     }
-    args.extend(["--crate-type", "lib", "--edition", "2024"]);
+    args.extend(["--crate-type", "lib", "--edition", "2024", "-o", "-"]);
 
-    let status = Command::new("rustc").args(&args).arg(&rs_path).status();
+    let status = Command::new("rustc")
+        .args(&args)
+        .arg(&rs_path)
+        .stdout(Stdio::piped())
+        .status();
     assert!(status.unwrap().success());
-    let rlib_path = {
-        let mut file_name = OsString::new();
-        file_name.push("lib");
-        file_name.push(rs_path.file_stem().unwrap());
-        file_name.push(".rlib");
-        PathBuf::from(file_name)
-    };
-    fs::remove_file(&rlib_path).unwrap();
 }
 
 #[test]
 fn transpile_all() {
-    insta::glob!("snapshots/*.c", transpile);
+    insta::glob!("snapshots/*.c", |x| transpile(None, x));
+
+    // Some things transpile differently on Linux vs. macOS,
+    // as they use `unsigned long` and `unsigned long long` differently for builtins.
+    // This makes snapshot tests trickier, as the output will be OS-dependent.
+    // We handle this by adding OS name to the snapshot result filename.
+    #[allow(unused)]
+    let platform = "unknown";
+
+    #[cfg(target_os = "linux")]
+    let platform = "linux";
+    #[cfg(target_os = "macos")]
+    let platform = "macos";
+
+    insta::with_settings!({snapshot_suffix => platform}, {
+        insta::glob!("snapshots/platform-specific/*.c", |x| transpile(Some(platform), x));
+    });
 }
