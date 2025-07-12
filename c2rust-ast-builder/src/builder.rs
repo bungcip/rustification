@@ -2095,12 +2095,6 @@ impl Builder {
         }
     }
 
-    pub fn meta_item_attr(mut self, style: AttrStyle, meta_item: Meta) -> Self {
-        let attr = self.clone().attribute(style, meta_item);
-        self.attrs.push(attr);
-        self
-    }
-
     pub fn meta_path<Pa>(self, path: Pa) -> Meta
     where
         Pa: Make<Path>,
@@ -2109,7 +2103,7 @@ impl Builder {
         Meta::Path(path)
     }
 
-    /// makes a meta item with the given path and no arguments
+    /// makes a meta item with the given path and some arguments
     /// # Examples
     ///
     /// mk().meta_list("derive", vec!["Clone", "Copy"]) // ->  `derive(Clone, Copy)`
@@ -2144,23 +2138,6 @@ impl Builder {
             eq_token: Token![=](self.span),
             value,
         })
-    }
-
-    // Convert the current internal list of outer attributes
-    // into a vector of inner attributes, e.g.:
-    // `#[foo]` => `#![foo]`
-    pub fn as_inner_attrs(self) -> Vec<Attribute> {
-        self.attrs
-            .into_iter()
-            .map(|outer_attr| Attribute {
-                style: AttrStyle::Inner(Default::default()),
-                ..outer_attr
-            })
-            .collect::<Vec<Attribute>>()
-    }
-
-    pub fn into_attrs(self) -> Vec<Attribute> {
-        self.attrs
     }
 
     pub fn empty_mac<Pa>(self, path: Pa, delim: MacroDelimiter) -> Macro
