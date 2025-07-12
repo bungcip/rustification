@@ -873,7 +873,7 @@ impl Index<CTypeId> for TypedAstContext {
 
     fn index(&self, index: CTypeId) -> &CType {
         match self.c_types.get(&index) {
-            None => panic!("Could not find {:?} in TypedAstContext", index),
+            None => panic!("Could not find {index:?} in TypedAstContext"),
             Some(ty) => ty,
         }
     }
@@ -905,7 +905,7 @@ impl Index<CDeclId> for TypedAstContext {
 
     fn index(&self, index: CDeclId) -> &CDecl {
         match self.c_decls.get(&index) {
-            None => panic!("Could not find {:?} in TypedAstContext", index),
+            None => panic!("Could not find {index:?} in TypedAstContext"),
             Some(ty) => ty,
         }
     }
@@ -916,7 +916,7 @@ impl Index<CStmtId> for TypedAstContext {
 
     fn index(&self, index: CStmtId) -> &CStmt {
         match self.c_stmts.get(&index) {
-            None => panic!("Could not find {:?} in TypedAstContext", index),
+            None => panic!("Could not find {index:?} in TypedAstContext"),
             Some(ty) => ty,
         }
     }

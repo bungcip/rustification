@@ -73,8 +73,8 @@ impl Label {
     pub fn pretty_print(&self) -> String {
         match self {
             Label::FromC(_, Some(s)) => format!("_{}", s.as_ref()),
-            Label::FromC(CStmtId(label_id), None) => format!("c_{}", label_id),
-            Label::Synthetic(syn_id) => format!("s_{}", syn_id),
+            Label::FromC(CStmtId(label_id), None) => format!("c_{label_id}"),
+            Label::Synthetic(syn_id) => format!("s_{syn_id}"),
         }
     }
 
@@ -1180,7 +1180,7 @@ impl CfgBuilder {
             .insert(lbl.clone(), bb)
         {
             None => {}
-            Some(_) => panic!("Label {:?} cannot identify two basic blocks", lbl),
+            Some(_) => panic!("Label {lbl:?} cannot identify two basic blocks"),
         }
 
         if let Some((_, loop_vec)) = self.loops.last_mut() {
@@ -1217,7 +1217,7 @@ impl CfgBuilder {
     /// know the terminators of a block by visiting it.
     fn update_terminator(&mut self, lbl: Label, new_term: GenTerminator<Label>) {
         match self.last_per_stmt_mut().nodes.get_mut(&lbl) {
-            None => panic!("Cannot find label {:?} to update", lbl),
+            None => panic!("Cannot find label {lbl:?} to update"),
             Some(bb) => bb.terminator = new_term,
         }
     }
@@ -2067,7 +2067,7 @@ impl CfgBuilder {
 
         // Run relooper
         let mut stmts = translator.convert_cfg(
-            &format!("<substmt_{:?}>", stmt_id),
+            &format!("<substmt_{stmt_id:?}>"),
             graph,
             store,
             live_in,

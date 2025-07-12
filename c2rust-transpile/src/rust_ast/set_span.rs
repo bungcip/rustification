@@ -144,7 +144,7 @@ impl SetSpan for Expr {
             Expr::Verbatim(..) => {}
             Expr::While(e) => e.while_token.span = s,
             Expr::Yield(e) => e.yield_token.span = s,
-            e => panic!("Expr set_span, {:?}", e),
+            e => panic!("Expr set_span, {e:?}"),
         }
     }
 }

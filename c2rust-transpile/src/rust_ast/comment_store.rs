@@ -181,8 +181,7 @@ impl CommentStore {
                     Some(nc) => nc,
                     None => {
                         warn!(
-                            "Expected comments attached to the high end of span {:?}",
-                            span
+                            "Expected comments attached to the high end of span {span:?}"
                         );
                         return span;
                     }

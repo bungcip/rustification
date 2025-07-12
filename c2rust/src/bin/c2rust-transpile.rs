@@ -240,7 +240,7 @@ fn main() {
         // Only one file provided and it's a JSON file
         match fs::canonicalize(&args.compile_commands[0]) {
             Ok(canonical_path) => canonical_path,
-            Err(e) => panic!("Failed to canonicalize path: {:?}", e),
+            Err(e) => panic!("Failed to canonicalize path: {e:?}"),
         }
     } else {
         // Handle as a list of source files

@@ -21,7 +21,7 @@ impl<'c> Translation<'c> {
                 .unwrap()
                 .first()
             {
-                trace!("  found macro expansion: {:?}", macro_id);
+                trace!("  found macro expansion: {macro_id:?}");
                 // Ensure that we've converted this macro and that it has a
                 // valid definition
                 let expansion = self.macro_expansions.borrow().get(macro_id).cloned();

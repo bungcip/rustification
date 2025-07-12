@@ -43,7 +43,7 @@ pub fn init(mut enabled_warnings: HashSet<Diagnostic>, log_level: log::LevelFilt
 
         let target = record.target();
         let warn_flag = Diagnostic::from_str(target)
-            .map(|_| format!(" [-W{}]", target))
+            .map(|_| format!(" [-W{target}]"))
             .unwrap_or_default();
 
         writeln!(buf, "{}: {}{}", level_label, record.args(), warn_flag)
@@ -143,7 +143,7 @@ impl Display for TranslationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.inner {
             TranslationErrorKind::Generic => {}
-            ref kind => writeln!(f, "{}", kind)?,
+            ref kind => writeln!(f, "{kind}")?,
         }
 
         if let Some(loc) = &self.loc {

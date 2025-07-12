@@ -160,11 +160,10 @@ fn parse_constraints(
                     mem_only = is_mem;
                 } else {
                     warn!(
-                        "Did not recognize inline asm constraint: {}\n\
+                        "Did not recognize inline asm constraint: {constraints}\n\
                     It is likely that this will cause compilation errors or \
                     incorrect semantics in the translated program; please \
-                    manually correct.",
-                        constraints
+                    manually correct."
                     );
                 }
             }
@@ -372,20 +371,20 @@ fn rewrite_reserved_reg_operands(
 
     for (n_moved, (idx, reg, mods)) in rewrite_idxs.into_iter().enumerate() {
         let operand = &mut operands[idx];
-        let name = format!("restmp{}", n_moved);
+        let name = format!("restmp{n_moved}");
         if let Some((_idx, _in_expr)) = operand.in_expr {
             let move_input = if att_syntax {
-                format!("mov %{}, {{{}:{}}}\n", reg, name, mods)
+                format!("mov %{reg}, {{{name}:{mods}}}\n")
             } else {
-                format!("mov {{{}:{}}}\n, {}", name, mods, reg)
+                format!("mov {{{name}:{mods}}}\n, {reg}")
             };
             prolog.push_str(&move_input);
         }
         if let Some((_idx, _out_expr)) = operand.out_expr {
             let move_output = if att_syntax {
-                format!("\nmov {{{}:{}}}, %{}", name, mods, reg)
+                format!("\nmov {{{name}:{mods}}}, %{reg}")
             } else {
-                format!("\nmov {}, {{{}:{}}}", reg, name, mods)
+                format!("\nmov {reg}, {{{name}:{mods}}}")
             };
             epilog.push_str(&move_output);
         }
@@ -755,7 +754,7 @@ impl<'c> Translation<'c> {
                     });
                 }
                 // Constraint could not be parsed, drop it
-                Err(e) => eprintln!("{}", e),
+                Err(e) => eprintln!("{e}"),
             }
         }
         // Add unmatched inputs
@@ -766,7 +765,7 @@ impl<'c> Translation<'c> {
             let (dir_spec, mem_only, parsed) = match parse_constraints(&input.constraints, arch) {
                 Ok(x) => x,
                 Err(e) => {
-                    eprintln!("{}", e);
+                    eprintln!("{e}");
                     continue;
                 }
             };
@@ -940,14 +939,13 @@ impl<'c> Translation<'c> {
             // We must drop clobbers of reserved registers, even though this
             // really means we're misinforming the compiler of what's been
             // overwritten. Warn verbosely.
-            let quoted = format!("\"{}\"", clobber);
+            let quoted = format!("\"{clobber}\"");
             if reg_is_reserved(&quoted, arch).is_some() {
                 warn!(
-                    "Attempting to clobber reserved register ({}), dropping clobber! \
+                    "Attempting to clobber reserved register ({clobber}), dropping clobber! \
                 This likely means the potential for miscompilation has been introduced. \
                 Please rewrite this assembly to save/restore the value of this register \
-                if at all possible.",
-                    clobber
+                if at all possible."
                 );
                 continue;
             }

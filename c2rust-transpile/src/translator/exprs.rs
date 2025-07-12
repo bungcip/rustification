@@ -499,7 +499,7 @@ impl<'c> Translation<'c> {
                             CTypeKind::ConstantArray(..) => None,
                             CTypeKind::IncompleteArray(..) => None,
                             CTypeKind::VariableArray(elt, _) => Some(elt),
-                            ref other => panic!("Unexpected array type {:?}", other),
+                            ref other => panic!("Unexpected array type {other:?}"),
                         };
 
                         let is_array_of_pointer = self.check_type_is_constant_aop(t);

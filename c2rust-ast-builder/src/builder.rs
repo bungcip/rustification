@@ -225,7 +225,7 @@ impl Make<Visibility> for &str {
                 in_token: None,
                 path: Box::new(mk().path("super")),
             }),
-            _ => panic!("unrecognized string for Visibility: {:?}", self),
+            _ => panic!("unrecognized string for Visibility: {self:?}"),
         }
     }
 }
@@ -257,7 +257,7 @@ impl Make<Mutability> for &str {
         match self {
             "" | "imm" | "immut" | "immutable" => Mutability::Immutable,
             "mut" | "mutable" => Mutability::Mutable,
-            _ => panic!("unrecognized string for Mutability: {:?}", self),
+            _ => panic!("unrecognized string for Mutability: {self:?}"),
         }
     }
 }
@@ -267,7 +267,7 @@ impl Make<Unsafety> for &str {
         match self {
             "" | "safe" | "normal" => Unsafety::Normal,
             "unsafe" => Unsafety::Unsafe,
-            _ => panic!("unrecognized string for Unsafety: {:?}", self),
+            _ => panic!("unrecognized string for Unsafety: {self:?}"),
         }
     }
 }
@@ -277,7 +277,7 @@ impl Make<Constness> for &str {
         match self {
             "" | "normal" | "not-const" => Constness::NotConst,
             "const" => Constness::Const,
-            _ => panic!("unrecognized string for Constness: {:?}", self),
+            _ => panic!("unrecognized string for Constness: {self:?}"),
         }
     }
 }
@@ -288,7 +288,7 @@ impl Make<UnOp> for &str {
             "deref" | "*" => UnOp::Deref(Default::default()),
             "not" | "!" => UnOp::Not(Default::default()),
             "neg" | "-" => UnOp::Neg(Default::default()),
-            _ => panic!("unrecognized string for UnOp: {:?}", self),
+            _ => panic!("unrecognized string for UnOp: {self:?}"),
         }
     }
 }
@@ -1084,7 +1084,7 @@ impl Builder {
         S: Make<String>,
     {
         let s = s.make(&self);
-        Lit::Int(LitInt::new(&format!("{}{}", s, ty), self.span))
+        Lit::Int(LitInt::new(&format!("{s}{ty}"), self.span))
     }
 
     pub fn int_unsuffixed_lit<S>(self, s: S) -> Lit
@@ -1095,7 +1095,7 @@ impl Builder {
     }
 
     pub fn float_lit(self, s: &str, ty: &str) -> Lit {
-        Lit::Float(LitFloat::new(&format!("{}{}", s, ty), self.span))
+        Lit::Float(LitFloat::new(&format!("{s}{ty}"), self.span))
     }
 
     pub fn float_unsuffixed_lit(self, s: &str) -> Lit {

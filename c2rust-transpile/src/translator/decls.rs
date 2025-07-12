@@ -38,7 +38,7 @@ pub enum ConvertedDecl {
     /// [`ForeignItem`] is large (472 bytes), so [`Box`] it.
     ForeignItem(Box<ForeignItem>), // would be 472 bytes
     Item(Box<Item>),       // 24 bytes
-    Items(Vec<Box<Item>>), // 24 bytes
+    Items(Vec<Item>), // 24 bytes
     NoItem,
 }
 
@@ -214,7 +214,7 @@ impl<'c> Translation<'c> {
                         .call_attr("allow", vec!["dead_code", "non_upper_case_globals"])
                         .const_item(padding_name, padding_ty, padding_value);
 
-                    let structs = vec![outer_struct, inner_struct, padding_const];
+                    let structs = vec![*outer_struct, *inner_struct, *padding_const];
                     structs
                 } else {
                     assert!(!self.ast_context.has_inner_struct_decl(decl_id));
@@ -230,7 +230,7 @@ impl<'c> Translation<'c> {
                         mk_ = mk_.generic_over(mk().lt_param(mk().ident("a")))
                     }
 
-                    vec![mk_.struct_item(name.clone(), field_entries, false)]
+                    vec![*mk_.struct_item(name.clone(), field_entries, false)]
                 };
 
                 // add unsafe implement for `Sync` traits if the struct contains pointers
@@ -240,11 +240,11 @@ impl<'c> Translation<'c> {
                         mk().path("Sync"),
                         vec![],
                     );
-                    items.push(sync_impl_item);
+                    items.push(*sync_impl_item);
                 }
 
                 let converted_decl = if items.len() == 1 {
-                    ConvertedDecl::Item(items.pop().unwrap())
+                    ConvertedDecl::Item(Box::new(items.pop().unwrap()))
                 } else {
                     ConvertedDecl::Items(items)
                 };
@@ -649,7 +649,7 @@ impl<'c> Translation<'c> {
 
                 match maybe_replacement {
                     Ok((replacement, ty)) => {
-                        trace!("  to {:?}", replacement);
+                        trace!("  to {replacement:?}");
 
                         let expansion = MacroExpansion { ty };
                         self.macro_expansions
@@ -665,7 +665,7 @@ impl<'c> Translation<'c> {
                     }
                     Err(e) => {
                         self.macro_expansions.borrow_mut().insert(decl_id, None);
-                        info!("Could not expand macro {}: {}", name, e);
+                        info!("Could not expand macro {name}: {e}");
                         Ok(ConvertedDecl::NoItem)
                     }
                 }
@@ -918,8 +918,7 @@ impl<'c> Translation<'c> {
                         .insert(decl_id, var.as_str())
                         .unwrap_or_else(|| {
                             panic!(
-                                "Failed to insert argument '{}' while converting '{}'",
-                                var, name
+                                "Failed to insert argument '{var}' while converting '{name}'"
                             )
                         });
 

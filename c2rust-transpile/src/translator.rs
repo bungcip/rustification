@@ -329,7 +329,7 @@ pub(crate) fn clean_path(
 }
 
 pub fn translate_failure(tcfg: &TranspilerConfig, msg: &str) {
-    error!("{}", msg);
+    error!("{msg}");
     if tcfg.fail_on_error {
         panic!("Translation failed, see error above");
     }
@@ -495,7 +495,7 @@ pub fn translate(
                 match t.convert_decl(ctx, decl_id) {
                     Err(e) => {
                         let k = &t.ast_context.get_decl(&decl_id).map(|x| &x.kind);
-                        let msg = format!("Skipping declaration {:?} due to error: {}", k, e);
+                        let msg = format!("Skipping declaration {k:?} due to error: {e}");
                         translate_failure(t.tcfg, &msg);
                     }
                     Ok(converted_decl) => match converted_decl {
@@ -507,7 +507,7 @@ pub fn translate(
                         }
                         ConvertedDecl::Items(items) => {
                             for item in items {
-                                t.insert_item(item, decl);
+                                t.insert_item(Box::new(item), decl);
                             }
                         }
                         ConvertedDecl::NoItem => {}
@@ -570,13 +570,13 @@ pub fn translate(
                                     || {
                                         t.ast_context
                                             .display_loc(&decl.loc)
-                                            .map_or("Unknown".to_string(), |l| format!("at {}", l))
+                                            .map_or("Unknown".to_string(), |l| format!("at {l}"))
                                     },
                                     |name| name.clone(),
                                 );
-                                format!("Failed to translate {}: {}", decl_identifier, e)
+                                format!("Failed to translate {decl_identifier}: {e}")
                             }
-                            _ => format!("Failed to translate declaration: {}", e,),
+                            _ => format!("Failed to translate declaration: {e}",),
                         };
                         translate_failure(t.tcfg, &msg);
                     }
@@ -589,7 +589,7 @@ pub fn translate(
                         }
                         ConvertedDecl::Items(items) => {
                             for item in items {
-                                t.insert_item(item, decl);
+                                t.insert_item(Box::new(item), decl);
                             }
                         }
                         ConvertedDecl::NoItem => {}
@@ -609,7 +609,7 @@ pub fn translate(
             match t.convert_main(main_id) {
                 Ok(item) => t.items.borrow_mut()[&t.main_file].add_item(item),
                 Err(e) => {
-                    let msg = format!("Failed to translate main: {}", e);
+                    let msg = format!("Failed to translate main: {e}");
                     translate_failure(t.tcfg, &msg)
                 }
             }
@@ -898,7 +898,7 @@ fn make_submodule(
         });
         module_builder.str_attr(
             vec!["c2rust", "header_src"],
-            format!("{}:{}", file_path_str, include_line_number),
+            format!("{file_path_str}:{include_line_number}"),
         )
     } else {
         module_builder
@@ -1485,7 +1485,7 @@ impl<'c> Translation<'c> {
         if self.tcfg.dump_structures {
             eprintln!("Relooped structures:");
             for s in &relooped {
-                eprintln!("  {:#?}", s);
+                eprintln!("  {s:#?}");
             }
         }
 
@@ -1629,7 +1629,7 @@ impl<'c> Translation<'c> {
                     .renamer
                     .borrow_mut()
                     .insert(decl_id, ident)
-                    .unwrap_or_else(|| panic!("Failed to insert variable '{}'", ident));
+                    .unwrap_or_else(|| panic!("Failed to insert variable '{ident}'"));
 
                 if self.ast_context.is_va_list(typ.ctype) {
                     // translate `va_list` variables to `VaListImpl`s and omit the initializer.
@@ -1738,15 +1738,15 @@ impl<'c> Translation<'c> {
                     Ok(cfg::DeclStmtInfo::new(vec![], vec![], vec![]))
                 } else {
                     let items = match self.convert_decl(ctx, decl_id)? {
-                        ConvertedDecl::Item(item) => vec![item],
+                        ConvertedDecl::Item(item) => vec![*item],
                         ConvertedDecl::ForeignItem(item) => {
-                            vec![mk().unsafe_().extern_("C").foreign_items(vec![*item])]
+                            vec![*mk().unsafe_().extern_("C").foreign_items(vec![*item])]
                         }
                         ConvertedDecl::Items(items) => items,
                         ConvertedDecl::NoItem => return Ok(cfg::DeclStmtInfo::empty()),
                     };
 
-                    let item_stmt = |item| mk().item_stmt(item);
+                    let item_stmt = |item| mk().item_stmt(Box::new(item));
                     Ok(cfg::DeclStmtInfo::new(
                         items.iter().cloned().map(item_stmt).collect(),
                         vec![],
@@ -2116,7 +2116,7 @@ impl<'c> Translation<'c> {
                 let n = substmt_ids.len();
                 let result_id = substmt_ids[n - 1];
 
-                let name = format!("<stmt-expr_{:?}>", compound_stmt_id);
+                let name = format!("<stmt-expr_{compound_stmt_id:?}>");
                 let lbl = cfg::Label::FromC(compound_stmt_id, None);
 
                 let mut stmts = match self.ast_context[result_id].kind {

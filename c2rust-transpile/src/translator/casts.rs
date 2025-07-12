@@ -102,8 +102,7 @@ impl<'c> Translation<'c> {
                 // Ignoring Complex casts for now
                 _ => {
                     warn!(
-                        "Unknown CastKind for {:?} to {:?} cast. Defaulting to BitCast",
-                        source_ty_kind, target_ty_kind,
+                        "Unknown CastKind for {source_ty_kind:?} to {target_ty_kind:?} cast. Defaulting to BitCast",
                     );
 
                     CastKind::BitCast
@@ -430,7 +429,7 @@ impl<'c> Translation<'c> {
         // Extract the IDs of the `EnumConstant` decls underlying the enum.
         let variants = match self.ast_context.index(enum_decl).kind {
             CDeclKind::Enum { ref variants, .. } => variants,
-            _ => panic!("{:?} does not point to an `enum` declaration", enum_decl),
+            _ => panic!("{enum_decl:?} does not point to an `enum` declaration"),
         };
 
         match self.ast_context.index(expr).kind {
@@ -440,7 +439,7 @@ impl<'c> Translation<'c> {
             CExprKind::DeclRef(_, decl_id, _) if variants.contains(&decl_id) => {
                 return val.map(|x| match *transform::unparen(&x) {
                     Expr::Cast(ExprCast { ref expr, .. }) => expr.clone(),
-                    _ => panic!("DeclRef {:?} of enum {:?} is not cast", expr, enum_decl),
+                    _ => panic!("DeclRef {expr:?} of enum {enum_decl:?} is not cast"),
                 });
             }
 

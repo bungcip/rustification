@@ -198,7 +198,7 @@ fn str_to_ident_checked(filename: &Option<String>, check_reserved: bool) -> Opti
     filename.as_ref().map(str_to_ident).map(|module| {
         // make sure the module name does not clash with keywords
         if check_reserved && RESERVED_NAMES.contains(&module.as_str()) {
-            format!("r#{}", module)
+            format!("r#{module}")
         } else {
             module
         }
@@ -401,7 +401,7 @@ pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]
             } else {
                 let crate_file = emit_build_files(&tcfg, &build_dir, Some(ccfg), None, use_nightly);
                 reorganize_definitions(&tcfg, &build_dir, crate_file)
-                    .unwrap_or_else(|e| warn!("Reorganizing definitions failed: {}", e));
+                    .unwrap_or_else(|e| warn!("Reorganizing definitions failed: {e}"));
                 workspace_members.push(lcmd_name);
             }
         }
@@ -421,7 +421,7 @@ pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]
             use_nightly,
         );
         reorganize_definitions(&tcfg, &build_dir, crate_file)
-            .unwrap_or_else(|e| warn!("Reorganizing definitions failed: {}", e));
+            .unwrap_or_else(|e| warn!("Reorganizing definitions failed: {e}"));
     }
 
     tcfg.check_if_all_binaries_used(&transpiled_modules);
@@ -536,11 +536,11 @@ fn transpile_single(
         Ok(cxt) => cxt,
     };
 
-    println!("Transpiling {}", file);
+    println!("Transpiling {file}");
 
     if tcfg.dump_untyped_context {
         println!("CBOR Clang AST");
-        println!("{:#?}", untyped_context);
+        println!("{untyped_context:#?}");
     }
 
     // Convert this into a typed AST
@@ -554,7 +554,7 @@ fn transpile_single(
 
     if tcfg.dump_typed_context {
         println!("Clang AST");
-        println!("{:#?}", typed_context);
+        println!("{typed_context:#?}");
     }
 
     if tcfg.pretty_typed_context {
