@@ -11,10 +11,10 @@ use serde_json::json;
 
 use super::TranspilerConfig;
 use super::compile_cmds::LinkCmd;
-use crate::CrateSet;
 use crate::ExternCrateDetails;
 use crate::PragmaSet;
 use crate::get_module_name;
+use crate::{CrateSet, MAX_NIGHTLY_VERSION};
 
 #[derive(Debug, Copy, Clone)]
 pub enum BuildDirectoryContents {
@@ -261,7 +261,9 @@ fn emit_lib_rs(
 /// on a nightly toolchain until the `c_variadics` feature is stable.
 fn emit_rust_toolchain(tcfg: &TranspilerConfig, build_dir: &Path) {
     let output_path = build_dir.join("rust-toolchain.toml");
-    let output = include_str!("build_files/generated-rust-toolchain.toml").to_string();
+    let output = include_str!("build_files/generated-rust-toolchain.toml")
+        .to_string()
+        .replace("{{version}}", MAX_NIGHTLY_VERSION);
     maybe_write_to_file(&output_path, output.to_string(), tcfg.overwrite_existing);
 }
 

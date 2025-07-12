@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use c2rust_transpile::{ReplaceMode, RustChannel, TranspilerConfig};
+use c2rust_transpile::{MAX_NIGHTLY_VERSION, ReplaceMode, RustChannel, TranspilerConfig};
 
 fn config() -> TranspilerConfig {
     TranspilerConfig {
@@ -68,12 +68,13 @@ fn transpile(platform: Option<&str>, c_path: &Path) {
 
     insta::assert_snapshot!(name, &rs, &debug_expr);
 
-    let mut args = vec![];
+    let mut args: Vec<&str> = vec!["--crate-type", "lib", "--edition", "2024", "-o", "-"];
+    let version: String;
     if channel == RustChannel::Nightly {
         println!("Using nightly Rust for {}", rs_path.display());
-        args.push("+nightly");
+        version = format!("+nightly-{MAX_NIGHTLY_VERSION}");
+        args.insert(0, &version);
     }
-    args.extend(["--crate-type", "lib", "--edition", "2024", "-o", "-"]);
 
     let status = Command::new("rustc")
         .args(&args)

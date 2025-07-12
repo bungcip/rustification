@@ -50,6 +50,10 @@ pub enum RustChannel {
 
 type TranspileResult = Result<(PathBuf, PragmaVec, CrateSet, RustChannel), ()>;
 
+/// maximum nightly version that c2rust-transpile can compile without compile error or segfault.
+/// unfornately, the resulting transpiled code cannot be compiled on recent nighlty due various reason
+pub const MAX_NIGHTLY_VERSION: &str = "2025-04-19";
+
 /// Configuration settings for the translation process
 #[derive(Debug)]
 pub struct TranspilerConfig {
