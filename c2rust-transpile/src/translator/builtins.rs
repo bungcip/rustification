@@ -106,8 +106,8 @@ impl<'c> Translation<'c> {
 
                 Ok(val.map(|x| {
                     let add = BinOp::Add(Default::default());
-                    let zero = mk().lit_expr(mk().int_lit(0, ""));
-                    let one = mk().lit_expr(mk().int_lit(1, ""));
+                    let zero = mk().lit_expr(0);
+                    let one = mk().lit_expr(1);
                     let cmp = BinOp::Eq(Default::default());
                     let zeros = mk().method_call_expr(x.clone(), "trailing_zeros", vec![]);
                     let zeros_cast = mk().cast_expr(zeros, mk().path_ty(vec!["i32"]));
@@ -158,14 +158,11 @@ impl<'c> Translation<'c> {
                 let val = self.convert_expr(ctx.used(), args[0])?;
                 Ok(val.map(|x| {
                     let inner_cond = mk().method_call_expr(x.clone(), "is_sign_positive", vec![]);
-                    let one = mk().lit_expr(mk().int_lit(1, ""));
-                    let minus_one = mk().unary_expr(
-                        UnOp::Neg(Default::default()),
-                        mk().lit_expr(mk().int_lit(1, "")),
-                    );
+                    let one = mk().lit_expr(1);
+                    let minus_one = mk().lit_expr(-1);
                     let one_block = mk().block(vec![mk().expr_stmt(one)]);
                     let inner_ifte = mk().ifte_expr(inner_cond, one_block, Some(minus_one));
-                    let zero = mk().lit_expr(mk().int_lit(0, ""));
+                    let zero = mk().lit_expr(0);
                     let outer_cond = mk().method_call_expr(x, "is_infinite", vec![]);
                     let inner_ifte_block = mk().block(vec![mk().expr_stmt(inner_ifte)]);
                     mk().ifte_expr(outer_cond, inner_ifte_block, Some(zero))
@@ -175,7 +172,9 @@ impl<'c> Translation<'c> {
                 // LLVM simply lowers this to the constant one which means
                 // that floats are rounded to the nearest number.
                 // https://github.com/llvm-mirror/llvm/blob/master/lib/CodeGen/IntrinsicLowering.cpp#L470
-                Ok(WithStmts::new_val(mk().lit_expr(mk().int_lit(1, "i32"))))
+                Ok(WithStmts::new_val(
+                    mk().lit_expr(mk().int_lit_with_suffix(1, "i32")),
+                ))
             }
             "__builtin_expect" => self.convert_expr(ctx.used(), args[0]),
 
@@ -190,7 +189,7 @@ impl<'c> Translation<'c> {
                 let ptr_stmts = self.convert_expr(ctx.used(), args[0])?;
                 let n_stmts = self.convert_expr(ctx.used(), args[1])?;
                 let write_bytes = mk().abs_path_expr(vec!["core", "ptr", "write_bytes"]);
-                let zero = mk().lit_expr(mk().int_lit(0, "u8"));
+                let zero = mk().lit_expr(mk().int_lit_with_suffix(0, "u8"));
                 ptr_stmts.and_then(|ptr| {
                     Ok(n_stmts.map(|n| mk().call_expr(write_bytes, vec![ptr, zero, n])))
                 })
@@ -271,7 +270,7 @@ impl<'c> Translation<'c> {
             // Should be safe to always return 0 here.  "A return of 0 does not indicate that the
             // value is *not* a constant, but merely that GCC cannot prove it is a constant with
             // the specified value of the -O option. "
-            "__builtin_constant_p" => Ok(WithStmts::new_val(mk().lit_expr(mk().int_lit(0, "")))),
+            "__builtin_constant_p" => Ok(WithStmts::new_val(mk().lit_expr(0))),
 
             "__builtin_object_size" => {
                 // We can't convert this to Rust, but it should be safe to always return -1/0
@@ -284,21 +283,21 @@ impl<'c> Translation<'c> {
                         let type_and_2 = mk().binary_expr(
                             BinOp::BitAnd(Default::default()),
                             type_arg,
-                            mk().lit_expr(mk().int_lit(2, "")),
+                            mk().lit_expr(2),
                         );
                         let if_cond = mk().binary_expr(
                             BinOp::Eq(Default::default()),
                             type_and_2,
-                            mk().lit_expr(mk().int_lit(0, "")),
+                            mk().lit_expr(0),
                         );
                         let minus_one = mk().unary_expr(
                             UnOp::Neg(Default::default()),
-                            mk().lit_expr(mk().int_lit(1, "isize")),
+                            mk().lit_expr(mk().int_lit_with_suffix(1, "isize")),
                         );
                         let if_expr = mk().ifte_expr(
                             if_cond,
                             mk().block(vec![mk().expr_stmt(minus_one)]),
-                            Some(mk().lit_expr(mk().int_lit(0, "isize"))),
+                            Some(mk().lit_expr(mk().int_lit_with_suffix(0, "isize"))),
                         );
                         // core::ffi don't have `size_t`, so we cast to `usize`
                         let size_t = mk().path_ty(vec!["usize"]);
@@ -361,7 +360,7 @@ impl<'c> Translation<'c> {
                 let count = self.convert_expr(ctx.used(), args[0])?;
                 count.and_then(|count| {
                     let alloca_name = self.renamer.borrow_mut().fresh();
-                    let zero_elem = mk().lit_expr(mk().int_unsuffixed_lit(0));
+                    let zero_elem = mk().lit_expr(0);
                     Ok(WithStmts::new(
                         vec![mk().local_stmt(Box::new(mk().local(
                             mk().mutbl().ident_pat(&alloca_name),
@@ -643,7 +642,7 @@ impl<'c> Translation<'c> {
                     mk().abs_path_expr(vec!["core", "intrinsics", "atomic_store_release"]);
                 let arg0 = self.convert_expr(ctx.used(), args[0])?;
                 arg0.and_then(|arg0| {
-                    let zero = mk().lit_expr(mk().int_lit(0, ""));
+                    let zero = mk().lit_expr(0);
                     let call_expr = mk().call_expr(atomic_func, vec![arg0, zero]);
                     self.convert_side_effects_expr(
                         ctx,

@@ -99,7 +99,7 @@ impl Label {
         self.hash(&mut s);
         let as_num = s.finish();
 
-        mk().int_unsuffixed_lit(as_num)
+        mk().int_lit(as_num)
     }
 
     fn to_string_lit(&self) -> Lit {
@@ -601,7 +601,7 @@ impl Cfg<Label, StmtOrDecl> {
                 // Add in what to do after control-flow exits the statement
                 match ret {
                     ImplicitReturnType::Main => {
-                        let ret_expr: Option<Box<Expr>> = Some(mk().lit_expr(mk().int_lit(0, "")));
+                        let ret_expr: Option<Box<Expr>> = Some(mk().lit_expr(0));
                         wip.body.push(StmtOrDecl::Stmt(Box::new(
                             mk().semi_stmt(mk().return_expr(ret_expr)),
                         )));
@@ -1853,8 +1853,8 @@ impl CfgBuilder {
                 let pat = match branch {
                     Some(pat) => pat,
                     None => match cie {
-                        ConstIntExpr::U(n) => mk().lit_pat(mk().int_unsuffixed_lit(n)),
-                        ConstIntExpr::I(n) => mk().lit_pat(mk().int_unsuffixed_lit(n)),
+                        ConstIntExpr::U(n) => mk().lit_pat(mk().int_lit(n)),
+                        ConstIntExpr::I(n) => mk().lit_pat(mk().int_lit(n)),
                     },
                 };
                 self.switch_expr_cases
@@ -2029,10 +2029,7 @@ impl CfgBuilder {
         let brk_lbl: Label = self.fresh_label();
 
         let (tail_expr, use_brk_lbl) = match in_tail {
-            Some(ImplicitReturnType::Main) => (
-                mk().return_expr(Some(mk().lit_expr(mk().int_lit(0, "")))),
-                false,
-            ),
+            Some(ImplicitReturnType::Main) => (mk().return_expr(Some(mk().lit_expr(0))), false),
 
             Some(ImplicitReturnType::Void) => (mk().return_expr(None), false),
 

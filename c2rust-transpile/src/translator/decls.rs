@@ -336,8 +336,8 @@ impl<'c> Translation<'c> {
                 }
                 let ty = mk().path_ty(mk().path(vec![enum_name]));
                 let val = match value {
-                    ConstIntExpr::I(value) => mk().lit_expr(mk().int_unsuffixed_lit(value)),
-                    ConstIntExpr::U(value) => mk().lit_expr(mk().int_unsuffixed_lit(value)),
+                    ConstIntExpr::I(value) => mk().lit_expr(mk().int_lit(value)),
+                    ConstIntExpr::U(value) => mk().lit_expr(mk().int_lit(value)),
                 };
 
                 Ok(ConvertedDecl::Item(

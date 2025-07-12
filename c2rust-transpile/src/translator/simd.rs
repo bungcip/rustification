@@ -258,8 +258,8 @@ impl<'c> Translation<'c> {
         };
 
         if is_static {
-            let zero_expr = mk().lit_expr(mk().int_lit(0, "u8"));
-            let n_bytes_expr = mk().lit_expr(mk().int_lit(bytes, ""));
+            let zero_expr = mk().lit_expr(mk().int_lit_with_suffix(0, "u8"));
+            let n_bytes_expr = mk().lit_expr(mk().int_lit(bytes));
             let expr = mk().repeat_expr(zero_expr, n_bytes_expr);
 
             Ok(WithStmts::new_unsafe_val(transmute_expr(

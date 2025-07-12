@@ -312,10 +312,7 @@ impl<'a> Translation<'a> {
                     bytes,
                     attrs,
                 } => {
-                    let ty = mk().array_ty(
-                        mk().ident_ty("u8"),
-                        mk().lit_expr(mk().int_unsuffixed_lit(bytes)),
-                    );
+                    let ty = mk().array_ty(mk().ident_ty("u8"), mk().lit_expr(mk().int_lit(bytes)));
                     let mut ast = mk();
                     for attr in attrs {
                         let ty_str = match &*attr.1 {
@@ -335,10 +332,7 @@ impl<'a> Translation<'a> {
                 }
                 FieldType::Padding { bytes } => {
                     let field_name = next_padding_field();
-                    let ty = mk().array_ty(
-                        mk().ident_ty("u8"),
-                        mk().lit_expr(mk().int_unsuffixed_lit(bytes)),
-                    );
+                    let ty = mk().array_ty(mk().ident_ty("u8"), mk().lit_expr(mk().int_lit(bytes)));
 
                     // Mark it with `#[bitfield(padding)]`
                     let field = mk()
@@ -436,30 +430,23 @@ impl<'a> Translation<'a> {
                 FieldType::BitfieldGroup {
                     field_name, bytes, ..
                 } => {
-                    let array_expr = mk().repeat_expr(
-                        mk().lit_expr(mk().int_unsuffixed_lit(0)),
-                        mk().lit_expr(mk().int_unsuffixed_lit(bytes)),
-                    );
+                    let array_expr =
+                        mk().repeat_expr(mk().lit_expr(0), mk().lit_expr(mk().int_lit(bytes)));
                     let field = mk().field(field_name, array_expr);
 
                     fields.push(WithStmts::new_val(field));
                 }
                 FieldType::Padding { bytes } => {
                     let field_name = next_padding_field();
-                    let array_expr = mk().repeat_expr(
-                        mk().lit_expr(mk().int_unsuffixed_lit(0)),
-                        mk().lit_expr(mk().int_unsuffixed_lit(bytes)),
-                    );
+                    let array_expr =
+                        mk().repeat_expr(mk().lit_expr(0), mk().lit_expr(mk().int_lit(bytes)));
                     let field = mk().field(field_name, array_expr);
 
                     fields.push(WithStmts::new_val(field));
                 }
                 FieldType::ComputedPadding { ident } => {
                     let field_name = next_padding_field();
-                    let array_expr = mk().repeat_expr(
-                        mk().lit_expr(mk().int_unsuffixed_lit(0)),
-                        mk().ident_expr(ident),
-                    );
+                    let array_expr = mk().repeat_expr(mk().lit_expr(0), mk().ident_expr(ident));
                     let field = mk().field(field_name, array_expr);
 
                     fields.push(WithStmts::new_val(field));
@@ -608,30 +595,23 @@ impl<'a> Translation<'a> {
                 FieldType::BitfieldGroup {
                     field_name, bytes, ..
                 } => {
-                    let array_expr = mk().repeat_expr(
-                        mk().lit_expr(mk().int_unsuffixed_lit(0)),
-                        mk().lit_expr(mk().int_unsuffixed_lit(bytes)),
-                    );
+                    let array_expr =
+                        mk().repeat_expr(mk().lit_expr(0), mk().lit_expr(mk().int_lit(bytes)));
                     let field = mk().field(field_name, array_expr);
 
                     fields.push(WithStmts::new_val(field));
                 }
                 FieldType::Padding { bytes } => {
                     let field_name = next_padding_field();
-                    let array_expr = mk().repeat_expr(
-                        mk().lit_expr(mk().int_unsuffixed_lit(0)),
-                        mk().lit_expr(mk().int_unsuffixed_lit(bytes)),
-                    );
+                    let array_expr =
+                        mk().repeat_expr(mk().lit_expr(0), mk().lit_expr(mk().int_lit(bytes)));
                     let field = mk().field(field_name, array_expr);
 
                     fields.push(WithStmts::new_val(field));
                 }
                 FieldType::ComputedPadding { ident } => {
                     let field_name = next_padding_field();
-                    let array_expr = mk().repeat_expr(
-                        mk().lit_expr(mk().int_unsuffixed_lit(0)),
-                        mk().ident_expr(ident),
-                    );
+                    let array_expr = mk().repeat_expr(mk().lit_expr(0), mk().ident_expr(ident));
                     let field = mk().field(field_name, array_expr);
 
                     fields.push(WithStmts::new_val(field));

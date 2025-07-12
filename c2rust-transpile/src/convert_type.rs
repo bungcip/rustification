@@ -365,12 +365,12 @@ impl TypeConverter {
 
             CTypeKind::ConstantArray(element, count) => {
                 let ty = self.convert(ctxt, element)?;
-                Ok(mk().array_ty(ty, mk().lit_expr(mk().int_unsuffixed_lit(count))))
+                Ok(mk().array_ty(ty, mk().lit_expr(mk().int_lit(count))))
             }
 
             CTypeKind::IncompleteArray(element) => {
                 let ty = self.convert(ctxt, element)?;
-                let zero_lit = mk().int_unsuffixed_lit(0);
+                let zero_lit = mk().int_lit(0);
                 let zero = mk().lit_expr(zero_lit);
                 Ok(mk().array_ty(ty, zero))
             }

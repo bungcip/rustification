@@ -469,6 +469,13 @@ impl Make<Lit> for u8 {
     }
 }
 
+impl Make<Lit> for i32 {
+    fn make(self, mk: &Builder) -> Lit {
+        let s: String = self.make(mk);
+        Lit::Int(LitInt::new(&s, mk.span))
+    }
+}
+
 impl Make<Lit> for u64 {
     fn make(self, mk: &Builder) -> Lit {
         let s: String = self.make(mk);
@@ -666,7 +673,7 @@ impl Builder {
         })
     }
 
-    pub fn prepared_attr(self, meta: Meta) -> Self {
+    fn prepared_attr(self, meta: Meta) -> Self {
         let attr = self.clone().attribute(AttrStyle::Outer, meta);
         let mut attrs = self.attrs;
         attrs.push(attr);
@@ -678,32 +685,15 @@ impl Builder {
         K: Make<Path>,
         V: Make<Lit>,
     {
-        let key = key.make(&self);
-        let value = value.make(&self);
-
-        let mnv = MetaNameValue {
-            path: key,
-            eq_token: Token![=](self.span),
-            value: Expr::Lit(ExprLit {
-                attrs: vec![],
-                lit: value,
-            }),
-        };
-        self.prepared_attr(Meta::NameValue(mnv))
+        let meta = mk().meta_namevalue(key, value);
+        self.prepared_attr(meta)
     }
 
     pub fn single_attr<K>(self, key: K) -> Self
     where
-        K: Make<PathSegment>,
+        K: Make<Path>,
     {
-        let mut segments = Punctuated::new();
-        segments.push(key.make(&self));
-
-        let meta = Meta::Path(Path {
-            leading_colon: None,
-            segments,
-        });
-
+        let meta = mk().meta_path(key);
         self.prepared_attr(meta)
     }
 
@@ -712,7 +702,7 @@ impl Builder {
         K: Make<Path>,
         V: Make<TokenStream>,
     {
-        let meta = self.clone().meta_list(func, arguments);
+        let meta = mk().meta_list(func, arguments);
         self.prepared_attr(meta)
     }
 
@@ -1098,7 +1088,7 @@ impl Builder {
 
     // Literals
 
-    pub fn int_lit<S>(self, s: S, ty: &str) -> Lit
+    pub fn int_lit_with_suffix<S>(self, s: S, ty: &str) -> Lit
     where
         S: Make<String>,
     {
@@ -1106,18 +1096,18 @@ impl Builder {
         Lit::Int(LitInt::new(&format!("{s}{ty}"), self.span))
     }
 
-    pub fn int_unsuffixed_lit<S>(self, s: S) -> Lit
+    pub fn int_lit<S>(self, s: S) -> Lit
     where
         S: Make<String>,
     {
-        self.int_lit(s, "")
+        self.int_lit_with_suffix(s, "")
     }
 
-    pub fn float_lit(self, s: &str, ty: &str) -> Lit {
+    pub fn float_lit_with_suffix(self, s: &str, ty: &str) -> Lit {
         Lit::Float(LitFloat::new(&format!("{s}{ty}"), self.span))
     }
 
-    pub fn float_unsuffixed_lit(self, s: &str) -> Lit {
+    pub fn float_lit(self, s: &str) -> Lit {
         Lit::Float(LitFloat::new(s, self.span))
     }
 

@@ -783,23 +783,19 @@ impl<'c> Translation<'c> {
         if resolved_ty.is_bool() {
             Ok(WithStmts::new_val(mk().lit_expr(mk().bool_lit(false))))
         } else if resolved_ty.is_integral_type() {
-            Ok(WithStmts::new_val(
-                mk().lit_expr(mk().int_unsuffixed_lit(0)),
-            ))
+            Ok(WithStmts::new_val(mk().lit_expr(0)))
         } else if resolved_ty.is_floating_type() {
             match self.ast_context[ty_id].kind {
                 CTypeKind::LongDouble => Ok(WithStmts::new_val(
                     mk().path_expr(vec!["f128", "f128", "ZERO"]),
                 )),
-                _ => Ok(WithStmts::new_val(
-                    mk().lit_expr(mk().float_unsuffixed_lit("0.")),
-                )),
+                _ => Ok(WithStmts::new_val(mk().lit_expr(mk().float_lit("0.0")))),
             }
         } else if let &CTypeKind::Pointer(_) = resolved_ty {
             self.null_ptr(resolved_ty_id, is_static, inside_init_list_aop)
                 .map(WithStmts::new_val)
         } else if let &CTypeKind::ConstantArray(elt, sz) = resolved_ty {
-            let sz = mk().lit_expr(mk().int_unsuffixed_lit(sz));
+            let sz = mk().lit_expr(mk().int_lit(sz));
             Ok(self
                 .implicit_default_expr(elt, is_static, inside_init_list_aop)?
                 .map(|elt| mk().repeat_expr(elt, sz)))

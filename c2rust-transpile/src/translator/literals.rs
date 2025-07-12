@@ -16,9 +16,9 @@ impl<'c> Translation<'c> {
         base: IntBase,
     ) -> TranslationResult<Box<Expr>> {
         let lit = match base {
-            IntBase::Dec => mk().int_unsuffixed_lit(val),
-            IntBase::Hex => mk().float_unsuffixed_lit(&format!("0x{val:x}")),
-            IntBase::Oct => mk().float_unsuffixed_lit(&format!("0o{val:o}")),
+            IntBase::Dec => mk().int_lit(val),
+            IntBase::Hex => mk().float_lit(&format!("0x{val:x}")),
+            IntBase::Oct => mk().float_lit(&format!("0o{val:o}")),
         };
 
         let target_ty = self.convert_type(ty.ctype)?;
@@ -62,9 +62,9 @@ impl<'c> Translation<'c> {
         let underlying_type_id =
             underlying_type_id.expect("Attempt to construct value of forward declared enum");
         let value = match self.ast_context.resolve_type(underlying_type_id.ctype).kind {
-            CTypeKind::UInt => mk().lit_expr(mk().int_unsuffixed_lit(value as u32)),
-            CTypeKind::ULong => mk().lit_expr(mk().int_unsuffixed_lit(value as u64)),
-            _ => mk().lit_expr(mk().int_unsuffixed_lit(value)),
+            CTypeKind::UInt => mk().lit_expr(mk().int_lit(value as u32)),
+            CTypeKind::ULong => mk().lit_expr(mk().int_lit(value as u64)),
+            _ => mk().lit_expr(mk().int_lit(value)),
         };
 
         let target_ty = self.convert_type(enum_type_id).unwrap();
@@ -92,7 +92,7 @@ impl<'c> Translation<'c> {
                     }
                     None => {
                         // Fallback for characters outside of the valid Unicode range
-                        mk().lit_expr(mk().int_lit(val as i32, "i32"))
+                        mk().lit_expr(mk().int_lit_with_suffix(val as i32, "i32"))
                     }
                 };
                 Ok(WithStmts::new_val(expr))
@@ -110,12 +110,12 @@ impl<'c> Translation<'c> {
                         self.use_crate(ExternCrate::F128);
 
                         let fn_path = mk().path_expr(vec!["f128", "f128", "new"]);
-                        let args = vec![mk().lit_expr(mk().float_unsuffixed_lit(&str))];
+                        let args = vec![mk().lit_expr(mk().float_lit(&str))];
 
                         mk().call_expr(fn_path, args)
                     }
-                    CTypeKind::Double => mk().lit_expr(mk().float_lit(&str, "f64")),
-                    CTypeKind::Float => mk().lit_expr(mk().float_lit(&str, "f32")),
+                    CTypeKind::Double => mk().lit_expr(mk().float_lit_with_suffix(&str, "f64")),
+                    CTypeKind::Float => mk().lit_expr(mk().float_lit_with_suffix(&str, "f32")),
                     ref k => panic!("Unsupported floating point literal type {k:?}"),
                 };
                 Ok(WithStmts::new_val(val))
@@ -134,7 +134,7 @@ impl<'c> Translation<'c> {
                 val.resize(size, 0);
 
                 let u8_ty = mk().path_ty(vec!["u8"]);
-                let width_lit = mk().lit_expr(mk().int_unsuffixed_lit(val.len()));
+                let width_lit = mk().lit_expr(mk().int_lit(val.len()));
                 let array_ty = mk().array_ty(u8_ty, width_lit);
                 let source_ty = mk().ref_ty(array_ty);
                 let mutbl = if ty.qualifiers.is_const {
@@ -147,12 +147,6 @@ impl<'c> Translation<'c> {
                 let pointer = transmute_expr(source_ty, target_ty, byte_literal);
                 let array = mk().unary_expr(UnOp::Deref(Default::default()), pointer);
                 Ok(WithStmts::new_unsafe_val(array))
-
-                // let mut val = val.to_owned();
-                // let cstr_value = CString::new(val).unwrap();
-                // let cstr_literal = mk().lit_expr(cstr_value);
-                // let call = mk().method_call_expr(cstr_literal, "as_ptr", vec![]);
-                // Ok(WithStmts::new_val(call))
             }
         }
     }
@@ -188,7 +182,7 @@ impl<'c> Translation<'c> {
                 } else if ids.is_empty() {
                     // this was likely a C array of the form `int x[16] = {}`,
                     // we'll emit that as [0; 16].
-                    let len = mk().lit_expr(mk().int_unsuffixed_lit(n));
+                    let len = mk().lit_expr(mk().int_lit(n));
                     self.implicit_default_expr(member_ty, ctx.is_static, ctx.inside_init_list_aop)?
                         .and_then(|default_value| {
                             Ok(WithStmts::new_val(mk().repeat_expr(default_value, len)))

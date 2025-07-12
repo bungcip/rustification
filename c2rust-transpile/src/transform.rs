@@ -14,8 +14,8 @@ pub(crate) fn cast_int(val: Box<Expr>, name: &str, need_lit_suffix: bool) -> Box
         _ => None,
     };
     match opt_literal_val {
-        Some(i) if need_lit_suffix == false => mk().lit_expr(mk().int_unsuffixed_lit(i)),
-        Some(i) => mk().lit_expr(mk().int_lit(i, name)),
+        Some(i) if need_lit_suffix == false => mk().lit_expr(mk().int_lit(i)),
+        Some(i) => mk().lit_expr(mk().int_lit_with_suffix(i, name)),
         None => mk().cast_expr(val, mk().path_ty(vec![name])),
     }
 }

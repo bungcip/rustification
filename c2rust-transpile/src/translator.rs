@@ -1367,7 +1367,7 @@ impl<'c> Translation<'c> {
                     ),
                 ],
             );
-        let static_array_size = mk().lit_expr(mk().int_unsuffixed_lit(1));
+        let static_array_size = mk().lit_expr(1);
         let static_ty = mk().array_ty(
             mk().unsafe_().extern_("C").barefn_ty(fn_bare_decl),
             static_array_size,
@@ -1853,7 +1853,7 @@ impl<'c> Translation<'c> {
                             name,
                             mk().angle_bracketed_args(vec![rtype]),
                         )]);
-                    let size = mk().lit_expr(mk().int_unsuffixed_lit(size as u64));
+                    let size = mk().lit_expr(mk().int_lit(size as u64));
                     mk().array_ty(pointer_type, size)
                 } else {
                     self.convert_type(typ.ctype)?
@@ -1894,7 +1894,7 @@ impl<'c> Translation<'c> {
             _ => return Err(generic_err!("null_ptr requires a pointer")),
         };
         let ty = self.convert_type(type_id)?;
-        let mut zero = mk().lit_expr(mk().int_unsuffixed_lit(0));
+        let mut zero = mk().lit_expr(0);
         if is_static && pointee.qualifiers.is_const == false {
             let mut qtype = pointee;
             qtype.qualifiers.is_const = true;
@@ -2035,8 +2035,8 @@ impl<'c> Translation<'c> {
 
     pub fn convert_constant(&self, constant: ConstIntExpr) -> TranslationResult<Box<Expr>> {
         let expr = match constant {
-            ConstIntExpr::U(n) => mk().lit_expr(mk().int_unsuffixed_lit(n)),
-            ConstIntExpr::I(n) => mk().lit_expr(mk().int_unsuffixed_lit(n)),
+            ConstIntExpr::U(n) => mk().lit_expr(mk().int_lit(n)),
+            ConstIntExpr::I(n) => mk().lit_expr(mk().int_lit(n)),
         };
         Ok(expr)
     }
@@ -2342,9 +2342,9 @@ impl<'c> Translation<'c> {
 
             // The backup is to just compare against zero
             let zero = if ty.is_floating_type() {
-                mk().lit_expr(mk().float_unsuffixed_lit("0."))
+                mk().lit_expr(mk().float_lit("0.0"))
             } else {
-                mk().lit_expr(mk().int_unsuffixed_lit(0))
+                mk().lit_expr(0)
             };
 
             if target {

@@ -110,7 +110,7 @@ impl<'c> Translation<'c> {
                 let argc = mk().binary_expr(
                     BinOp::Sub(Default::default()),
                     mk().method_call_expr(args.clone(), "len", no_args.clone()),
-                    mk().lit_expr(mk().int_lit(1, "")),
+                    mk().lit_expr(1),
                 );
                 let argv = mk().method_call_expr(args, "as_mut_ptr", no_args.clone());
 
@@ -229,7 +229,7 @@ impl<'c> Translation<'c> {
 
                 stmts.push(mk().expr_stmt(mk().unsafe_block_expr(unsafe_block)));
 
-                let exit_arg = mk().lit_expr(mk().int_lit(0, "i32"));
+                let exit_arg = mk().lit_expr(mk().int_lit_with_suffix(0, "i32"));
                 let call_exit = mk().call_expr(exit_fn, vec![exit_arg]);
 
                 stmts.push(mk().semi_stmt(call_exit));

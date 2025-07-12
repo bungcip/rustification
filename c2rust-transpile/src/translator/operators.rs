@@ -559,16 +559,16 @@ impl<'c> Translation<'c> {
         let one = match self.ast_context.resolve_type(ty.ctype).kind {
             // TODO: If rust gets f16 support:
             // CTypeKind::Half |
-            CTypeKind::Float | CTypeKind::Double => mk().lit_expr(mk().float_unsuffixed_lit("1.")),
+            CTypeKind::Float | CTypeKind::Double => mk().lit_expr(mk().float_lit("1.0")),
             CTypeKind::LongDouble => {
                 self.use_crate(ExternCrate::F128);
 
                 let fn_path = mk().path_expr(vec!["f128", "f128", "new"]);
-                let args = vec![mk().lit_expr(mk().float_unsuffixed_lit("1."))];
+                let args = vec![mk().lit_expr(mk().float_lit("1.0"))];
 
                 mk().call_expr(fn_path, args)
             }
-            _ => mk().lit_expr(mk().int_unsuffixed_lit(1)),
+            _ => mk().lit_expr(1),
         };
         let arg_type = self.ast_context[arg]
             .kind
@@ -620,18 +620,16 @@ impl<'c> Translation<'c> {
                 let mut one = match self.ast_context[ty.ctype].kind {
                     // TODO: If rust gets f16 support:
                     // CTypeKind::Half |
-                    CTypeKind::Float | CTypeKind::Double => {
-                        mk().lit_expr(mk().float_unsuffixed_lit("1."))
-                    }
+                    CTypeKind::Float | CTypeKind::Double => mk().lit_expr(mk().float_lit("1.0")),
                     CTypeKind::LongDouble => {
                         self.use_crate(ExternCrate::F128);
 
                         let fn_path = mk().path_expr(vec!["f128", "f128", "new"]);
-                        let args = vec![mk().lit_expr(mk().float_unsuffixed_lit("1."))];
+                        let args = vec![mk().lit_expr(mk().float_lit("1.0"))];
 
                         mk().call_expr(fn_path, args)
                     }
-                    _ => mk().lit_expr(mk().int_unsuffixed_lit(1)),
+                    _ => mk().lit_expr(1),
                 };
 
                 // *p + 1
