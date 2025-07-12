@@ -96,10 +96,7 @@ impl<'c> Translation<'c> {
                 if name == "__atomic_load" {
                     let ret = val1.expect("__atomic_load should have a ret argument");
                     ret.and_then(|ret| {
-                        let assignment = mk().assign_expr(
-                            mk().unary_expr(UnOp::Deref(Default::default()), ret),
-                            call,
-                        );
+                        let assignment = mk().assign_expr(mk().deref_expr(ret), call);
                         self.convert_side_effects_expr(
                             ctx,
                             WithStmts::new_val(assignment),
@@ -127,7 +124,7 @@ impl<'c> Translation<'c> {
                         let atomic_store =
                             mk().abs_path_expr(vec!["core", "intrinsics", &intrinsic_name]);
                         let val = if name == "__atomic_store" {
-                            mk().unary_expr(UnOp::Deref(Default::default()), val)
+                            mk().deref_expr(val)
                         } else {
                             val
                         };
@@ -146,10 +143,7 @@ impl<'c> Translation<'c> {
                 let val = val1.expect("__atomic_init must have a val argument");
                 ptr.and_then(|ptr| {
                     val.and_then(|val| {
-                        let assignment = mk().assign_expr(
-                            mk().unary_expr(UnOp::Deref(Default::default()), ptr),
-                            val,
-                        );
+                        let assignment = mk().assign_expr(mk().deref_expr(ptr), val);
                         self.convert_side_effects_expr(
                             ctx,
                             WithStmts::new_val(assignment),
@@ -171,7 +165,7 @@ impl<'c> Translation<'c> {
                         let fn_path =
                             mk().abs_path_expr(vec!["core", "intrinsics", &intrinsic_name]);
                         let val = if name == "__atomic_exchange" {
-                            mk().unary_expr(UnOp::Deref(Default::default()), val)
+                            mk().deref_expr(val)
                         } else {
                             val
                         };
@@ -183,10 +177,7 @@ impl<'c> Translation<'c> {
                                 .transpose()?
                                 .expect("__atomic_exchange must have a ret pointer argument")
                                 .and_then(|ret| {
-                                    let assignment = mk().assign_expr(
-                                        mk().unary_expr(UnOp::Deref(Default::default()), ret),
-                                        call,
-                                    );
+                                    let assignment = mk().assign_expr(mk().deref_expr(ret), call);
                                     self.convert_side_effects_expr(
                                         ctx,
                                         WithStmts::new_val(assignment),
@@ -251,13 +242,12 @@ impl<'c> Translation<'c> {
                             })?;
 
                             self.use_feature("core_intrinsics");
-                            let expected =
-                                mk().unary_expr(UnOp::Deref(Default::default()), expected);
+                            let expected = mk().deref_expr(expected);
                             let desired = match name {
                                 "__atomic_compare_exchange_n"
                                 | "__c11_atomic_compare_exchange_strong"
                                 | "__c11_atomic_compare_exchange_weak" => desired,
-                                _ => mk().unary_expr(UnOp::Deref(Default::default()), desired),
+                                _ => mk().deref_expr(desired),
                             };
 
                             let atomic_cxchg =
@@ -418,7 +408,7 @@ impl<'c> Translation<'c> {
             let val = mk().binary_expr(binary_op, call, mk().ident_expr(arg1_name));
             let val = if is_nand {
                 // For nand, return `!(atomic_nand(arg0, arg1) & arg1)`
-                mk().unary_expr(UnOp::Not(Default::default()), val)
+                mk().not_expr(val)
             } else {
                 val
             };

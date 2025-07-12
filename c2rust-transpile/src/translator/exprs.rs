@@ -654,7 +654,7 @@ impl<'c> Translation<'c> {
                                 self.convert_expr(ctx, subexpr_id)?
                             } else {
                                 let val = self.convert_expr(ctx, expr)?;
-                                val.map(|v| mk().unary_expr(UnOp::Deref(Default::default()), v))
+                                val.map(|v| mk().deref_expr(v))
                             }
                         }
                     };
@@ -1018,7 +1018,7 @@ impl<'c> Translation<'c> {
                     } else {
                         let is_null = mk().method_call_expr(e, "is_null", vec![]);
                         if negated {
-                            mk().unary_expr(UnOp::Not(Default::default()), is_null)
+                            mk().not_expr(is_null)
                         } else {
                             is_null
                         }

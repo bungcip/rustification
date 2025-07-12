@@ -2,14 +2,6 @@
 
 use super::*;
 
-fn neg_expr(arg: Box<Expr>) -> Box<Expr> {
-    mk().unary_expr(UnOp::Neg(Default::default()), arg)
-}
-
-fn wrapping_neg_expr(arg: Box<Expr>) -> Box<Expr> {
-    mk().method_call_expr(arg, "wrapping_neg", vec![])
-}
-
 impl From<c_ast::BinOp> for BinOp {
     fn from(op: c_ast::BinOp) -> Self {
         match op {
@@ -640,11 +632,7 @@ impl<'c> Translation<'c> {
                         one = n
                     }
 
-                    let n = if up {
-                        one
-                    } else {
-                        mk().unary_expr(UnOp::Neg(Default::default()), one)
-                    };
+                    let n = if up { one } else { mk().neg_expr(one) };
                     mk().method_call_expr(read, "offset", vec![n])
                 } else if self
                     .ast_context
@@ -797,8 +785,7 @@ impl<'c> Translation<'c> {
                                 } else if let Some(_vla) = self.compute_size_of_expr(ctype) {
                                     Ok(val)
                                 } else {
-                                    let mut val =
-                                        mk().unary_expr(UnOp::Deref(Default::default()), val);
+                                    let mut val = mk().deref_expr(val);
 
                                     // If the type on the other side of the pointer we are dereferencing is volatile and
                                     // this whole expression is not an LValue, we should make this a volatile read
@@ -817,14 +804,14 @@ impl<'c> Translation<'c> {
                 let val = self.convert_expr(ctx.used(), arg)?;
 
                 if resolved_ctype.kind.is_unsigned_integral_type() {
-                    Ok(val.map(wrapping_neg_expr))
+                    Ok(val.map(|x| mk().method_call_expr(x, "wrapping_neg", vec![])))
                 } else {
-                    Ok(val.map(neg_expr))
+                    Ok(val.map(|x| mk().neg_expr(x)))
                 }
             }
             c_ast::UnOp::Complement => Ok(self
                 .convert_expr(ctx.used(), arg)?
-                .map(|a| mk().unary_expr(UnOp::Not(Default::default()), a))),
+                .map(|a| mk().not_expr(a))),
 
             c_ast::UnOp::Not => {
                 let val = self.convert_condition(ctx, false, arg)?;

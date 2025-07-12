@@ -290,10 +290,7 @@ impl<'c> Translation<'c> {
                             type_and_2,
                             mk().lit_expr(0),
                         );
-                        let minus_one = mk().unary_expr(
-                            UnOp::Neg(Default::default()),
-                            mk().lit_expr(mk().int_lit_with_suffix(1, "isize")),
-                        );
+                        let minus_one = mk().lit_expr(mk().int_lit_with_suffix(-1, "isize"));
                         let if_expr = mk().ifte_expr(
                             if_cond,
                             mk().block(vec![mk().expr_stmt(minus_one)]),
@@ -708,10 +705,7 @@ impl<'c> Translation<'c> {
                 Some(overflowing),
             )));
 
-            let out_assign = mk().assign_expr(
-                mk().unary_expr(UnOp::Deref(Default::default()), c),
-                mk().ident_expr(&sum_name),
-            );
+            let out_assign = mk().assign_expr(mk().deref_expr(c), mk().ident_expr(&sum_name));
 
             Ok(WithStmts::new(
                 vec![overflow_let, mk().expr_stmt(out_assign)],

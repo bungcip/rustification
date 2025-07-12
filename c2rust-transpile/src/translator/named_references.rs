@@ -132,8 +132,7 @@ impl<'c> Translation<'c> {
                     Some(reference),
                 )));
 
-                let write =
-                    mk().unary_expr(UnOp::Deref(Default::default()), mk().ident_expr(&ptr_name));
+                let write = mk().deref_expr(mk().ident_expr(&ptr_name));
 
                 Ok(WithStmts::new(
                     vec![compute_ref],

@@ -678,6 +678,6 @@ fn not(bool_expr: &Expr) -> Box<Expr> {
             ref expr,
             ..
         }) => Box::new(transform::unparen(expr).clone()),
-        _ => mk().unary_expr("!", Box::new(bool_expr.clone())),
+        _ => mk().not_expr(Box::new(bool_expr.clone())),
     }
 }

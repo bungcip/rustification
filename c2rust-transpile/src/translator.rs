@@ -13,9 +13,9 @@ use indexmap::indexmap;
 use indexmap::{IndexMap, IndexSet};
 use log::{error, trace, warn};
 use proc_macro2::{Punct, Spacing::*, Span, TokenStream, TokenTree};
+use syn::BinOp;
 use syn::spanned::Spanned as _;
-use syn::*;
-use syn::{BinOp, UnOp}; // To override c_ast::{BinOp,UnOp} from glob import
+use syn::*; // To override c_ast::BinOp from glob import
 
 use crate::diagnostics::TranslationResult;
 use crate::rust_ast::comment_store::CommentStore;
@@ -171,15 +171,11 @@ fn pointer_offset(
     }
 
     if neg {
-        offset = mk().unary_expr(UnOp::Neg(Default::default()), offset);
+        offset = mk().neg_expr(offset);
     }
 
     let res = mk().method_call_expr(ptr, "offset", vec![offset]);
-    if deref {
-        mk().unary_expr(UnOp::Deref(Default::default()), res)
-    } else {
-        res
-    }
+    if deref { mk().deref_expr(res) } else { res }
 }
 
 /// Given an expression with type Option<fn(...)->...>, unwrap
@@ -2293,15 +2289,11 @@ impl<'c> Translation<'c> {
         } else if ty.is_pointer() {
             let mut res = mk().method_call_expr(val, "is_null", vec![]);
             if target {
-                res = mk().unary_expr(UnOp::Not(Default::default()), res)
+                res = mk().not_expr(res)
             }
             res
         } else if ty.is_bool() {
-            if target {
-                val
-            } else {
-                mk().unary_expr(UnOp::Not(Default::default()), val)
-            }
+            if target { val } else { mk().not_expr(val) }
         } else {
             // One simplification we can make at the cost of inspecting `val` more closely: if `val`
             // is already in the form `(x <op> y) as <ty>` where `<op>` is a Rust operator
@@ -2323,10 +2315,7 @@ impl<'c> Translation<'c> {
                                 return Box::new(transform::unparen(arg).clone());
                             } else {
                                 // If target == false, return !arg
-                                return mk().unary_expr(
-                                    UnOp::Not(Default::default()),
-                                    Box::new(transform::unparen(arg).clone()),
-                                );
+                                return mk().not_expr(Box::new(transform::unparen(arg).clone()));
                             }
                         }
                         _ => {}

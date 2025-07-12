@@ -843,10 +843,7 @@ impl Builder {
         })))
     }
 
-    pub fn unary_expr<O>(self, op: O, a: Box<Expr>) -> Box<Expr>
-    where
-        O: Make<UnOp>,
-    {
+    pub fn unary_expr(self, op: UnOp, a: Box<Expr>) -> Box<Expr> {
         let op = op.make(&self);
         // FIXME: set span for op
         Box::new(parenthesize_if_necessary(Expr::Unary(ExprUnary {
@@ -854,6 +851,18 @@ impl Builder {
             op,
             expr: a,
         })))
+    }
+
+    pub fn neg_expr(self, a: Box<Expr>) -> Box<Expr> {
+        self.unary_expr(UnOp::Neg(Default::default()), a)
+    }
+
+    pub fn deref_expr(self, a: Box<Expr>) -> Box<Expr> {
+        self.unary_expr(UnOp::Deref(Default::default()), a)
+    }
+
+    pub fn not_expr(self, a: Box<Expr>) -> Box<Expr> {
+        self.unary_expr(UnOp::Not(Default::default()), a)
     }
 
     pub fn lit_expr<L>(self, lit: L) -> Box<Expr>
