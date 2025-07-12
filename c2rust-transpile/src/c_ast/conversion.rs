@@ -834,9 +834,7 @@ impl ConversionContext {
                     self.processed_nodes.insert(new_id, OTHER_TYPE);
                 }
 
-                t => panic!(
-                    "Type conversion not implemented for {t:?} expecting {expected_ty:?}"
-                ),
+                t => panic!("Type conversion not implemented for {t:?} expecting {expected_ty:?}"),
             }
         } else {
             // Convert the node

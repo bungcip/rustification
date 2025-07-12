@@ -100,13 +100,9 @@ impl<'c> NodeVisitor for CommentLocator<'c> {
                     Some(existing.lo()),
                     //CommentStyle::Isolated,
                 );
-                debug!(
-                    "Attaching more comments {comments:?} to id {id:?} at pos {new_pos:?}"
-                );
+                debug!("Attaching more comments {comments:?} to id {id:?} at pos {new_pos:?}");
             } else if let Some(pos) = self.comment_store.add_comments(&comments) {
-                debug!(
-                    "Attaching comments {comments:?} to id {id:?} at pos {pos:?}"
-                );
+                debug!("Attaching comments {comments:?} to id {id:?} at pos {pos:?}");
                 let span = pos_to_span(pos);
                 self.spans.insert(id, span);
             }
@@ -136,9 +132,7 @@ impl<'c> NodeVisitor for CommentLocator<'c> {
                 .comment_context
                 .get_comments_before(loc.end(), self.ast_context);
             if let Some(pos) = self.comment_store.add_comments(&comments) {
-                debug!(
-                    "Attaching comments {comments:?} to end of id {id:?} at pos {pos:?}"
-                );
+                debug!("Attaching comments {comments:?} to end of id {id:?} at pos {pos:?}");
                 let span = self.spans.entry(id).or_insert_with(Span::call_site);
                 *span = span.with_hi(pos);
             }

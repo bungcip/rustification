@@ -37,7 +37,7 @@ use super::{
 pub enum ConvertedDecl {
     /// [`ForeignItem`] is large (472 bytes), so [`Box`] it.
     ForeignItem(Box<ForeignItem>), // would be 472 bytes
-    Item(Box<Item>),       // 24 bytes
+    Item(Box<Item>),  // 24 bytes
     Items(Vec<Item>), // 24 bytes
     NoItem,
 }
@@ -917,9 +917,7 @@ impl<'c> Translation<'c> {
                         .borrow_mut()
                         .insert(decl_id, var.as_str())
                         .unwrap_or_else(|| {
-                            panic!(
-                                "Failed to insert argument '{var}' while converting '{name}'"
-                            )
+                            panic!("Failed to insert argument '{var}' while converting '{name}'")
                         });
 
                     mk().set_mutbl(mutbl).ident_pat(new_var)

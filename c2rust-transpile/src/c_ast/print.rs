@@ -300,9 +300,7 @@ impl<W: Write> Printer<W> {
         match *lit {
             Integer(i, _) => self.writer.write_fmt(format_args!("{i}")),
             Floating(f, ref str) if str.is_empty() => self.writer.write_fmt(format_args!("{f}")),
-            Floating(_, ref str) if str.is_empty() => {
-                self.writer.write_fmt(format_args!("{str}"))
-            }
+            Floating(_, ref str) if str.is_empty() => self.writer.write_fmt(format_args!("{str}")),
             _ => unimplemented!("Printer::print_lit"),
         }
     }
@@ -595,8 +593,7 @@ impl<W: Write> Printer<W> {
             }
 
             EnumConstant { name, value, .. } => {
-                self.writer
-                    .write_fmt(format_args!("{name} = {value:?},"))?;
+                self.writer.write_fmt(format_args!("{name} = {value:?},"))?;
                 if newline {
                     self.writer.write_all(b"\n")?;
                 }

@@ -180,9 +180,7 @@ impl CommentStore {
                 let new_comments = match self.output_comments.remove(&span.hi()) {
                     Some(nc) => nc,
                     None => {
-                        warn!(
-                            "Expected comments attached to the high end of span {span:?}"
-                        );
+                        warn!("Expected comments attached to the high end of span {span:?}");
                         return span;
                     }
                 };
