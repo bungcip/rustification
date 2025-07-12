@@ -238,6 +238,8 @@ class TestDirectory:
         _, stdout, _ = clang["-print-resource-dir"].run(retcode=None)
         self.clang_resource_dir = " \"-I{}/include\",".format(stdout.strip())
 
+        self.max_nightly_version = self._read_max_nightly_version()
+
         # parse target arch from directory name if it includes a dot
         split_by_dots = self.name.split('.')
         if len(split_by_dots) > 1:
@@ -265,6 +267,18 @@ class TestDirectory:
                     rs_test_file = self._read_rust_test_file(path)
 
                     self.rs_test_files.append(rs_test_file)
+
+    def _read_max_nightly_version(self) -> str:
+        path = "./c2rust-transpile/src/lib.rs"
+        with open(path, 'r', encoding="utf-8") as file:
+            file_buffer = file.read()
+
+        match = re.search(r'MAX_NIGHTLY_VERSION:\s*&str\s*=\s*"(\d{4}-\d{2}-\d{2})"', file_buffer)
+        if match:
+            version = match.group(1)
+        else:
+            version = None
+        return version
 
     def _read_c_file(self, path: str) -> Optional[CFile]:
         file_config = None
@@ -499,8 +513,16 @@ class TestDirectory:
 
         ## add rust-toolchain.toml when using nightly features
         if len(rust_file_builder.features) > 0:
+            ## replace {{version}} with const from lib.rs
+            generated_toolchain_path = "./c2rust-transpile/src/build_files/generated-rust-toolchain.toml"
+            with open(generated_toolchain_path, 'r', encoding="utf-8") as file:
+                file_buffer = file.read()
+            file_buffer = file_buffer.replace("{{version}}", self.max_nightly_version)
+            
             rust_toolchain = self.full_path + "/rust-toolchain.toml"
-            shutil.copy("./c2rust-transpile/src/build_files/generated-rust-toolchain.toml", rust_toolchain)
+            with open(rust_toolchain, 'w', encoding='utf-8') as file:
+                file.write(file_buffer)
+
             self.generated_files["rust_src"].append(rust_toolchain)
 
             if "register_tool" in rust_file_builder.features:
