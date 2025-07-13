@@ -157,7 +157,7 @@ impl<'c> Translation<'c> {
                     }
                 }
 
-                let mut val = mk().path_expr(vec![rustname]);
+                let mut val = mk().ident_expr(rustname);
 
                 // If the variable is volatile and used as something that isn't an LValue, this
                 // constitutes a volatile read.
@@ -1116,7 +1116,7 @@ impl<'c> Translation<'c> {
                     .borrow()
                     .get(&CDeclId(counts.0))
                     .expect("Failed to lookup VLA expression");
-                let csize = mk().path_expr(vec![csize_name]);
+                let csize = mk().ident_expr(csize_name);
 
                 let val = match opt_esize {
                     None => csize,

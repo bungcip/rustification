@@ -52,7 +52,7 @@ impl<'c> Translation<'c> {
                         if let Some(cur_file) = *self.cur_file.borrow() {
                             self.add_import(cur_file, variant_id, &name);
                         }
-                        return mk().path_expr(vec![name]);
+                        return mk().ident_expr(name);
                     }
                 }
                 _ => panic!("{variant_id:?} does not point to an enum variant"),
@@ -244,7 +244,7 @@ impl<'c> Translation<'c> {
                         .resolve_decl_name(struct_id)
                         .unwrap();
 
-                    let outer_path = mk().path_expr(vec![outer_name]);
+                    let outer_path = mk().ident_expr(outer_name);
                     literal = literal
                         .map(|lit_ws| lit_ws.map(|lit| mk().call_expr(outer_path, vec![lit])));
                 };

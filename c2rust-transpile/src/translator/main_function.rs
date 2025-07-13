@@ -37,7 +37,7 @@ impl<'c> Translation<'c> {
 
             let decl = mk().fn_decl("main", vec![], None, ReturnType::Default);
 
-            let main_fn = mk().path_expr(vec![main_fn_name]);
+            let main_fn = mk().ident_expr(main_fn_name);
 
             let exit_fn = mk().abs_path_expr(vec!["std", "process", "exit"]);
             let args_fn = mk().abs_path_expr(vec!["std", "env", "args"]);
@@ -67,14 +67,14 @@ impl<'c> Translation<'c> {
                     mk().ident_pat("arg"),
                     mk().call_expr(args_fn, vec![]),
                     mk().block(vec![mk().semi_stmt(mk().method_call_expr(
-                        mk().path_expr(vec!["args"]),
+                        mk().ident_expr("args"),
                         "push",
                         vec![mk().method_call_expr(
                             mk().method_call_expr(
                                 mk().call_expr(
                                     // TODO(kkysen) change `"std"` to `"alloc"` after `#![feature(alloc_c_string)]` is stabilized in `1.63.0`
                                     mk().abs_path_expr(vec!["std", "ffi", "CString", "new"]),
-                                    vec![mk().path_expr(vec!["arg"])],
+                                    vec![mk().ident_expr("arg")],
                                 ),
                                 "expect",
                                 vec![mk().lit_expr("Failed to convert argument into CString.")],
@@ -86,7 +86,7 @@ impl<'c> Translation<'c> {
                     None::<Ident>,
                 )));
                 stmts.push(mk().semi_stmt(mk().method_call_expr(
-                    mk().path_expr(vec!["args"]),
+                    mk().ident_expr("args"),
                     "push",
                     vec![
                         mk().call_expr(mk().abs_path_expr(vec!["core", "ptr", "null_mut"]), vec![]),
@@ -172,7 +172,7 @@ impl<'c> Translation<'c> {
                             ),
                         )),
                         mk().semi_stmt(mk().method_call_expr(
-                            mk().path_expr(vec!["vars"]),
+                            mk().ident_expr("vars"),
                             "push",
                             vec![mk().method_call_expr(
                                 mk().method_call_expr(
@@ -181,7 +181,7 @@ impl<'c> Translation<'c> {
                                             // TODO(kkysen) change `"std"` to `"alloc"` after `#![feature(alloc_c_string)]` is stabilized in `1.63.0`
                                             "std", "ffi", "CString", "new",
                                         ]),
-                                        vec![mk().path_expr(vec!["var"])],
+                                        vec![mk().ident_expr("var")],
                                     ),
                                     "expect",
                                     vec![mk().lit_expr(
@@ -196,7 +196,7 @@ impl<'c> Translation<'c> {
                     None as Option<Ident>,
                 )));
                 stmts.push(mk().semi_stmt(mk().method_call_expr(
-                    mk().path_expr(vec!["vars"]),
+                    mk().ident_expr("vars"),
                     "push",
                     vec![
                         mk().call_expr(mk().abs_path_expr(vec!["core", "ptr", "null_mut"]), vec![]),

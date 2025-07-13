@@ -1308,7 +1308,7 @@ impl<'c> Translation<'c> {
 
         std::mem::swap(init, &mut default_init);
 
-        let root_lhs_expr = mk().path_expr(vec![name]);
+        let root_lhs_expr = mk().ident_expr(name);
         let assign_expr = mk().assign_expr(root_lhs_expr, default_init);
         let stmt = mk().expr_stmt(assign_expr);
 
@@ -1368,7 +1368,7 @@ impl<'c> Translation<'c> {
             mk().unsafe_().extern_("C").barefn_ty(fn_bare_decl),
             static_array_size,
         );
-        let static_val = mk().array_expr(vec![mk().path_expr(vec![fn_name])]);
+        let static_val = mk().array_expr(vec![mk().ident_expr(fn_name)]);
         let static_item = static_attributes.static_item("INIT_ARRAY", static_ty, static_val);
 
         (fn_item, static_item)
@@ -1882,7 +1882,7 @@ impl<'c> Translation<'c> {
         inside_init_list_aop: bool,
     ) -> TranslationResult<Box<Expr>> {
         if self.ast_context.is_function_pointer(type_id) {
-            return Ok(mk().path_expr(vec!["None"]));
+            return Ok(mk().ident_expr("None"));
         }
 
         let pointee = match self.ast_context.resolve_type(type_id).kind {
@@ -2246,7 +2246,7 @@ impl<'c> Translation<'c> {
                 .resolve_decl_name(name_decl_id)
                 .unwrap();
 
-            let outer_path = mk().path_expr(vec![outer_name]);
+            let outer_path = mk().ident_expr(outer_name);
             init = init.map(|i| mk().call_expr(outer_path, vec![i]));
         };
 

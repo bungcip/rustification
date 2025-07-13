@@ -53,7 +53,7 @@ impl<'c> Translation<'c> {
                     self.add_import(*cur_file, *macro_id, &rustname);
                 }
 
-                let val = WithStmts::new_val(mk().path_expr(vec![rustname]));
+                let val = WithStmts::new_val(mk().ident_expr(rustname));
 
                 let expr_kind = &self.ast_context[expr_id].kind;
                 if let Some(expr_ty) = expr_kind.get_qual_type() {

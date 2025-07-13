@@ -130,7 +130,7 @@ impl<'c> Translation<'c> {
                             true => "Pointer",
                             false => "PointerMut",
                         };
-                        let call = mk().call_expr(mk().path_expr(vec![wrapper]), vec![cast_expr]);
+                        let call = mk().call_expr(mk().ident_expr(wrapper), vec![cast_expr]);
 
                         Ok(WithStmts::new_val(call))
                     } else {
@@ -261,7 +261,7 @@ impl<'c> Translation<'c> {
                         let expr = mk().method_call_expr(cstr_literal, "as_ptr", vec![]);
 
                         if ctx.is_inside_init_list_aop() && ctx.is_static {
-                            let call = mk().call_expr(mk().path_expr(vec!["Pointer"]), vec![expr]);
+                            let call = mk().call_expr(mk().ident_expr("Pointer"), vec![expr]);
                             return Ok(WithStmts::new_val(call));
                         }
 
