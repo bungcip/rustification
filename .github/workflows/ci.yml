@@ -14,57 +14,43 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Cache Rust toolchain
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.rustup/toolchains
-            ~/.rustup/update-hashes
-            ~/.rustup/settings.toml
-          key: ${{ runner.os }}-rust-toolchain-${{ hashFiles('rust-toolchain') }}
+      - uses: astral-sh/setup-uv@v6
 
-      - name: Cache Rust artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock', '**/c2rust-ast-exporter/**/CMakeLists.txt', '**/examples/**/CMakeLists.txt') }}
+      - name: Install Python Packages
+        run: |
+          uv venv
+          uv pip install -r ./scripts/requirements.txt
 
-      - name: Cache Python - pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+      # rust-cache very carefully caches toolchains and target directories,
+      # based on the job and toolchain and other factors. See
+      # https://github.com/Swatinem/rust-cache#cache-details for what gets
+      # cached, what gets used as part of the key, and what additional handling
+      # happens to make the cache reliable and smaller.
+      - uses: Swatinem/rust-cache@v2
+
+      # Run after `rust-cache` so that this is cached.
+      - run: rustup update
+
+      - name: Check formatting
+        run: |
+          export RUSTFLAGS="-D warnings"
+          export RUSTDOCFLAGS="-D warnings"
+          cargo fmt --check
 
       - name: Provision Dev Package
         run: |
-          sudo apt update && sudo apt install -y cmake python3
+          sudo apt update && sudo apt install -y cmake
 
-      - name: Provision Rust
-        run: |
-          rustup update
-
-      - name: Provision Python Packages
-        run: python3 -m pip install -r scripts/requirements.txt
-      
       - name: LLVM Install
         uses: ZhongRuoyu/setup-llvm@v0.1.1
         with:
           llvm-version: 21
 
-      - name: Install dependencies
-        run: cargo fetch
-
-      - name: Check formatting
-        run: cargo fmt -- --check
+      - name: Compile release
+        run: cargo build --release
 
       - name: Run tests
         run: cargo test --release
 
-      - name: Compile release
-        run: cargo build --release
-
       - name: Run testsuite
-        run: python3 scripts/test_translator.py tests
+        run: uv run scripts/test_translator.py tests
