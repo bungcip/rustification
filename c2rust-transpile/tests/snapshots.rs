@@ -82,7 +82,10 @@ fn transpile(platform: Option<&str>, c_path: &Path) {
         }
     };
 
-    let status = Command::new("rustfmt").args(&["--edition", "2024"]).arg(&rs_path).status();
+    let status = Command::new("rustfmt")
+        .args(&["--edition", "2024"])
+        .arg(&rs_path)
+        .status();
     assert!(status.unwrap().success());
 
     let rs = fs::read_to_string(&rs_path).unwrap();

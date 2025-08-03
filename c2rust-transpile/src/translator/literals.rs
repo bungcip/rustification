@@ -225,7 +225,11 @@ impl<'c> Translation<'c> {
                         // This was likely a C array of the form `int x[16] = {}`.
                         // We'll emit that as [0; 16].
                         let len = mk().lit_expr(mk().int_lit(n));
-                        let zeroed = self.implicit_default_expr(member_ty, ctx.is_static, ctx.inside_init_list_aop)?;
+                        let zeroed = self.implicit_default_expr(
+                            member_ty,
+                            ctx.is_static,
+                            ctx.inside_init_list_aop,
+                        )?;
                         Ok(zeroed.map(|default_value| mk().repeat_expr(default_value, len)))
                     }
                     &[single] if is_string_literal(single) => {
@@ -250,8 +254,12 @@ impl<'c> Translation<'c> {
                             .map(to_array_element)
                             .chain(
                                 // Pad out the array literal with default values to the desired size
-                                iter::repeat(self.implicit_default_expr(member_ty, ctx.is_static, ctx.inside_init_list_aop))
-                                    .take(n - ids.len()),
+                                iter::repeat(self.implicit_default_expr(
+                                    member_ty,
+                                    ctx.is_static,
+                                    ctx.inside_init_list_aop,
+                                ))
+                                .take(n - ids.len()),
                             )
                             .collect::<TranslationResult<WithStmts<_>>>()?
                             .map(|vals| mk().array_expr(vals)))

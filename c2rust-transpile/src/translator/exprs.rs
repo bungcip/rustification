@@ -70,7 +70,8 @@ impl<'c> Translation<'c> {
 
         if self.tcfg.translate_fn_macros {
             let text = self.ast_context.macro_expansion_text.get(&expr_id);
-            if let Some(converted) = text.and_then(|text| self.convert_fn_macro_invocation(ctx, text))
+            if let Some(converted) =
+                text.and_then(|text| self.convert_fn_macro_invocation(ctx, text))
             {
                 return Ok(converted);
             }

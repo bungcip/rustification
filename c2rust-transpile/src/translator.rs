@@ -1375,7 +1375,6 @@ impl<'c> Translation<'c> {
         (fn_item, static_item)
     }
 
-
     /// Given all of the expansions of a const macro,
     /// try to recreate a Rust `const` translation
     /// that is equivalent to every expansion.
