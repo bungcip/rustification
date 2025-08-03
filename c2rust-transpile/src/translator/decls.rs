@@ -636,7 +636,7 @@ impl<'c> Translation<'c> {
                     decl_id, self.ast_context[decl_id]
                 );
 
-                let maybe_replacement = self.canonical_macro_replacement(
+                let maybe_replacement = self.recreate_const_macro_from_expansions(
                     ctx.set_const(true).set_expanding_macro(decl_id),
                     &self.ast_context.macro_expansions[&decl_id],
                 );

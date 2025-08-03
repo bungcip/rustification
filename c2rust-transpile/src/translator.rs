@@ -1375,22 +1375,34 @@ impl<'c> Translation<'c> {
         (fn_item, static_item)
     }
 
-    fn canonical_macro_replacement(
+
+    /// Given all of the expansions of a const macro,
+    /// try to recreate a Rust `const` translation
+    /// that is equivalent to every expansion.
+    ///
+    /// This may fail, in which case we simply don't emit a `const`
+    /// and leave all of the expansions as fully inlined
+    /// instead of referencing this `const`.
+    ///
+    /// For example, if the types of the macro expansion have no common type,
+    /// which is required for a Rust `const` but not a C const macro,
+    /// this can fail.  Or there could just be a feature we don't yet support.
+    fn recreate_const_macro_from_expansions(
         &self,
         ctx: ExprContext,
-        replacements: &[CExprId],
+        expansions: &[CExprId],
     ) -> TranslationResult<(Box<Expr>, CTypeId)> {
-        let (val, ty) = replacements
+        let (val, ty) = expansions
             .iter()
-            .try_fold::<Option<(WithStmts<Box<Expr>>, CTypeId)>, _, _>(None, |canonical, id| {
-                let ty = self.ast_context[*id]
+            .try_fold::<Option<(WithStmts<Box<Expr>>, CTypeId)>, _, _>(None, |canonical, &id| {
+                let ty = self.ast_context[id]
                     .kind
                     .get_type()
                     .ok_or_else(|| generic_err!("Invalid expression type"))?;
                 let (expr_id, ty) = self
                     .ast_context
-                    .resolve_expr_type_id(*id)
-                    .unwrap_or((*id, ty));
+                    .resolve_expr_type_id(id)
+                    .unwrap_or((id, ty));
                 let expr = self.convert_expr(ctx, expr_id)?;
 
                 // Join ty and cur_ty to the smaller of the two types. If the

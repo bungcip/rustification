@@ -34,22 +34,29 @@ pub unsafe extern "C" fn ptr() {
 }
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn array_deduced_length() {
-    let mut _s: [ffi::c_char; 6] = *::core::mem::transmute::<
-        &[u8; 6],
-        &mut [ffi::c_char; 6],
-    >(b"hello\0");
+    let mut _s: [ffi::c_char; 6] =
+        *::core::mem::transmute::<&[u8; 6], &mut [ffi::c_char; 6]>(b"hello\0");
 }
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn array() {
-    let mut _s: [ffi::c_char; 10] = *::core::mem::transmute::<
-        &[u8; 10],
-        &mut [ffi::c_char; 10],
-    >(b"hello\0\0\0\0\0");
+    let mut _s: [ffi::c_char; 10] =
+        *::core::mem::transmute::<&[u8; 10], &mut [ffi::c_char; 10]>(b"hello\0\0\0\0\0");
 }
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn int_array_extra_braces() {
     let mut _a: [[ffi::c_int; 10]; 3] = [
-        [1 as ffi::c_int, 2 as ffi::c_int, 3 as ffi::c_int, 0, 0, 0, 0, 0, 0, 0],
+        [
+            1 as ffi::c_int,
+            2 as ffi::c_int,
+            3 as ffi::c_int,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+        ],
         [0; 10],
         [0; 10],
     ];
@@ -60,10 +67,8 @@ pub unsafe extern "C" fn ptr_extra_braces() {
 }
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn array_extra_braces() {
-    let _s: [ffi::c_char; 10] = *::core::mem::transmute::<
-        &[u8; 10],
-        &[ffi::c_char; 10],
-    >(b"hello\0\0\0\0\0");
+    let _s: [ffi::c_char; 10] =
+        *::core::mem::transmute::<&[u8; 10], &[ffi::c_char; 10]>(b"hello\0\0\0\0\0");
 }
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn array_of_ptrs() {
@@ -97,10 +102,9 @@ pub unsafe extern "C" fn array_of_arrays_static_struct() {
         {
             let mut init = s {
                 entries: [
-                    *::core::mem::transmute::<
-                        &[u8; 10],
-                        &mut [ffi::c_char; 10],
-                    >(b"hello\0\0\0\0\0"),
+                    *::core::mem::transmute::<&[u8; 10], &mut [ffi::c_char; 10]>(
+                        b"hello\0\0\0\0\0",
+                    ),
                     [0; 10],
                     [0; 10],
                 ],
@@ -115,10 +119,7 @@ pub unsafe extern "C" fn curl_alpn_spec() {
         {
             let mut init = alpn_spec {
                 entries: [
-                    *::core::mem::transmute::<
-                        &[u8; 10],
-                        &mut [ffi::c_char; 10],
-                    >(b"http/1.1\0\0"),
+                    *::core::mem::transmute::<&[u8; 10], &mut [ffi::c_char; 10]>(b"http/1.1\0\0"),
                     [0; 10],
                     [0; 10],
                 ],

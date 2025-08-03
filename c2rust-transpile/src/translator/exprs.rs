@@ -63,14 +63,14 @@ impl<'c> Translation<'c> {
         );
 
         if self.tcfg.translate_const_macros {
-            if let Some(converted) = self.convert_macro_expansion(ctx, expr_id)? {
+            if let Some(converted) = self.convert_const_macro_expansion(ctx, expr_id)? {
                 return Ok(converted);
             }
         }
 
         if self.tcfg.translate_fn_macros {
             let text = self.ast_context.macro_expansion_text.get(&expr_id);
-            if let Some(converted) = text.and_then(|text| self.convert_macro_invocation(ctx, text))
+            if let Some(converted) = text.and_then(|text| self.convert_fn_macro_invocation(ctx, text))
             {
                 return Ok(converted);
             }

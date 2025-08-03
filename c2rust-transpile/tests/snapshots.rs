@@ -50,7 +50,12 @@ fn config() -> TranspilerConfig {
 /// It could be the `target_arch`, `target_os`, some combination, or something else.
 fn transpile(platform: Option<&str>, c_path: &Path) {
     let status = Command::new("clang")
-        .args(&["-c", "-o", "/dev/null"])
+        .args(&[
+            "-c",
+            "-o",
+            "/dev/null",
+            "-w", // Disable warnings.
+        ])
         .arg(c_path)
         .status();
     assert!(status.unwrap().success());
@@ -76,6 +81,10 @@ fn transpile(platform: Option<&str>, c_path: &Path) {
             platform_rs_path
         }
     };
+
+    let status = Command::new("rustfmt").args(&["--edition", "2024"]).arg(&rs_path).status();
+    assert!(status.unwrap().success());
+
     let rs = fs::read_to_string(&rs_path).unwrap();
     let debug_expr = format!("cat {}", rs_path.display());
 
@@ -85,26 +94,30 @@ fn transpile(platform: Option<&str>, c_path: &Path) {
     };
     insta::assert_snapshot!(snapshot_name, &rs, &debug_expr);
 
+    let mut cmd = Command::new("rustc");
+    let version: String;
+    if channel == RustChannel::Nightly {
+        version = format!("+nightly-{MAX_NIGHTLY_VERSION}");
+        cmd.arg(&version);
+    }
+
     // Don't need to worry about platform clashes here, as this is immediately deleted.
     let rlib_path = format!("lib{crate_name}.rlib");
-    let mut args: Vec<&str> = vec![
+    cmd.args(&[
         "--crate-type",
-        "lib",
+        "rlib",
         "--edition",
         "2024",
         "--crate-name",
         crate_name,
         "-o",
         &rlib_path,
-    ];
-    let version: String;
-    if channel == RustChannel::Nightly {
-        println!("Using nightly Rust for {}", rs_path.display());
-        version = format!("+nightly-{MAX_NIGHTLY_VERSION}");
-        args.insert(0, &version);
-    }
+        "-Awarnings", // Disable warnings.
+    ]);
 
-    let status = Command::new("rustc").args(&args).arg(&rs_path).status();
+    cmd.arg(rs_path);
+
+    let status = cmd.status();
     assert!(status.unwrap().success());
     fs::remove_file(&rlib_path).unwrap();
 }
