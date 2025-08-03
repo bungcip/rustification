@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+f128 = "0.2"

@@ -10,6 +10,7 @@ unsafe extern "C" {
     fn const_string_array() -> c_int;
 }
 
+#[test]
 pub fn test_string_length() {
     let mut c_buf: [c_int; 4] = [0, 0, 0, 0];
     let mut r_buf: [c_int; 4] = [0, 0, 0, 0];
@@ -29,6 +30,7 @@ pub fn test_string_length() {
     }
 }
 
+#[test]
 pub fn test_static_length() {
     let c_len : c_int;
     let r_len : c_int;
@@ -41,6 +43,7 @@ pub fn test_static_length() {
 
 }
 
+#[test]
 pub fn test_mutable_string_array() {
     let result: c_int = 6;
     unsafe {
@@ -49,6 +52,7 @@ pub fn test_mutable_string_array() {
     }
 }
 
+#[test]
 pub fn test_const_string_array() {
     unsafe {
         assert_eq!(const_string_array(), rust_const_string_array());

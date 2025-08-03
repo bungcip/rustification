@@ -9,6 +9,7 @@ unsafe extern "C" {
 
 const BUFFER_SIZE: usize = 9;
 
+#[test]
 pub fn test_compiles() {
     unsafe {
         volatile_stuff();
@@ -16,6 +17,7 @@ pub fn test_compiles() {
     }    
 }
 
+#[test]
 pub fn test_buffer() {
     let mut buffer = [0; BUFFER_SIZE];
     let mut rust_buffer = [0; BUFFER_SIZE];

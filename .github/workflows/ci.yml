@@ -27,6 +27,8 @@ jobs:
       # cached, what gets used as part of the key, and what additional handling
       # happens to make the cache reliable and smaller.
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-workspace-crates: true
 
       # Run after `rust-cache` so that this is cached.
       - run: rustup update
@@ -38,8 +40,10 @@ jobs:
           cargo fmt --check
 
       - name: Provision Dev Package
-        run: |
-          sudo apt update && sudo apt install -y cmake
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: |
+            cmake
 
       - name: LLVM Install
         uses: ZhongRuoyu/setup-llvm@v0.1.1
