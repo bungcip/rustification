@@ -242,7 +242,7 @@ impl<'c> Translation<'c> {
             .kind
             .get_qual_type()
             .ok_or_else(|| generic_err!("bad assignment rhs type"))?;
-        let rhs_translation = self.convert_expr(ctx.used(), rhs)?;
+        let rhs_translation = self.convert_expr(ctx.used(), rhs, compute_type)?; // TODO(fw): verify
         self.convert_assignment_operator_with_rhs(
             ctx,
             op,
@@ -685,7 +685,7 @@ impl<'c> Translation<'c> {
                 match arg_kind {
                     // C99 6.5.3.2 para 4
                     CExprKind::Unary(_, c_ast::UnOp::Deref, target, _) => {
-                        return self.convert_expr(ctx, *target);
+                        return self.convert_expr(ctx, *target, None);
                     }
                     // An AddrOf DeclRef/Member is safe to not decay if the translator isn't already giving a hard
                     // yes to decaying (ie, BitCasts). So we only convert default to no decay.
@@ -698,7 +698,7 @@ impl<'c> Translation<'c> {
                 // In this translation, there are only pointers to functions and
                 // & becomes a no-op when applied to a function.
 
-                let arg = self.convert_expr(ctx.used().set_needs_address(true), arg)?;
+                let arg = self.convert_expr(ctx.used().set_needs_address(true), arg, None)?;
 
                 if self.ast_context.is_function_pointer(ctype) {
                     Ok(arg.map(|x| mk().call_expr(mk().ident_expr("Some"), vec![x])))
@@ -773,10 +773,10 @@ impl<'c> Translation<'c> {
             c_ast::UnOp::Deref => {
                 match self.ast_context[arg].kind {
                     CExprKind::Unary(_, c_ast::UnOp::AddressOf, arg_, _) => {
-                        self.convert_expr(ctx.used(), arg_)
+                        self.convert_expr(ctx.used(), arg_, None)
                     }
                     _ => {
-                        self.convert_expr(ctx.used(), arg)?
+                        self.convert_expr(ctx.used(), arg, None)?
                             .result_map(|val: Box<Expr>| {
                                 if let CTypeKind::Function(..) =
                                     self.ast_context.resolve_type(ctype).kind
@@ -798,10 +798,10 @@ impl<'c> Translation<'c> {
                     }
                 }
             }
-            c_ast::UnOp::Plus => self.convert_expr(ctx.used(), arg), // promotion is explicit in the clang AST
+            c_ast::UnOp::Plus => self.convert_expr(ctx.used(), arg, Some(cqual_type)), // promotion is explicit in the clang AST
 
             c_ast::UnOp::Negate => {
-                let val = self.convert_expr(ctx.used(), arg)?;
+                let val = self.convert_expr(ctx.used(), arg, Some(cqual_type))?;
 
                 if resolved_ctype.kind.is_unsigned_integral_type() {
                     Ok(val.map(|x| mk().method_call_expr(x, "wrapping_neg", vec![])))
@@ -810,7 +810,7 @@ impl<'c> Translation<'c> {
                 }
             }
             c_ast::UnOp::Complement => Ok(self
-                .convert_expr(ctx.used(), arg)?
+                .convert_expr(ctx.used(), arg, Some(cqual_type))?
                 .map(|a| mk().not_expr(a))),
 
             c_ast::UnOp::Not => {
@@ -818,7 +818,7 @@ impl<'c> Translation<'c> {
                 Ok(val.map(|x| mk().cast_expr(x, mk().path_ty(vec!["ffi", "c_int"]))))
             }
             c_ast::UnOp::Extension => {
-                let arg = self.convert_expr(ctx, arg)?;
+                let arg = self.convert_expr(ctx, arg, Some(cqual_type))?;
                 Ok(arg)
             }
             c_ast::UnOp::Real | c_ast::UnOp::Imag | c_ast::UnOp::Coawait => {

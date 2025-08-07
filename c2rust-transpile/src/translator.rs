@@ -1402,7 +1402,7 @@ impl<'c> Translation<'c> {
                     .ast_context
                     .resolve_expr_type_id(id)
                     .unwrap_or((id, ty));
-                let expr = self.convert_expr(ctx, expr_id)?;
+                let expr = self.convert_expr(ctx, expr_id, None)?;
 
                 // Join ty and cur_ty to the smaller of the two types. If the
                 // types are not cast-compatible, abort the fold.
@@ -1514,11 +1514,12 @@ impl<'c> Translation<'c> {
         ctx: ExprContext,
         name: &str,
         body_ids: &[CStmtId],
+        ret_ty: Option<CQualTypeId>,
         ret: cfg::ImplicitReturnType,
     ) -> TranslationResult<Vec<Stmt>> {
         // Function body scope
         self.with_scope(|| {
-            let (graph, store) = cfg::Cfg::from_stmts(self, ctx, body_ids, ret)?;
+            let (graph, store) = cfg::Cfg::from_stmts(self, ctx, body_ids, ret, ret_ty)?;
             self.convert_cfg(name, graph, store, IndexSet::new(), true)
         })
     }
@@ -1872,7 +1873,7 @@ impl<'c> Translation<'c> {
         };
 
         let init = match initializer {
-            Some(x) => self.convert_expr(ctx.used(), x),
+            Some(x) => self.convert_expr(ctx.used(), x, Some(typ)),
             None => self.implicit_default_expr(typ.ctype, ctx.is_static, ctx.inside_init_list_aop),
         };
 
@@ -1955,24 +1956,26 @@ impl<'c> Translation<'c> {
                     type_id = elt;
 
                     // Convert this expression
-                    let expr = self.convert_expr(ctx.used(), expr_id)?.and_then(|expr| {
-                        let name = self
-                            .renamer
-                            .borrow_mut()
-                            .insert(CDeclId(expr_id.0), "vla")
-                            .unwrap(); // try using declref name?
-                        // TODO: store the name corresponding to expr_id
+                    let expr = self
+                        .convert_expr(ctx.used(), expr_id, None)?
+                        .and_then(|expr| {
+                            let name = self
+                                .renamer
+                                .borrow_mut()
+                                .insert(CDeclId(expr_id.0), "vla")
+                                .unwrap(); // try using declref name?
+                            // TODO: store the name corresponding to expr_id
 
-                        let local = mk().local(
-                            mk().ident_pat(name),
-                            None,
-                            Some(mk().cast_expr(expr, mk().path_ty(vec!["usize"]))),
-                        );
+                            let local = mk().local(
+                                mk().ident_pat(name),
+                                None,
+                                Some(mk().cast_expr(expr, mk().path_ty(vec!["usize"]))),
+                            );
 
-                        let res: TranslationResult<WithStmts<()>> =
-                            Ok(WithStmts::new(vec![mk().local_stmt(Box::new(local))], ()));
-                        res
-                    })?;
+                            let res: TranslationResult<WithStmts<()>> =
+                                Ok(WithStmts::new(vec![mk().local_stmt(Box::new(local))], ()));
+                            res
+                        })?;
 
                     stmts.extend(expr.into_stmts());
                 }
@@ -1989,13 +1992,14 @@ impl<'c> Translation<'c> {
         &self,
         ctx: ExprContext,
         type_id: CTypeId,
+        override_ty: Option<CQualTypeId>,
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
         if let CTypeKind::VariableArray(elts, len) = self.ast_context.resolve_type(type_id).kind {
             let len = len.expect("Sizeof a VLA type with count expression omitted");
 
-            let elts = self.compute_size_of_type(ctx, elts)?;
+            let elts = self.compute_size_of_type(ctx, elts, override_ty)?;
             return elts.and_then(|lhs| {
-                let len = self.convert_expr(ctx.used().not_static(), len)?;
+                let len = self.convert_expr(ctx.used().not_static(), len, override_ty)?;
                 Ok(len.map(|len| {
                     let rhs = transform::cast_int(len, "usize", true);
                     mk().binary_expr(BinOp::Mul(Default::default()), lhs, rhs)
@@ -2003,7 +2007,17 @@ impl<'c> Translation<'c> {
             });
         }
         let ty = self.convert_type(type_id)?;
-        self.mk_size_of_ty_expr(ty)
+        let mut result = self.mk_size_of_ty_expr(ty);
+        // cast to expected ty if one is known
+        if let Some(expected_ty) = override_ty {
+            trace!(
+                "Converting result of sizeof to {:?}",
+                self.ast_context.resolve_type(expected_ty.ctype)
+            );
+            let result_ty = self.convert_type(expected_ty.ctype)?;
+            result = result.map(|x| x.map(|x| mk().cast_expr(x, result_ty)));
+        }
+        result
     }
 
     fn mk_size_of_ty_expr(&self, ty: Box<Type>) -> TranslationResult<WithStmts<Box<Expr>>> {
@@ -2104,13 +2118,14 @@ impl<'c> Translation<'c> {
                 let mut stmts = match self.ast_context[result_id].kind {
                     CStmtKind::Expr(expr_id) => {
                         let ret = cfg::ImplicitReturnType::StmtExpr(ctx, expr_id, lbl.clone());
-                        self.convert_function_body(ctx, &name, &substmt_ids[0..(n - 1)], ret)?
+                        self.convert_function_body(ctx, &name, &substmt_ids[0..(n - 1)], None, ret)?
                     }
 
                     _ => self.convert_function_body(
                         ctx,
                         &name,
                         substmt_ids,
+                        None,
                         cfg::ImplicitReturnType::Void,
                     )?,
                 };

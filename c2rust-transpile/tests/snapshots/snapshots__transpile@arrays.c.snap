@@ -83,7 +83,7 @@ pub unsafe extern "C" fn entry() {
     >(b"abc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0");
     let mut past_end: *mut ffi::c_char = &raw mut *(&raw mut simple)
         .cast::<ffi::c_char>()
-        .offset(::core::mem::size_of::<[ffi::c_char; 9]>() as ffi::c_ulong as isize)
+        .offset(::core::mem::size_of::<[ffi::c_char; 9]>() as isize)
         as *mut ffi::c_char;
     past_end = &raw mut *foo.offset(8 as ffi::c_int as isize) as *mut ffi::c_char;
 }

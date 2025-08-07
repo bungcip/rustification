@@ -31,10 +31,13 @@ impl<'c> Translation<'c> {
         &self,
         ctx: ExprContext,
         exprs: &[CExprId],
+        arg_tys: Option<&[CQualTypeId]>,
     ) -> TranslationResult<WithStmts<Vec<Box<Expr>>>> {
+        assert!(arg_tys.map(|tys| tys.len() == exprs.len()).unwrap_or(true));
         exprs
             .iter()
-            .map(|arg| self.convert_expr(ctx, *arg))
+            .enumerate()
+            .map(|(n, arg)| self.convert_expr(ctx, *arg, arg_tys.map(|tys| tys[n])))
             .collect()
     }
 
@@ -51,6 +54,7 @@ impl<'c> Translation<'c> {
         &self,
         mut ctx: ExprContext,
         expr_id: CExprId,
+        override_ty: Option<CQualTypeId>,
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
         let Located {
             loc: src_loc,
@@ -91,10 +95,10 @@ impl<'c> Translation<'c> {
             UnaryType(_ty, kind, opt_expr, arg_ty) => {
                 let result = match kind {
                     UnTypeOp::SizeOf => match opt_expr {
-                        None => self.compute_size_of_type(ctx, arg_ty.ctype)?,
+                        None => self.compute_size_of_type(ctx, arg_ty.ctype, override_ty)?,
                         Some(_) => {
                             let inner = self.variable_array_base_type(arg_ty.ctype);
-                            let inner_size = self.compute_size_of_type(ctx, inner)?;
+                            let inner_size = self.compute_size_of_type(ctx, inner, override_ty)?;
 
                             if let Some(sz) = self.compute_size_of_expr(arg_ty.ctype) {
                                 inner_size.map(|x| {
@@ -110,14 +114,14 @@ impl<'c> Translation<'c> {
                     UnTypeOp::PreferredAlignOf => self.compute_align_of_type(arg_ty.ctype, true)?,
                 };
 
-                Ok(result.map(|x| mk().cast_expr(x, mk().path_ty(vec!["ffi", "c_ulong"]))))
+                Ok(result)
             }
 
             ConstantExpr(_ty, child, value) => {
                 if let Some(constant) = value {
                     self.convert_constant(constant).map(WithStmts::new_val)
                 } else {
-                    self.convert_expr(ctx, child)
+                    self.convert_expr(ctx, child, Some(_ty))
                 }
             }
 
@@ -214,6 +218,13 @@ impl<'c> Translation<'c> {
                     val = mk().method_call_expr(val, "as_mut_ptr", vec![]);
                 }
 
+                // if the context wants a different type, add a cast
+                if let Some(expected_ty) = override_ty {
+                    if expected_ty != qual_ty {
+                        val = mk().cast_expr(val, self.convert_type(expected_ty.ctype)?);
+                    }
+                }
+
                 let mut res = WithStmts::new_val(val);
                 res.merge_unsafe(set_unsafe);
                 Ok(res)
@@ -221,7 +232,7 @@ impl<'c> Translation<'c> {
 
             OffsetOf(ty, ref kind) => match kind {
                 OffsetOfKind::Constant(val) => Ok(WithStmts::new_val(self.mk_int_lit(
-                    ty,
+                    override_ty.unwrap_or(ty),
                     *val,
                     IntBase::Dec,
                 )?)),
@@ -251,7 +262,7 @@ impl<'c> Translation<'c> {
 
                     // Index Expr
                     let expr = self
-                        .convert_expr(ctx, *expr_id)?
+                        .convert_expr(ctx, *expr_id, None)?
                         .to_pure_expr()
                         .ok_or_else(|| {
                             generic_err!("Expected Variable offsetof to be a side-effect free")
@@ -278,7 +289,7 @@ impl<'c> Translation<'c> {
                     ));
 
                     // Cast type
-                    let cast_ty = self.convert_type(ty.ctype)?;
+                    let cast_ty = self.convert_type(override_ty.unwrap_or(ty).ctype)?;
                     let cast_expr = mk().cast_expr(mac, cast_ty);
 
                     Ok(WithStmts::new_val(cast_expr))
@@ -309,21 +320,28 @@ impl<'c> Translation<'c> {
 
                 let val = if is_explicit {
                     let stmts = self.compute_variable_array_sizes(ctx, ty.ctype)?;
-                    let mut val = self.convert_expr(ctx, expr)?;
+                    let mut val = self.convert_expr(ctx, expr, None)?;
                     val.prepend_stmts(stmts);
                     val
                 } else {
-                    self.convert_expr(ctx, expr)?
+                    self.convert_expr(ctx, expr, None)?
                 };
                 // Shuffle Vector "function" builtins will add a cast to the output of the
                 // builtin call which is unnecessary for translation purposes
                 if self.casting_simd_builtin_call(expr, is_explicit, kind) {
                     return Ok(val);
                 }
+
+                let target_ty = if kind == CastKind::ArrayToPointerDecay {
+                    ty
+                } else {
+                    override_ty.unwrap_or(ty)
+                };
+
                 self.convert_cast(
                     ctx,
                     source_ty,
-                    ty,
+                    target_ty,
                     val,
                     Some(expr),
                     Some(kind),
@@ -332,10 +350,10 @@ impl<'c> Translation<'c> {
             }
 
             Unary(type_id, op, arg, lrvalue) => {
-                self.convert_unary_operator(ctx, op, type_id, arg, lrvalue)
+                self.convert_unary_operator(ctx, op, override_ty.unwrap_or(type_id), arg, lrvalue)
             }
 
-            Conditional(_, cond, lhs, rhs) => {
+            Conditional(ty, cond, lhs, rhs) => {
                 if ctx.is_const {
                     return Err(generic_loc_err!(
                         self.ast_context.display_loc(src_loc),
@@ -344,8 +362,8 @@ impl<'c> Translation<'c> {
                 }
                 let cond = self.convert_condition(ctx, true, cond)?;
 
-                let lhs = self.convert_expr(ctx, lhs)?;
-                let rhs = self.convert_expr(ctx, rhs)?;
+                let lhs = self.convert_expr(ctx, lhs, Some(override_ty.unwrap_or(ty)))?;
+                let rhs = self.convert_expr(ctx, rhs, Some(override_ty.unwrap_or(ty)))?;
 
                 if ctx.is_unused() {
                     let is_unsafe = lhs.is_unsafe() || rhs.is_unsafe();
@@ -379,7 +397,7 @@ impl<'c> Translation<'c> {
             BinaryConditional(ty, lhs, rhs) => {
                 if ctx.is_unused() {
                     let mut lhs = self.convert_condition(ctx, false, lhs)?;
-                    let rhs = self.convert_expr(ctx, rhs)?;
+                    let rhs = self.convert_expr(ctx, rhs, None)?;
                     lhs.merge_unsafe(rhs.is_unsafe());
 
                     lhs.and_then(|val| {
@@ -403,7 +421,7 @@ impl<'c> Translation<'c> {
                             let ite = mk().ifte_expr(
                                 cond,
                                 mk().block(vec![mk().expr_stmt(lhs_val)]),
-                                Some(self.convert_expr(ctx, rhs)?.to_expr()),
+                                Some(self.convert_expr(ctx, rhs, None)?.to_expr()),
                             );
                             Ok(ite)
                         },
@@ -412,7 +430,15 @@ impl<'c> Translation<'c> {
             }
 
             Binary(type_id, op, lhs, rhs, opt_lhs_type_id, opt_res_type_id) => self
-                .convert_binary_expr(ctx, type_id, op, lhs, rhs, opt_lhs_type_id, opt_res_type_id)
+                .convert_binary_expr(
+                    ctx,
+                    override_ty.unwrap_or(type_id),
+                    op,
+                    lhs,
+                    rhs,
+                    opt_lhs_type_id,
+                    opt_res_type_id,
+                )
                 .map_err(|e| Box::new(e.add_loc(self.ast_context.display_loc(src_loc)))),
 
             ArraySubscript(_, ref lhs, ref rhs, _) => {
@@ -447,7 +473,7 @@ impl<'c> Translation<'c> {
                     ));
                 }
 
-                let rhs = self.convert_expr(ctx.used(), *rhs)?;
+                let rhs = self.convert_expr(ctx.used(), *rhs, None)?;
                 rhs.and_then(|rhs| {
                     let simple_index_array = if ctx.needs_address() {
                         // We can't necessarily index into an array if we're using
@@ -506,7 +532,7 @@ impl<'c> Translation<'c> {
                         let is_array_of_pointer = self.check_type_is_constant_aop(t);
                         let is_static_variable = self.ast_context.is_static_variable(arr);
 
-                        let lhs = self.convert_expr(ctx.used(), arr)?;
+                        let lhs = self.convert_expr(ctx.used(), arr, None)?;
                         Ok(lhs.map(|lhs| {
                             // Don't dereference the offset if we're still within the variable portion
                             if let Some(elt_type_id) = var_elt_type_id {
@@ -526,7 +552,7 @@ impl<'c> Translation<'c> {
                         }))
                     } else {
                         // LHS must be ref decayed for the offset method call's self param
-                        let lhs = self.convert_expr(ctx.used().decay_ref(), *lhs)?;
+                        let lhs = self.convert_expr(ctx.used().decay_ref(), *lhs, None)?;
                         lhs.result_map(|lhs| {
                             // stmts.extend(lhs.stmts_mut());
                             // is_unsafe = is_unsafe || lhs.is_unsafe();
@@ -574,7 +600,7 @@ impl<'c> Translation<'c> {
                     // callee is a declref
                     if matches!(self.ast_context[fexp].kind, CExprKind::DeclRef(..)) =>
                         {
-                            self.convert_expr(ctx.used(), fexp)?
+                            self.convert_expr(ctx.used(), fexp, None)?
                         }
 
                     // Builtin function call
@@ -584,7 +610,7 @@ impl<'c> Translation<'c> {
 
                     // Function pointer call
                     _ => {
-                        let callee = self.convert_expr(ctx.used(), func)?;
+                        let callee = self.convert_expr(ctx.used(), func, None)?;
                         let make_fn_ty = |ret_ty: Box<Type>| {
                             let ret_ty = match *ret_ty {
                                 Type::Tuple(TypeTuple { elems: ref v, .. }) if v.is_empty() => ReturnType::Default,
@@ -627,7 +653,7 @@ impl<'c> Translation<'c> {
                     // We want to decay refs only when function is variadic
                     ctx.decay_ref = DecayRef::from(is_variadic);
 
-                    let args = self.convert_exprs(ctx.used(), args)?;
+                    let args = self.convert_exprs(ctx.used(), args, None)?;
 
                     let res: TranslationResult<_> = Ok(args.map(|args| mk().call_expr(func, args)));
                     res
@@ -642,19 +668,19 @@ impl<'c> Translation<'c> {
 
             Member(qual_ty, expr, decl, kind, _) => {
                 if ctx.is_unused() {
-                    self.convert_expr(ctx, expr)
+                    self.convert_expr(ctx, expr, None)
                 } else {
                     let mut val = match kind {
-                        MemberKind::Dot => self.convert_expr(ctx, expr)?,
+                        MemberKind::Dot => self.convert_expr(ctx, expr, None)?,
                         MemberKind::Arrow => {
                             if let CExprKind::Unary(_, c_ast::UnOp::AddressOf, subexpr_id, _) =
                                 self.ast_context[expr].kind
                             {
                                 // Special-case the `(&x)->field` pattern
                                 // Convert it directly into `x.field`
-                                self.convert_expr(ctx, subexpr_id)?
+                                self.convert_expr(ctx, subexpr_id, None)?
                             } else {
-                                let val = self.convert_expr(ctx, expr)?;
+                                let val = self.convert_expr(ctx, expr, None)?;
                                 val.map(|v| mk().deref_expr(v))
                             }
                         }
@@ -708,9 +734,9 @@ impl<'c> Translation<'c> {
                 }
             }
 
-            Paren(_, val) => self.convert_expr(ctx, val),
+            Paren(_, val) => self.convert_expr(ctx, val, override_ty),
 
-            CompoundLiteral(_, val) => self.convert_expr(ctx, val),
+            CompoundLiteral(_, val) => self.convert_expr(ctx, val, override_ty),
 
             InitList(ty, ref ids, opt_union_field_id, _) => {
                 self.convert_init_list(ctx, ty, ids, opt_union_field_id)
@@ -720,7 +746,7 @@ impl<'c> Translation<'c> {
                 self.implicit_default_expr(ty.ctype, ctx.is_static, ctx.inside_init_list_aop)
             }
 
-            Predefined(_, val_id) => self.convert_expr(ctx, val_id),
+            Predefined(_, val_id) => self.convert_expr(ctx, val_id, override_ty),
 
             Statements(_, compound_stmt_id) => {
                 self.convert_statement_expression(ctx, compound_stmt_id)
@@ -730,9 +756,9 @@ impl<'c> Translation<'c> {
 
             Choose(_, _cond, lhs, rhs, is_cond_true) => {
                 let chosen_expr = if is_cond_true {
-                    self.convert_expr(ctx, lhs)?
+                    self.convert_expr(ctx, lhs, override_ty)?
                 } else {
-                    self.convert_expr(ctx, rhs)?
+                    self.convert_expr(ctx, rhs, override_ty)?
                 };
 
                 // TODO: Support compile-time choice between lhs and rhs based on cond.
@@ -847,8 +873,8 @@ impl<'c> Translation<'c> {
         match op {
             Comma => {
                 // The value of the LHS of a comma expression is always discarded
-                self.convert_expr(ctx.unused(), lhs)?
-                    .and_then(|_| self.convert_expr(ctx, rhs))
+                self.convert_expr(ctx.unused(), lhs, None)?
+                    .and_then(|_| self.convert_expr(ctx, rhs, Some(type_id)))
             }
 
             And | Or => {
@@ -893,29 +919,36 @@ impl<'c> Translation<'c> {
 
                 let ty = self.convert_type(type_id.ctype)?;
 
-                let lhs_type_id = self
-                    .ast_context
-                    .index(lhs)
-                    .kind
-                    .get_qual_type()
-                    .ok_or_else(|| {
-                        generic_loc_err!(
-                            self.ast_context.display_loc(lhs_loc),
-                            "bad lhs type for assignment"
-                        )
-                    })?;
+                let lhs_kind = &self.ast_context.index(lhs).kind;
+                let mut lhs_type_id = lhs_kind.get_qual_type().ok_or_else(|| {
+                    generic_loc_err!(
+                        self.ast_context.display_loc(lhs_loc),
+                        "bad lhs type for assignment"
+                    )
+                })?;
                 let rhs_kind = &self.ast_context.index(rhs).kind;
-                let rhs_type_id = rhs_kind.get_qual_type().ok_or_else(|| {
+                let mut rhs_type_id = rhs_kind.get_qual_type().ok_or_else(|| {
                     generic_loc_err!(
                         self.ast_context.display_loc(rhs_loc),
                         "bad rhs type for assignment"
                     )
                 })?;
 
+                // If this is an operation like addition or bitxor that (for rust built-ins) accepts
+                // and produces values all of the same type, then propagate our expected type down
+                // to the translation of our argument expressions.
+                if op.all_types_same()
+                    && !self.ast_context.index(lhs_type_id.ctype).kind.is_pointer()
+                    && !self.ast_context.index(rhs_type_id.ctype).kind.is_pointer()
+                {
+                    lhs_type_id = type_id;
+                    rhs_type_id = type_id;
+                }
+
                 if ctx.is_unused() {
                     Ok(self
-                        .convert_expr(ctx, lhs)?
-                        .and_then(|_| self.convert_expr(ctx, rhs))?
+                        .convert_expr(ctx, lhs, Some(lhs_type_id))?
+                        .and_then(|_| self.convert_expr(ctx, rhs, Some(rhs_type_id)))?
                         .map(|_| self.panic_or_err("Binary expression is not supposed to be used")))
                 } else {
                     let rhs_ctx = ctx;
@@ -931,21 +964,23 @@ impl<'c> Translation<'c> {
                         }
                     }
 
-                    self.convert_expr(ctx, lhs)?.and_then(|lhs_val| {
-                        self.convert_expr(rhs_ctx, rhs)?.result_map(|rhs_val| {
-                            let expr_ids = Some((lhs, rhs));
-                            self.convert_binary_operator(
-                                op,
-                                ty,
-                                type_id.ctype,
-                                lhs_type_id,
-                                rhs_type_id,
-                                lhs_val,
-                                rhs_val,
-                                expr_ids,
-                            )
+                    self.convert_expr(ctx, lhs, Some(lhs_type_id))?
+                        .and_then(|lhs_val| {
+                            self.convert_expr(rhs_ctx, rhs, Some(rhs_type_id))?
+                                .result_map(|rhs_val| {
+                                    let expr_ids = Some((lhs, rhs));
+                                    self.convert_binary_operator(
+                                        op,
+                                        ty,
+                                        type_id.ctype,
+                                        lhs_type_id,
+                                        rhs_type_id,
+                                        lhs_val,
+                                        rhs_val,
+                                        expr_ids,
+                                    )
+                                })
                         })
-                    })
                 }
             }
         }
@@ -1004,7 +1039,7 @@ impl<'c> Translation<'c> {
 
         let null_pointer_case =
             |negated: bool, ptr: CExprId| -> TranslationResult<WithStmts<Box<Expr>>> {
-                let val = self.convert_expr(ctx.used().decay_ref(), ptr)?;
+                let val = self.convert_expr(ctx.used().decay_ref(), ptr, None)?;
                 let ptr_type = self.ast_context[ptr]
                     .kind
                     .get_type()
@@ -1061,7 +1096,7 @@ impl<'c> Translation<'c> {
                 // in https://github.com/rust-lang/rust/issues/53772, you cant compare a reference (lhs) to
                 // a ptr (rhs) (even though the reverse works!). We could also be smarter here and just
                 // specify Yes for that particular case, given enough analysis.
-                let val = self.convert_expr(ctx.used().decay_ref(), cond_id)?;
+                let val = self.convert_expr(ctx.used().decay_ref(), cond_id, None)?;
                 Ok(val.map(|e| self.match_bool(target, ty_id, e)))
             }
         }

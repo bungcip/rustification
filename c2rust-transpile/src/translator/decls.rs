@@ -983,7 +983,13 @@ impl<'c> Translation<'c> {
                     CStmtKind::Compound(ref stmts) => stmts,
                     _ => panic!("function body expects to be a compound statement"),
                 };
-                body_stmts.append(&mut self.convert_function_body(ctx, name, body_ids, ret)?);
+                body_stmts.append(&mut self.convert_function_body(
+                    ctx,
+                    name,
+                    body_ids,
+                    return_type,
+                    ret,
+                )?);
                 let mut block = stmts_block(body_stmts);
                 if let Some(span) = self.get_span(SomeId::Stmt(body)) {
                     block.set_span(span);
