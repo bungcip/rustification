@@ -162,16 +162,13 @@ impl<'c> Translation<'c> {
         read: Box<Expr>,
         write: Box<Expr>,
         rhs: Box<Expr>,
-        compute_lhs_ty: Option<CQualTypeId>,
-        compute_res_ty: Option<CQualTypeId>,
-        lhs_ty: CQualTypeId,
-        rhs_ty: CQualTypeId,
+        compute_lhs_type_id: CQualTypeId,
+        compute_res_type_id: CQualTypeId,
+        lhs_type_id: CQualTypeId,
+        rhs_type_id: CQualTypeId,
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
-        let compute_lhs_ty = compute_lhs_ty.unwrap();
-        let compute_res_ty = compute_res_ty.unwrap();
-
-        if self.ast_context.resolve_type_id(compute_lhs_ty.ctype)
-            == self.ast_context.resolve_type_id(lhs_ty.ctype)
+        if self.ast_context.resolve_type_id(compute_lhs_type_id.ctype)
+            == self.ast_context.resolve_type_id(lhs_type_id.ctype)
         {
             Ok(WithStmts::new_val(mk().assign_op_expr(
                 bin_op_kind,
@@ -179,11 +176,11 @@ impl<'c> Translation<'c> {
                 rhs,
             )))
         } else {
-            let resolved_computed_kind = &self.ast_context.resolve_type(compute_lhs_ty.ctype).kind;
-            let lhs_type = self.convert_type(compute_lhs_ty.ctype)?;
+            let compute_lhs_resolved_ty = &self.ast_context.resolve_type(compute_lhs_type_id.ctype);
+            let lhs_type = self.convert_type(compute_lhs_type_id.ctype)?;
 
             // We can't simply as-cast into a non primitive like f128
-            let lhs = if *resolved_computed_kind == CTypeKind::LongDouble {
+            let lhs = if compute_lhs_resolved_ty.kind == CTypeKind::LongDouble {
                 self.use_crate(ExternCrate::F128);
 
                 let fn_path = mk().path_expr(vec!["f128", "f128", "from"]);
@@ -193,28 +190,30 @@ impl<'c> Translation<'c> {
             } else {
                 mk().cast_expr(read, lhs_type.clone())
             };
-            let ty = self.convert_type(compute_res_ty.ctype)?;
+            let ty = self.convert_type(compute_res_type_id.ctype)?;
             let val = self.convert_binary_operator(
                 bin_op,
                 ty,
-                compute_res_ty.ctype,
-                compute_lhs_ty,
-                rhs_ty,
+                compute_res_type_id.ctype,
+                compute_lhs_type_id,
+                rhs_type_id,
                 lhs,
                 rhs,
                 None,
             )?;
 
-            let is_enum_result = self.ast_context[self.ast_context.resolve_type_id(lhs_ty.ctype)]
+            let is_enum_result = self
+                .ast_context
+                .resolve_type(lhs_type_id.ctype)
                 .kind
                 .is_enum();
-            let result_type = self.convert_type(lhs_ty.ctype)?;
+            let result_type = self.convert_type(lhs_type_id.ctype)?;
             let val = if is_enum_result {
                 WithStmts::new_unsafe_val(transmute_expr(lhs_type, result_type, val))
             } else {
                 // We can't as-cast from a non primitive like f128 back to the result_type
-                if *resolved_computed_kind == CTypeKind::LongDouble {
-                    let resolved_lhs_kind = &self.ast_context.resolve_type(lhs_ty.ctype).kind;
+                if compute_lhs_resolved_ty.kind == CTypeKind::LongDouble {
+                    let resolved_lhs_kind = &self.ast_context.resolve_type(lhs_type_id.ctype).kind;
                     let val = WithStmts::new_val(val);
 
                     self.f128_cast_to(val, resolved_lhs_kind)?
@@ -226,32 +225,86 @@ impl<'c> Translation<'c> {
         }
     }
 
+    /// Translate an assignment binary operator.
+    ///
+    /// `compute_lhs_ty` and `compute_res_ty` correspond to Clang's
+    /// `CompoundAssignOperator::{CompLHSType,CompResultType}`; see the Clang docs:
+    /// https://clang.llvm.org/doxygen/classclang_1_1CompoundAssignOperator.html#details
     pub(crate) fn convert_assignment_operator(
         &self,
         ctx: ExprContext,
         op: c_ast::BinOp,
-        qtype: CQualTypeId,
+        expr_type_id: CQualTypeId,
         lhs: CExprId,
         rhs: CExprId,
-        compute_type: Option<CQualTypeId>,
-        result_type: Option<CQualTypeId>,
+        compute_lhs_type_id: Option<CQualTypeId>,
+        compute_res_type_id: Option<CQualTypeId>,
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
+        if op == c_ast::BinOp::Assign {
+            assert!(compute_lhs_type_id.is_none());
+            assert!(compute_res_type_id.is_none());
+        } else {
+            assert!(compute_lhs_type_id.is_some());
+            assert!(compute_res_type_id.is_some());
+        }
+
         let rhs_type_id = self
             .ast_context
             .index(rhs)
             .kind
             .get_qual_type()
             .ok_or_else(|| generic_err!("bad assignment rhs type"))?;
-        let rhs_translation = self.convert_expr(ctx.used(), rhs, compute_type)?; // TODO(fw): verify
+        let lhs_kind = &self.ast_context.index(lhs).kind;
+        let lhs_type_id = lhs_kind
+            .get_qual_type()
+            .ok_or_else(|| generic_err!("bad initial lhs type"))?;
+
+        // First, translate the rhs. Then, if it must match the lhs but doesn't, add a cast.
+        let mut rhs_translation = self.convert_expr(ctx.used(), rhs, Some(rhs_type_id))?;
+        let lhs_rhs_types_must_match = {
+            let lhs_resolved_ty = &self.ast_context.resolve_type(lhs_type_id.ctype);
+            let rhs_resolved_ty = &self.ast_context.resolve_type(rhs_type_id.ctype);
+            // Addition and subtraction can accept one pointer argument for .offset(), in which
+            // case we don't want to homogenize arg types.
+            let neither_ptr =
+                !lhs_resolved_ty.kind.is_pointer() && !rhs_resolved_ty.kind.is_pointer();
+
+            use c_ast::BinOp::*;
+            match op.underlying_assignment() {
+                Some(Add) => neither_ptr,
+                Some(Subtract) => neither_ptr,
+                Some(Multiply) => true,
+                Some(Divide) => true,
+                Some(Modulus) => true,
+                Some(BitXor) => true,
+                Some(ShiftLeft) => false,
+                Some(ShiftRight) => false,
+                Some(BitOr) => true,
+                Some(BitAnd) => true,
+                None => true,
+                _ => unreachable!(),
+            }
+        };
+        if lhs_rhs_types_must_match {
+            // For compound assignment, use the compute type; for regular assignment, use lhs type
+            let effective_lhs_ty = compute_lhs_type_id.unwrap_or(lhs_type_id);
+            if effective_lhs_ty.ctype != rhs_type_id.ctype {
+                let new_rhs_ty =
+                    self.convert_type(compute_lhs_type_id.unwrap_or(lhs_type_id).ctype)?;
+                rhs_translation = rhs_translation.map(|val| mk().cast_expr(val, new_rhs_ty));
+            }
+        }
+
+        // Now that we've translated the rhs, finish translating the assignment operator.
         self.convert_assignment_operator_with_rhs(
             ctx,
             op,
-            qtype,
+            expr_type_id,
             lhs,
             rhs_type_id,
             rhs_translation,
-            compute_type,
-            result_type,
+            compute_lhs_type_id,
+            compute_res_type_id,
         )
     }
 
@@ -260,17 +313,25 @@ impl<'c> Translation<'c> {
         &self,
         ctx: ExprContext,
         op: c_ast::BinOp,
-        qtype: CQualTypeId,
+        expr_type_id: CQualTypeId,
         lhs: CExprId,
         rhs_type_id: CQualTypeId,
         rhs_translation: WithStmts<Box<Expr>>,
-        compute_type: Option<CQualTypeId>,
-        result_type: Option<CQualTypeId>,
+        compute_lhs_type_id: Option<CQualTypeId>,
+        compute_res_type_id: Option<CQualTypeId>,
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
-        let ty = self.convert_type(qtype.ctype)?;
+        if op == c_ast::BinOp::Assign {
+            assert!(compute_lhs_type_id.is_none());
+            assert!(compute_res_type_id.is_none());
+        } else {
+            assert!(compute_lhs_type_id.is_some());
+            assert!(compute_res_type_id.is_some());
+        }
 
-        let result_type_id = result_type.unwrap_or(qtype);
-        let compute_lhs_type_id = compute_type.unwrap_or(qtype);
+        let ty = self.convert_type(expr_type_id.ctype)?;
+
+        let result_type_id = compute_res_type_id.unwrap_or(expr_type_id);
+        let expr_or_comp_type_id = compute_lhs_type_id.unwrap_or(expr_type_id);
         let initial_lhs = &self.ast_context.index(lhs).kind;
         let initial_lhs_type_id = initial_lhs
             .get_qual_type()
@@ -294,25 +355,17 @@ impl<'c> Translation<'c> {
         };
 
         if let Some(field_id) = bitfield_id {
-            let rhs_expr = if compute_lhs_type_id.ctype == initial_lhs_type_id.ctype {
-                rhs_translation.to_expr()
-            } else {
-                mk().cast_expr(rhs_translation.to_expr(), ty)
-            };
-
+            let rhs_expr = mk().cast_expr(rhs_translation.to_expr(), ty);
             return self.convert_bitfield_assignment_op_with_rhs(ctx, op, lhs, rhs_expr, *field_id);
         }
 
         let is_volatile = initial_lhs_type_id.qualifiers.is_volatile;
         let is_volatile_compound_assign = op.underlying_assignment().is_some() && is_volatile;
 
-        let qtype_kind = &self.ast_context.resolve_type(qtype.ctype).kind;
-        let compute_type_kind = &self
-            .ast_context
-            .resolve_type(compute_lhs_type_id.ctype)
-            .kind;
+        let expr_resolved_ty = self.ast_context.resolve_type(expr_type_id.ctype);
+        let compute_resolved_ty = &self.ast_context.resolve_type(expr_or_comp_type_id.ctype);
 
-        let pointer_lhs = match qtype_kind {
+        let pointer_lhs = match &expr_resolved_ty.kind {
             &CTypeKind::Pointer(pointee) => Some(pointee),
             _ => None,
         };
@@ -322,11 +375,11 @@ impl<'c> Translation<'c> {
             | c_ast::BinOp::AssignSubtract
             | c_ast::BinOp::AssignMultiply
             | c_ast::BinOp::AssignDivide
-            | c_ast::BinOp::AssignModulus => compute_type_kind.is_unsigned_integral_type(),
+            | c_ast::BinOp::AssignModulus => compute_resolved_ty.kind.is_unsigned_integral_type(),
             _ => false,
         };
 
-        let lhs_translation = if initial_lhs_type_id.ctype != compute_lhs_type_id.ctype
+        let lhs_translation = if initial_lhs_type_id.ctype != expr_or_comp_type_id.ctype
             || ctx.is_used()
             || pointer_lhs.is_some()
             || is_volatile_compound_assign
@@ -364,11 +417,11 @@ impl<'c> Translation<'c> {
                                 .underlying_assignment()
                                 .expect("Cannot convert non-assignment operator");
 
-                            let val = if compute_lhs_type_id.ctype == initial_lhs_type_id.ctype {
+                            let val = if expr_or_comp_type_id.ctype == initial_lhs_type_id.ctype {
                                 self.convert_binary_operator(
                                     op,
                                     ty,
-                                    qtype.ctype,
+                                    expr_type_id.ctype,
                                     initial_lhs_type_id,
                                     rhs_type_id,
                                     read.clone(),
@@ -376,31 +429,31 @@ impl<'c> Translation<'c> {
                                     None,
                                 )?
                             } else {
-                                let lhs_type = self.convert_type(compute_type.unwrap().ctype)?;
-                                let write_type = self.convert_type(qtype.ctype)?;
+                                let lhs_type =
+                                    self.convert_type(compute_lhs_type_id.unwrap().ctype)?;
+                                let write_type = self.convert_type(expr_type_id.ctype)?;
                                 let lhs = mk().cast_expr(read.clone(), lhs_type.clone());
                                 let ty = self.convert_type(result_type_id.ctype)?;
                                 let val = self.convert_binary_operator(
                                     op,
                                     ty,
                                     result_type_id.ctype,
-                                    compute_lhs_type_id,
+                                    expr_or_comp_type_id,
                                     rhs_type_id,
                                     lhs,
                                     rhs,
                                     None,
                                 )?;
 
-                                let is_enum_result = self.ast_context
-                                    [self.ast_context.resolve_type_id(qtype.ctype)]
-                                .kind
-                                .is_enum();
-                                let result_type = self.convert_type(qtype.ctype)?;
+                                let expr_resolved_ty =
+                                    self.ast_context.resolve_type(expr_type_id.ctype);
+                                let is_enum_result = expr_resolved_ty.kind.is_enum();
+                                let expr_type = self.convert_type(expr_type_id.ctype)?;
                                 let val = if is_enum_result {
                                     is_unsafe = true;
-                                    transmute_expr(lhs_type, result_type, val)
+                                    transmute_expr(lhs_type, expr_type, val)
                                 } else {
-                                    mk().cast_expr(val, result_type)
+                                    mk().cast_expr(val, expr_type)
                                 };
                                 mk().cast_expr(val, write_type)
                             };
@@ -466,9 +519,9 @@ impl<'c> Translation<'c> {
                                     read.clone(),
                                     write,
                                     rhs,
-                                    compute_type,
-                                    result_type,
-                                    qtype,
+                                    compute_lhs_type_id.unwrap(),
+                                    compute_res_type_id.unwrap(),
+                                    expr_type_id,
                                     rhs_type_id,
                                 )?
                             }
