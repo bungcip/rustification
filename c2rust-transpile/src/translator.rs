@@ -34,7 +34,7 @@ use crate::convert_type::TypeConverter;
 use crate::renamer::Renamer;
 use crate::with_stmts::WithStmts;
 use crate::{ExternCrate, ExternCrateDetails, TranspilerConfig};
-use crate::{RustChannel, c_ast::*, TranslateMacros, generic_err};
+use crate::{RustChannel, TranslateMacros, c_ast::*, generic_err};
 use c2rust_ast_exporter::clang_ast::LRValue;
 
 mod assembly;
