@@ -151,6 +151,7 @@ impl Display for TranslationError {
                 writeln!(f, "{} {}", "-->".blue(), item)?;
             }
         }
+        writeln!(f, "{}", self.message)?;
         Ok(())
     }
 }
