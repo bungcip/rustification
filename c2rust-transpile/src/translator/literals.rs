@@ -184,7 +184,7 @@ impl<'c> Translation<'c> {
             CTypeKind::ConstantArray(member_ty, n) => {
                 // Convert all of the provided initializer values
 
-                let to_array_element = |id: CExprId| -> TranslationResult<_> {
+                let to_array_element = |id: CExprId, ctx: ExprContext| -> TranslationResult<_> {
                     self.convert_expr(ctx.used(), id, None)?.result_map(|x| {
                         // Array literals require all of their elements to be
                         // the correct type; they will not use implicit casts to
@@ -258,14 +258,21 @@ impl<'c> Translation<'c> {
                         // This was likely a C array of the form `int x[16] = { 0 }`.
                         // We'll emit that as [0; 16].
                         let len = mk().lit_expr(mk().int_lit(n));
-                        Ok(to_array_element(single)?
+                        Ok(to_array_element(single, ctx)?
                             .map(|default_value| mk().repeat_expr(default_value, len)))
                     }
                     [..] => {
+                        // set ctx to inside_init_list_aop if the member type is a pointer
+                        let mut ctx = ctx;
+                        // if self.check_type_is_constant_aop(ty.ctype).is_some() {}
+                        if self.ast_context.resolve_type(member_ty).kind.is_pointer() {
+                            ctx = ctx.inside_init_list_aop();
+                        }
+
                         Ok(ids
                             .iter()
                             .copied()
-                            .map(to_array_element)
+                            .map(|x| to_array_element(x, ctx))
                             .chain(
                                 // Pad out the array literal with default values to the desired size
                                 iter::repeat_n(

@@ -266,6 +266,8 @@ impl<'c> Translation<'c> {
                         let cstr_literal = mk().lit_expr(cstr);
                         let expr = mk().method_call_expr(cstr_literal, "as_ptr", vec![]);
 
+                        // wrap it inside Pointer() struct when this const string is used in static variable
+                        // and inside init list
                         if ctx.is_inside_init_list_aop() && ctx.is_static {
                             let call = mk().call_expr(mk().ident_expr("Pointer"), vec![expr]);
                             return Ok(WithStmts::new_val(call));

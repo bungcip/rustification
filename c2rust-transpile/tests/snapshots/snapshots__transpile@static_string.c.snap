@@ -56,8 +56,10 @@ pub unsafe extern "C" fn static_inside_local_function() {
             init
         },
     ];
-    static one: [PointerMut<ffi::c_char>; 1] = [PointerMut(c" ".as_ptr() as *mut ffi::c_char)];
-    static two: [PointerMut<ffi::c_uchar>; 1] = [PointerMut(c"Z".as_ptr() as *mut ffi::c_uchar)];
+    static one: [PointerMut<ffi::c_char>; 1] =
+        [PointerMut((Pointer(c" ".as_ptr())).0 as *mut ffi::c_char)];
+    static two: [PointerMut<ffi::c_uchar>; 1] =
+        [PointerMut((Pointer(c"Z".as_ptr())).0 as *mut ffi::c_uchar)];
 }
 #[derive(Copy, Clone)]
 #[repr(transparent)]
