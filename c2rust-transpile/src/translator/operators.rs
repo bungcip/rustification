@@ -767,56 +767,45 @@ impl<'c> Translation<'c> {
                         Mutability::Mutable
                     };
 
-                    match arg_kind {
-                        CExprKind::CompoundLiteral(..) => {
-                            // for compound literal, we must place it in a local so we can take its address
-                            arg.and_then(|a| {
-                                let val_name = self.renamer.borrow_mut().fresh();
-                                let init_stmt = mk().local_stmt(Box::new(mk().local(
-                                    mk().set_mutbl(mutbl).ident_pat(&val_name),
-                                    None,
-                                    Some(a),
-                                )));
-
-                                let raw_addr = mk()
-                                    .set_mutbl(mutbl)
-                                    .raw_addr_expr(mk().ident_expr(val_name));
-                                Ok(WithStmts::new(vec![init_stmt], raw_addr))
-                            })
-                        }
-                        _ => {
-                            // for everything else, we can just take the address
-                            arg.result_map(|a| {
-                                let mut raw_addr: Box<Expr>;
-
-                                if ctx.is_static {
-                                    // static variable initializers aren't able to use &mut,
-                                    // so we work around that by using & and an extra cast
-                                    // through & to *const to *mut
-                                    raw_addr = mk().raw_addr_expr(a);
-                                    if let Mutability::Mutable = mutbl {
-                                        let mut qtype = pointee_ty;
-                                        qtype.qualifiers.is_const = true;
-                                        let ty_ = self
-                                            .type_converter
-                                            .borrow_mut()
-                                            .convert_pointer(&self.ast_context, qtype)?;
-                                        raw_addr = mk().cast_expr(raw_addr, ty_);
-                                    }
-                                } else {
-                                    // // Normal case is allowed to use &mut if needed
-                                    raw_addr = mk().set_mutbl(mutbl).raw_addr_expr(a);
-
-                                    // Avoid unnecessary reference to pointer decay in fn call args:
-                                    if ctx.decay_ref.is_no() {
-                                        return Ok(raw_addr);
-                                    }
-                                }
-
-                                Ok(mk().cast_expr(raw_addr, ty))
-                            })
+                    if let CExprKind::CompoundLiteral(..) = arg_kind {
+                        if ctx.is_static {
+                            let pure_expr = arg.to_pure_expr().ok_or_else(|| {
+                                generic_err!("Static compound literal initializer has side-effects")
+                            })?;
+                            return Ok(WithStmts::new_val(mk().addr_of_expr(pure_expr)));
                         }
                     }
+
+                    // for everything else, we can just take the address
+                    arg.result_map(|a| {
+                        let mut raw_addr: Box<Expr>;
+
+                        if ctx.is_static {
+                            // static variable initializers aren't able to use &mut,
+                            // so we work around that by using & and an extra cast
+                            // through & to *const to *mut
+                            raw_addr = mk().raw_addr_expr(a);
+                            if let Mutability::Mutable = mutbl {
+                                let mut qtype = pointee_ty;
+                                qtype.qualifiers.is_const = true;
+                                let ty_ = self
+                                    .type_converter
+                                    .borrow_mut()
+                                    .convert_pointer(&self.ast_context, qtype)?;
+                                raw_addr = mk().cast_expr(raw_addr, ty_);
+                            }
+                        } else {
+                            // // Normal case is allowed to use &mut if needed
+                            raw_addr = mk().set_mutbl(mutbl).raw_addr_expr(a);
+
+                            // Avoid unnecessary reference to pointer decay in fn call args:
+                            if ctx.decay_ref.is_no() {
+                                return Ok(raw_addr);
+                            }
+                        }
+
+                        Ok(mk().cast_expr(raw_addr, ty))
+                    })
                 }
             }
             c_ast::UnOp::PreIncrement => self.convert_pre_increment(ctx, cqual_type, true, arg),

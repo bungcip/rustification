@@ -55,3 +55,5 @@ analysis.txt
 
 # Outputs of c2rust-transpile snapshot tests
 c2rust-transpile/tests/snapshots/**/*.rs
+
+llvm.sh
