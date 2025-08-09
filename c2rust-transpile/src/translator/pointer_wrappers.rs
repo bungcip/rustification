@@ -19,6 +19,7 @@ impl<'c> Translation<'c> {
 
         let struct_item = mk()
             .call_attr("derive", vec!["Copy", "Clone"])
+            .call_attr("repr", vec!["transparent"])
             .generic_over(mk().ty_param(mk().ident("T")))
             .where_clause(vec![
                 mk().where_predicate(mk().ident_ty("T"), vec!["Copy", "Clone"]),
