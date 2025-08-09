@@ -1,0 +1,73 @@
+---
+source: c2rust-transpile/tests/snapshots.rs
+expression: cat tests/snapshots/static_string.rs
+input_file: c2rust-transpile/tests/snapshots/static_string.c
+---
+#![allow(
+    dead_code,
+    mutable_transmutes,
+    non_camel_case_types,
+    non_snake_case,
+    non_upper_case_globals,
+    path_statements,
+    unsafe_op_in_unsafe_fn,
+    unused_assignments,
+    unused_mut,
+    unused_unsafe,
+    unused_variables
+)]
+use core::ffi;
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct C2RustUnnamed {
+    pub zName: *const ffi::c_char,
+    pub zCols: *const ffi::c_char,
+}
+unsafe impl Sync for C2RustUnnamed {}
+static digits: [ffi::c_char; 33] = unsafe {
+    *::core::mem::transmute::<&[u8; 33], &[ffi::c_char; 33]>(b"0123456789ABCDEF0123456789abcdef\0")
+};
+static array_of_string: [Pointer<ffi::c_char>; 7] = [
+    Pointer(c"null".as_ptr()),
+    Pointer(c"true".as_ptr()),
+    Pointer(c"false".as_ptr()),
+    Pointer(c"integer".as_ptr()),
+    Pointer(c"float".as_ptr()),
+    Pointer(c"string".as_ptr()),
+    Pointer(0 as *const ffi::c_char),
+];
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn static_length() {}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn static_inside_local_function() {
+    static aTable: [C2RustUnnamed; 2] = [
+        {
+            let mut init = C2RustUnnamed {
+                zName: c"a".as_ptr(),
+                zCols: c"ab".as_ptr(),
+            };
+            init
+        },
+        {
+            let mut init = C2RustUnnamed {
+                zName: c"abc".as_ptr(),
+                zCols: c"abcde".as_ptr(),
+            };
+            init
+        },
+    ];
+    static one: [PointerMut<ffi::c_char>; 1] = [PointerMut(c" ".as_ptr() as *mut ffi::c_char)];
+    static two: [PointerMut<ffi::c_uchar>; 1] = [PointerMut(c"Z".as_ptr() as *mut ffi::c_uchar)];
+}
+#[derive(Copy, Clone)]
+#[repr(transparent)]
+pub struct PointerMut<T>(pub *mut T)
+where
+    T: Copy + Clone;
+unsafe impl<T> Sync for PointerMut<T> where T: Copy + Clone {}
+#[derive(Copy, Clone)]
+#[repr(transparent)]
+pub struct Pointer<T>(pub *const T)
+where
+    T: Copy + Clone;
+unsafe impl<T> Sync for Pointer<T> where T: Copy + Clone {}
