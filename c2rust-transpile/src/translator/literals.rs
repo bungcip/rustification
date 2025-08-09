@@ -268,12 +268,14 @@ impl<'c> Translation<'c> {
                             .map(to_array_element)
                             .chain(
                                 // Pad out the array literal with default values to the desired size
-                                iter::repeat(self.implicit_default_expr(
-                                    member_ty,
-                                    ctx.is_static,
-                                    ctx.inside_init_list_aop,
-                                ))
-                                .take(n - ids.len()),
+                                iter::repeat_n(
+                                    self.implicit_default_expr(
+                                        member_ty,
+                                        ctx.is_static,
+                                        ctx.inside_init_list_aop,
+                                    ),
+                                    n - ids.len(),
+                                ),
                             )
                             .collect::<TranslationResult<WithStmts<_>>>()?
                             .map(|vals| mk().array_expr(vals)))

@@ -43,3 +43,4 @@ pub unsafe extern "C" fn c11_atomics(mut x: ffi::c_int) -> ffi::c_int {
     fresh1.1;
     return x;
 }
+pub const __ATOMIC_SEQ_CST: ffi::c_int = 5 as ffi::c_int;

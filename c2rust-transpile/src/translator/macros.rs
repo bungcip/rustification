@@ -95,6 +95,12 @@ impl<'c> Translation<'c> {
         _ctx: ExprContext,
         text: &str,
     ) -> Option<WithStmts<Box<Expr>>> {
+        match self.tcfg.translate_fn_macros {
+            TranslateMacros::None => return None,
+            TranslateMacros::Conservative => return None, // Nothing is supported for `Conservative` yet.
+            TranslateMacros::Experimental => {}
+        }
+
         let mut split = text.splitn(2, '(');
         let ident = split.next()?.trim();
         let args = split.next()?.trim_end_matches(')');
