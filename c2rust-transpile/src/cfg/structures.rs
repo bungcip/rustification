@@ -28,10 +28,10 @@ pub fn structured_cfg(
     // it with the returned value.
     if cut_out_trailing_ret {
         #[allow(clippy::collapsible_match)]
-        if let Some(Stmt::Expr(ret, _)) = stmts.last() {
-            if let Expr::Return(ExprReturn { expr: None, .. }) = ret {
-                stmts.pop();
-            }
+        if let Some(Stmt::Expr(ret, _)) = stmts.last()
+            && let Expr::Return(ExprReturn { expr: None, .. }) = ret
+        {
+            stmts.pop();
         }
     }
 
@@ -619,8 +619,7 @@ impl StructureState {
                         else_branch: None,
                         ..
                     }) = expr
-                    {
-                        if let [
+                        && let [
                             Stmt::Expr(
                                 syn::Expr::Break(ExprBreak {
                                     label: None,
@@ -630,15 +629,14 @@ impl StructureState {
                                 _token,
                             ),
                         ] = then_branch.stmts.as_slice()
-                        {
-                            let e = mk().while_expr(
-                                not(cond),
-                                mk().span(body_span)
-                                    .block(body.iter().skip(1).cloned().collect()),
-                                lbl.map(|l| l.pretty_print()),
-                            );
-                            return (vec![mk().span(span).expr_stmt(e)], ast.span);
-                        }
+                    {
+                        let e = mk().while_expr(
+                            not(cond),
+                            mk().span(body_span)
+                                .block(body.iter().skip(1).cloned().collect()),
+                            lbl.map(|l| l.pretty_print()),
+                        );
+                        return (vec![mk().span(span).expr_stmt(e)], ast.span);
                     }
                 }
 

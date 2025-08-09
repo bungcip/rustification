@@ -147,17 +147,16 @@ impl<'c> Translation<'c> {
                     .get_decl(&decl_id)
                     .ok_or_else(|| generic_err!("Missing declref {:?}", decl_id))?
                     .kind;
-                if ctx.is_const {
-                    if let CDeclKind::Variable {
+                if ctx.is_const
+                    && let CDeclKind::Variable {
                         has_static_duration: true,
                         ..
                     } = decl
-                    {
-                        return Err(generic_loc_err!(
-                            self.ast_context.display_loc(src_loc),
-                            "Cannot refer to static duration variable in a const expression",
-                        ));
-                    }
+                {
+                    return Err(generic_loc_err!(
+                        self.ast_context.display_loc(src_loc),
+                        "Cannot refer to static duration variable in a const expression",
+                    ));
                 }
 
                 let varname = decl.get_name().expect("expected variable name").to_owned();
@@ -168,14 +167,14 @@ impl<'c> Translation<'c> {
                     .ok_or_else(|| generic_err!("name not declared: '{}'", varname))?;
 
                 // Import the referenced global decl into our submodule
-                if self.tcfg.reorganize_definitions {
-                    if let Some(cur_file) = self.cur_file.borrow().as_ref() {
-                        self.add_import(*cur_file, decl_id, &rustname);
-                        // match decl {
-                        //     CDeclKind::Variable { is_defn: false, .. } => {}
-                        //     _ => self.add_import(cur_file, decl_id, &rustname),
-                        // }
-                    }
+                if self.tcfg.reorganize_definitions
+                    && let Some(cur_file) = self.cur_file.borrow().as_ref()
+                {
+                    self.add_import(*cur_file, decl_id, &rustname);
+                    // match decl {
+                    //     CDeclKind::Variable { is_defn: false, .. } => {}
+                    //     _ => self.add_import(cur_file, decl_id, &rustname),
+                    // }
                 }
 
                 let mut val = mk().ident_expr(rustname);
@@ -203,40 +202,40 @@ impl<'c> Translation<'c> {
                 // If we are referring to a function and need its address, we
                 // need to cast it to fn() to ensure that it has a real address.
                 let mut set_unsafe = false;
-                if ctx.needs_address() {
-                    if let CDeclKind::Function { parameters, .. } = decl {
-                        let ty = self.convert_type(qual_ty.ctype)?;
-                        let actual_ty = self
-                            .type_converter
-                            .borrow_mut()
-                            .knr_function_type_with_parameters(
-                                &self.ast_context,
-                                qual_ty.ctype,
-                                parameters,
-                            )?;
-                        if let Some(actual_ty) = actual_ty {
-                            // If we're casting a concrete function to
-                            // a K&R function pointer type, use transmute
-                            if let Some(cur_file) = *self.cur_file.borrow() {
-                                self.import_type(qual_ty.ctype, cur_file);
-                            }
-                            val = transmute_expr(actual_ty, ty, val);
-                            set_unsafe = true;
-                        } else {
-                            let decl_kind = &self.ast_context[decl_id].kind;
-                            let kind_with_declared_args =
-                                self.ast_context.fn_decl_ty_with_declared_args(decl_kind);
+                if ctx.needs_address()
+                    && let CDeclKind::Function { parameters, .. } = decl
+                {
+                    let ty = self.convert_type(qual_ty.ctype)?;
+                    let actual_ty = self
+                        .type_converter
+                        .borrow_mut()
+                        .knr_function_type_with_parameters(
+                            &self.ast_context,
+                            qual_ty.ctype,
+                            parameters,
+                        )?;
+                    if let Some(actual_ty) = actual_ty {
+                        // If we're casting a concrete function to
+                        // a K&R function pointer type, use transmute
+                        if let Some(cur_file) = *self.cur_file.borrow() {
+                            self.import_type(qual_ty.ctype, cur_file);
+                        }
+                        val = transmute_expr(actual_ty, ty, val);
+                        set_unsafe = true;
+                    } else {
+                        let decl_kind = &self.ast_context[decl_id].kind;
+                        let kind_with_declared_args =
+                            self.ast_context.fn_decl_ty_with_declared_args(decl_kind);
 
-                            if let Some(ty) = self
-                                .ast_context
-                                .type_for_kind(&kind_with_declared_args)
-                                .map(CQualTypeId::new)
-                            {
-                                let ty = self.convert_type(ty.ctype)?;
-                                val = mk().cast_expr(val, ty);
-                            } else {
-                                val = mk().cast_expr(val, ty);
-                            }
+                        if let Some(ty) = self
+                            .ast_context
+                            .type_for_kind(&kind_with_declared_args)
+                            .map(CQualTypeId::new)
+                        {
+                            let ty = self.convert_type(ty.ctype)?;
+                            val = mk().cast_expr(val, ty);
+                        } else {
+                            val = mk().cast_expr(val, ty);
                         }
                     }
                 }
@@ -248,10 +247,10 @@ impl<'c> Translation<'c> {
                 }
 
                 // if the context wants a different type, add a cast
-                if let Some(expected_ty) = override_ty {
-                    if expected_ty != qual_ty {
-                        val = mk().cast_expr(val, self.convert_type(expected_ty.ctype)?);
-                    }
+                if let Some(expected_ty) = override_ty
+                    && expected_ty != qual_ty
+                {
+                    val = mk().cast_expr(val, self.convert_type(expected_ty.ctype)?);
                 }
 
                 let mut res = WithStmts::new_val(val);
@@ -382,10 +381,9 @@ impl<'c> Translation<'c> {
                     // skip the cast entirely.
                     if let (Some(ty), CExprKind::Literal(_ty, lit)) =
                         (override_ty, &self.ast_context[expr].kind)
+                        && self.literal_kind_matches_ty(lit, ty)
                     {
-                        if self.literal_kind_matches_ty(lit, ty) {
-                            return self.convert_expr(ctx, expr, override_ty);
-                        }
+                        return self.convert_expr(ctx, expr, override_ty);
                     }
                     // LValueToRValue casts don't actually change the type, so it still makes sense
                     // to translate their inner expression with the expected type from outside the
@@ -747,11 +745,11 @@ impl<'c> Translation<'c> {
                     };
 
                     let mut call_expr = args.map(|args| mk().call_expr(func, args));
-                    if let Some(expected_ty) = override_ty {
-                        if call_expr_ty != expected_ty {
-                            let ret_ty = self.convert_type(expected_ty.ctype)?;
-                            call_expr = call_expr.map(|call| mk().cast_expr(call, ret_ty));
-                        }
+                    if let Some(expected_ty) = override_ty
+                        && call_expr_ty != expected_ty
+                    {
+                        let ret_ty = self.convert_type(expected_ty.ctype)?;
+                        call_expr = call_expr.map(|call| mk().cast_expr(call, ret_ty));
                     }
 
                     let res: TranslationResult<_> = Ok(call_expr);
@@ -830,11 +828,11 @@ impl<'c> Translation<'c> {
                     }
 
                     // if the context wants a different type, add a cast
-                    if let Some(expected_ty) = override_ty {
-                        if expected_ty != qual_ty {
-                            let ty = self.convert_type(expected_ty.ctype)?;
-                            val = val.map(|v| mk().cast_expr(v, ty));
-                        }
+                    if let Some(expected_ty) = override_ty
+                        && expected_ty != qual_ty
+                    {
+                        let ty = self.convert_type(expected_ty.ctype)?;
+                        val = val.map(|v| mk().cast_expr(v, ty));
                     }
 
                     Ok(val)

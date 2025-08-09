@@ -367,7 +367,7 @@ pub fn translate(
             None,
         }
 
-        fn some_type_name(s: Option<&str>) -> Name {
+        fn some_type_name(s: Option<&str>) -> Name<'_> {
             match s {
                 None => Name::Anonymous,
                 Some(r) => Name::Type(r),
@@ -383,52 +383,51 @@ pub fn translate(
         // into a single name and declaration, eliminating the typedef altogether.
         let mut prenamed_decls: IndexMap<CDeclId, CDeclId> = IndexMap::new();
         for (&decl_id, decl) in t.ast_context.iter_decls() {
-            if let CDeclKind::Typedef { ref name, typ, .. } = decl.kind {
-                if let Some(subdecl_id) = t
+            if let CDeclKind::Typedef { ref name, typ, .. } = decl.kind
+                && let Some(subdecl_id) = t
                     .ast_context
                     .resolve_type(typ.ctype)
                     .kind
                     .as_underlying_decl()
-                {
-                    use CDeclKind::*;
-                    let is_unnamed = match t.ast_context[subdecl_id].kind {
-                        Struct { name: None, .. }
-                        | Union { name: None, .. }
-                        | Enum { name: None, .. } => true,
+            {
+                use CDeclKind::*;
+                let is_unnamed = match t.ast_context[subdecl_id].kind {
+                    Struct { name: None, .. }
+                    | Union { name: None, .. }
+                    | Enum { name: None, .. } => true,
 
-                        // Detect case where typedef and struct share the same name.
-                        // In this case the purpose of the typedef was simply to eliminate
-                        // the need for the 'struct' tag when referring to the type name.
-                        Struct {
-                            name: Some(ref target_name),
-                            ..
-                        }
-                        | Union {
-                            name: Some(ref target_name),
-                            ..
-                        }
-                        | Enum {
-                            name: Some(ref target_name),
-                            ..
-                        } => name == target_name,
-
-                        _ => false,
-                    };
-
-                    if is_unnamed
-                        && !prenamed_decls
-                            .values()
-                            .any(|decl_id| *decl_id == subdecl_id)
-                    {
-                        prenamed_decls.insert(decl_id, subdecl_id);
-
-                        t.type_converter
-                            .borrow_mut()
-                            .declare_decl_name(decl_id, name);
-                        t.type_converter
-                            .borrow_mut()
-                            .alias_decl_name(subdecl_id, decl_id);
+                    // Detect case where typedef and struct share the same name.
+                    // In this case the purpose of the typedef was simply to eliminate
+                    // the need for the 'struct' tag when referring to the type name.
+                    Struct {
+                        name: Some(ref target_name),
+                        ..
                     }
+                    | Union {
+                        name: Some(ref target_name),
+                        ..
+                    }
+                    | Enum {
+                        name: Some(ref target_name),
+                        ..
+                    } => name == target_name,
+
+                    _ => false,
+                };
+
+                if is_unnamed
+                    && !prenamed_decls
+                        .values()
+                        .any(|decl_id| *decl_id == subdecl_id)
+                {
+                    prenamed_decls.insert(decl_id, subdecl_id);
+
+                    t.type_converter
+                        .borrow_mut()
+                        .declare_decl_name(decl_id, name);
+                    t.type_converter
+                        .borrow_mut()
+                        .alias_decl_name(subdecl_id, decl_id);
                 }
             }
         }
@@ -1252,10 +1251,10 @@ impl<'c> Translation<'c> {
                     }
                 }
                 Unary(_, AddressOf, expr_id, _) => {
-                    if let Member(_, expr_id, _, _, _) = self.ast_context[expr_id].kind {
-                        if let DeclRef(..) = self.ast_context[expr_id].kind {
-                            return true;
-                        }
+                    if let Member(_, expr_id, _, _, _) = self.ast_context[expr_id].kind
+                        && let DeclRef(..) = self.ast_context[expr_id].kind
+                    {
+                        return true;
                     }
                 }
                 InitList(qtype, _, _, _) => {
@@ -1287,12 +1286,10 @@ impl<'c> Translation<'c> {
                 | ExplicitCast(qtype, _, IntegralToPointer, _, _) => {
                     if let CTypeKind::Pointer(qtype) =
                         self.ast_context.resolve_type(qtype.ctype).kind
-                    {
-                        if let CTypeKind::Function(..) =
+                        && let CTypeKind::Function(..) =
                             self.ast_context.resolve_type(qtype.ctype).kind
-                        {
-                            return true;
-                        }
+                    {
+                        return true;
                     }
                 }
                 _ => {}
@@ -1584,40 +1581,39 @@ impl<'c> Translation<'c> {
             typ,
             ..
         } = self.ast_context.index(decl_id).kind
+            && self.static_initializer_is_uncompilable(initializer, typ)
         {
-            if self.static_initializer_is_uncompilable(initializer, typ) {
-                let ident2 = self
-                    .renamer
-                    .borrow_mut()
-                    .insert_root(decl_id, ident)
-                    .ok_or_else(|| {
-                        generic_err!("Unable to rename function scoped static initializer",)
-                    })?;
-                let ConvertedVariable { ty, mutbl: _, init } =
-                    self.convert_variable(ctx.static_(), initializer, typ)?;
-                let default_init = self
-                    .implicit_default_expr(typ.ctype, true, ctx.inside_init_list_aop)?
-                    .to_expr();
-                let comment = String::from("// Initialized in run_static_initializers");
-                let span = self
-                    .comment_store
-                    .borrow_mut()
-                    .add_comments(&[comment])
-                    .map(pos_to_span)
-                    .unwrap_or_else(Span::call_site);
-                let static_item = mk()
-                    .span(span)
-                    .mutbl()
-                    .static_item(&ident2, ty, default_init);
-                let mut init = init?;
-                init.set_unsafe();
-                let mut init = init.to_expr();
+            let ident2 = self
+                .renamer
+                .borrow_mut()
+                .insert_root(decl_id, ident)
+                .ok_or_else(|| {
+                    generic_err!("Unable to rename function scoped static initializer",)
+                })?;
+            let ConvertedVariable { ty, mutbl: _, init } =
+                self.convert_variable(ctx.static_(), initializer, typ)?;
+            let default_init = self
+                .implicit_default_expr(typ.ctype, true, ctx.inside_init_list_aop)?
+                .to_expr();
+            let comment = String::from("// Initialized in run_static_initializers");
+            let span = self
+                .comment_store
+                .borrow_mut()
+                .add_comments(&[comment])
+                .map(pos_to_span)
+                .unwrap_or_else(Span::call_site);
+            let static_item = mk()
+                .span(span)
+                .mutbl()
+                .static_item(&ident2, ty, default_init);
+            let mut init = init?;
+            init.set_unsafe();
+            let mut init = init.to_expr();
 
-                self.add_static_initializer_to_section(&ident2, typ, &mut init)?;
-                self.items.borrow_mut()[&self.main_file].add_item(static_item);
+            self.add_static_initializer_to_section(&ident2, typ, &mut init)?;
+            self.items.borrow_mut()[&self.main_file].add_item(static_item);
 
-                return Ok(cfg::DeclStmtInfo::empty());
-            }
+            return Ok(cfg::DeclStmtInfo::empty());
         };
 
         match self.ast_context.index(decl_id).kind {
@@ -2121,10 +2117,9 @@ impl<'c> Translation<'c> {
                 }),
                 _,
             ) = stmt
+                && blbl.ident == mk().label(lbl.pretty_print()).name.ident
             {
-                if blbl.ident == mk().label(lbl.pretty_print()).name.ident {
-                    return Some(ret_val.clone());
-                }
+                return Some(ret_val.clone());
             }
             None
         }

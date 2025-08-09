@@ -403,10 +403,10 @@ impl RelooperState {
             // Rename some `GoTo`s in the loop body to `ExitTo`s
             for (_, bb) in body_blocks.iter_mut() {
                 for lbl in bb.terminator.get_labels_mut() {
-                    if let StructureLabel::GoTo(label) = lbl.clone() {
-                        if entries.contains(&label) || follow_entries.contains(&label) {
-                            *lbl = StructureLabel::ExitTo(label.clone())
-                        }
+                    if let StructureLabel::GoTo(label) = lbl.clone()
+                        && (entries.contains(&label) || follow_entries.contains(&label))
+                    {
+                        *lbl = StructureLabel::ExitTo(label.clone())
                     }
                 }
             }

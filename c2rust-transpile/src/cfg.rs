@@ -2130,15 +2130,15 @@ impl CfgBuilder {
 
         let mut flattened_wip = self.new_wip_block(entry);
         // Copy span from removed statement if there was only one.
-        if stmts.is_empty() {
-            if let Some(span) = inner_span {
-                // We move any comments on the high end of the span to the low,
-                // because those comments should go before the next node, not after.
-                flattened_wip.span = translator
-                    .comment_store
-                    .borrow_mut()
-                    .move_comments_to_begin(span);
-            }
+        if stmts.is_empty()
+            && let Some(span) = inner_span
+        {
+            // We move any comments on the high end of the span to the low,
+            // because those comments should go before the next node, not after.
+            flattened_wip.span = translator
+                .comment_store
+                .borrow_mut()
+                .move_comments_to_begin(span);
         }
         flattened_wip.extend(stmts);
         let term = if let Some(l) = next_lbl.clone() {

@@ -304,54 +304,52 @@ impl<'c> Translation<'c> {
             }
 
             "__builtin_va_start" => {
-                if ctx.is_unused() && args.len() == 2 {
-                    if let Some(va_id) = self.match_vastart(args[0]) {
-                        if self.ast_context.get_decl(&va_id).is_some() {
-                            let dst =
-                                self.convert_expr(ctx.expect_valistimpl().used(), args[0], None)?;
-                            let fn_ctx = self.function_context.borrow();
-                            let src = fn_ctx.get_va_list_arg_name();
+                if ctx.is_unused()
+                    && args.len() == 2
+                    && let Some(va_id) = self.match_vastart(args[0])
+                    && self.ast_context.get_decl(&va_id).is_some()
+                {
+                    let dst = self.convert_expr(ctx.expect_valistimpl().used(), args[0], None)?;
+                    let fn_ctx = self.function_context.borrow();
+                    let src = fn_ctx.get_va_list_arg_name();
 
-                            let call_expr =
-                                mk().method_call_expr(mk().ident_expr(src), "clone", vec![]);
-                            let assign_expr = mk().assign_expr(dst.to_expr(), call_expr);
-                            let stmt = mk().semi_stmt(assign_expr);
+                    let call_expr = mk().method_call_expr(mk().ident_expr(src), "clone", vec![]);
+                    let assign_expr = mk().assign_expr(dst.to_expr(), call_expr);
+                    let stmt = mk().semi_stmt(assign_expr);
 
-                            return Ok(WithStmts::new(
-                                vec![stmt],
-                                self.panic_or_err("va_start stub"),
-                            ));
-                        }
-                    }
+                    return Ok(WithStmts::new(
+                        vec![stmt],
+                        self.panic_or_err("va_start stub"),
+                    ));
                 }
                 Err(generic_err!("Unsupported va_start"))
             }
             "__builtin_va_copy" => {
-                if ctx.is_unused() && args.len() == 2 {
-                    if let Some((_dst_va_id, _src_va_id)) = self.match_vacopy(args[0], args[1]) {
-                        let dst =
-                            self.convert_expr(ctx.expect_valistimpl().used(), args[0], None)?;
-                        let src =
-                            self.convert_expr(ctx.expect_valistimpl().used(), args[1], None)?;
+                if ctx.is_unused()
+                    && args.len() == 2
+                    && let Some((_dst_va_id, _src_va_id)) = self.match_vacopy(args[0], args[1])
+                {
+                    let dst = self.convert_expr(ctx.expect_valistimpl().used(), args[0], None)?;
+                    let src = self.convert_expr(ctx.expect_valistimpl().used(), args[1], None)?;
 
-                        let call_expr = mk().method_call_expr(src.to_expr(), "clone", vec![]);
-                        let assign_expr = mk().assign_expr(dst.to_expr(), call_expr);
-                        let stmt = mk().semi_stmt(assign_expr);
+                    let call_expr = mk().method_call_expr(src.to_expr(), "clone", vec![]);
+                    let assign_expr = mk().assign_expr(dst.to_expr(), call_expr);
+                    let stmt = mk().semi_stmt(assign_expr);
 
-                        return Ok(WithStmts::new(
-                            vec![stmt],
-                            self.panic_or_err("va_copy stub"),
-                        ));
-                    }
+                    return Ok(WithStmts::new(
+                        vec![stmt],
+                        self.panic_or_err("va_copy stub"),
+                    ));
                 }
                 Err(generic_err!("Unsupported va_copy"))
             }
             "__builtin_va_end" => {
-                if ctx.is_unused() && args.len() == 1 {
-                    if let Some(_va_id) = self.match_vaend(args[0]) {
-                        // nothing to do since `VaListImpl`s get `Drop`'ed.
-                        return Ok(WithStmts::new_val(self.panic("va_end stub")));
-                    }
+                if ctx.is_unused()
+                    && args.len() == 1
+                    && let Some(_va_id) = self.match_vaend(args[0])
+                {
+                    // nothing to do since `VaListImpl`s get `Drop`'ed.
+                    return Ok(WithStmts::new_val(self.panic("va_end stub")));
                 }
                 Err(generic_err!("Unsupported va_end"))
             }

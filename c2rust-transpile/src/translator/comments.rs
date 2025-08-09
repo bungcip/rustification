@@ -42,7 +42,7 @@ impl<'c> CommentLocator<'c> {
                 if comment.loc.unwrap().end() < cur_loc {
                     let existing_pos = self.spans.get(&last_id).map(|span| span.lo());
                     if let Some(pos) = self.comment_store.extend_existing_comments(
-                        &[comment.kind.clone()],
+                        std::slice::from_ref(&comment.kind),
                         existing_pos,
                         //CommentStyle::Trailing,
                     ) {
@@ -75,10 +75,10 @@ impl<'c> NodeVisitor for CommentLocator<'c> {
     fn pre(&mut self, mut id: SomeId) -> bool {
         // Don't traverse into unvisited top-level decls, we should visit those
         // in sorted order.
-        if let SomeId::Decl(id) = id {
-            if self.top_decls.contains(&id) {
-                return false;
-            }
+        if let SomeId::Decl(id) = id
+            && self.top_decls.contains(&id)
+        {
+            return false;
         }
 
         if let Some(loc) = self.ast_context.get_src_loc(id) {
@@ -113,10 +113,10 @@ impl<'c> NodeVisitor for CommentLocator<'c> {
 
         // Don't traverse into macro object replacement expressions, as they are
         // in other places.
-        if let SomeId::Decl(id) = id {
-            if let CDeclKind::MacroObject { .. } = self.ast_context[id].kind {
-                return false;
-            }
+        if let SomeId::Decl(id) = id
+            && let CDeclKind::MacroObject { .. } = self.ast_context[id].kind
+        {
+            return false;
         }
 
         true
@@ -125,10 +125,10 @@ impl<'c> NodeVisitor for CommentLocator<'c> {
     fn post(&mut self, id: SomeId) {
         // Don't attach comments to the end of unvisited top-level decls, we'll
         // visit them later.
-        if let SomeId::Decl(id) = id {
-            if self.top_decls.contains(&id) {
-                return;
-            }
+        if let SomeId::Decl(id) = id
+            && self.top_decls.contains(&id)
+        {
+            return;
         }
         if let Some(loc) = self.ast_context.get_src_loc(id) {
             let comments = self

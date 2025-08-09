@@ -92,12 +92,12 @@ impl<'c> Translation<'c> {
                 // Check if the last field might be a flexible array member
                 if let Some(last_id) = fields.last() {
                     let field_decl = &self.ast_context[*last_id];
-                    if let CDeclKind::Field { typ, .. } = field_decl.kind {
-                        if self.ast_context.maybe_flexible_array(typ.ctype) {
-                            self.potential_flexible_array_members
-                                .borrow_mut()
-                                .insert(*last_id);
-                        }
+                    if let CDeclKind::Field { typ, .. } = field_decl.kind
+                        && self.ast_context.maybe_flexible_array(typ.ctype)
+                    {
+                        self.potential_flexible_array_members
+                            .borrow_mut()
+                            .insert(*last_id);
                     }
                 }
 
@@ -859,13 +859,12 @@ impl<'c> Translation<'c> {
         let mut module_path = vec!["super".into()];
 
         // If the decl does not live in the main module add the path to the sibling submodule
-        if let Some(file_id) = import_file_id {
-            if file_id != self.main_file {
-                let file_name =
-                    clean_path(&self.mod_names, self.ast_context.get_file_path(file_id));
+        if let Some(file_id) = import_file_id
+            && file_id != self.main_file
+        {
+            let file_name = clean_path(&self.mod_names, self.ast_context.get_file_path(file_id));
 
-                module_path.push(file_name);
-            }
+            module_path.push(file_name);
         }
 
         self.items

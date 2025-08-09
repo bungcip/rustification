@@ -72,11 +72,11 @@ impl CommentStore {
         mut new_comments: SmallVec<[comments::Comment; 1]>,
         pos: Option<BytePos>,
     ) -> BytePos {
-        if let Some(pos) = pos {
-            if let Some(comments) = self.output_comments.get_mut(&pos) {
-                comments.extend(new_comments);
-                return pos;
-            }
+        if let Some(pos) = pos
+            && let Some(comments) = self.output_comments.get_mut(&pos)
+        {
+            comments.extend(new_comments);
+            return pos;
         }
 
         // This line is not necessary. All it does is prevent the confusing

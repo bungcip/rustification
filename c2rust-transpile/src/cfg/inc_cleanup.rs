@@ -43,11 +43,11 @@ impl IncCleanup {
                 }) => {
                     removed_tail_expr =
                         removed_tail_expr || self.remove_tail_expr(&mut then_branch.stmts);
-                    if let Some((_token, else_)) = else_branch {
-                        if let Expr::Block(ExprBlock { block, .. }) = &mut **else_ {
-                            removed_tail_expr =
-                                removed_tail_expr || self.remove_tail_expr(&mut block.stmts)
-                        }
+                    if let Some((_token, else_)) = else_branch
+                        && let Expr::Block(ExprBlock { block, .. }) = &mut **else_
+                    {
+                        removed_tail_expr =
+                            removed_tail_expr || self.remove_tail_expr(&mut block.stmts)
                     }
                 }
 
@@ -84,15 +84,12 @@ impl IncCleanup {
                 if let Expr::Return(ExprReturn {
                     expr: Some(zero), ..
                 }) = tail_expr
-                {
-                    if let Expr::Lit(ExprLit {
+                    && let Expr::Lit(ExprLit {
                         lit: Lit::Int(lit), ..
                     }) = &**zero
-                    {
-                        if lit.base10_digits() == "0" {
-                            return true;
-                        }
-                    }
+                    && lit.base10_digits() == "0"
+                {
+                    return true;
                 }
                 false
             }
@@ -110,10 +107,9 @@ impl IncCleanup {
                     expr: None,
                     ..
                 }) = tail_expr
+                    && brk_lbl.ident == mk().label(self.brk_lbl.pretty_print()).name.ident
                 {
-                    if brk_lbl.ident == mk().label(self.brk_lbl.pretty_print()).name.ident {
-                        return true;
-                    }
+                    return true;
                 }
                 false
             }
@@ -133,36 +129,34 @@ fn cleanup_if(stmt: Stmt) -> Stmt {
         }),
         _semi,
     ) = &stmt
-    {
-        if let Expr::Block(ExprBlock {
+        && let Expr::Block(ExprBlock {
             block, label: None, ..
         }) = &**else_
-        {
-            if block.stmts.is_empty() {
+    {
+        if block.stmts.is_empty() {
+            return Stmt::Expr(
+                Expr::If(ExprIf {
+                    cond: cond.clone(),
+                    then_branch: then_branch.clone(),
+                    else_branch: Default::default(),
+                    attrs: Default::default(),
+                    if_token: Default::default(),
+                }),
+                None,
+            );
+        } else if block.stmts.len() == 1 {
+            // flatten nested if expression to else if chain
+            if let Stmt::Expr(Expr::If(nested_if_expr), _semi) = &block.stmts[0] {
                 return Stmt::Expr(
                     Expr::If(ExprIf {
                         cond: cond.clone(),
                         then_branch: then_branch.clone(),
-                        else_branch: Default::default(),
+                        else_branch: Some((*token, Box::new(Expr::If(nested_if_expr.clone())))),
                         attrs: Default::default(),
                         if_token: Default::default(),
                     }),
                     None,
                 );
-            } else if block.stmts.len() == 1 {
-                // flatten nested if expression to else if chain
-                if let Stmt::Expr(Expr::If(nested_if_expr), _semi) = &block.stmts[0] {
-                    return Stmt::Expr(
-                        Expr::If(ExprIf {
-                            cond: cond.clone(),
-                            then_branch: then_branch.clone(),
-                            else_branch: Some((*token, Box::new(Expr::If(nested_if_expr.clone())))),
-                            attrs: Default::default(),
-                            if_token: Default::default(),
-                        }),
-                        None,
-                    );
-                }
             }
         }
     }

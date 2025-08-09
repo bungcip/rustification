@@ -240,14 +240,14 @@ impl<'c> Translation<'c> {
         let mut va_list_decl_ids: IndexSet<CDeclId> = IndexSet::new();
 
         for s in DFExpr::new(&self.ast_context, body.into()) {
-            if let SomeId::Expr(e) = s {
-                if let Some(part) = self.match_vapart(e) {
-                    let id = match part {
-                        VaPart::Start(va_id) | VaPart::End(va_id) => va_id,
-                        VaPart::Copy(dst_va_id, _src_va_id) => dst_va_id,
-                    };
-                    va_list_decl_ids.insert(id);
-                }
+            if let SomeId::Expr(e) = s
+                && let Some(part) = self.match_vapart(e)
+            {
+                let id = match part {
+                    VaPart::Start(va_id) | VaPart::End(va_id) => va_id,
+                    VaPart::Copy(dst_va_id, _src_va_id) => dst_va_id,
+                };
+                va_list_decl_ids.insert(id);
             }
         }
 

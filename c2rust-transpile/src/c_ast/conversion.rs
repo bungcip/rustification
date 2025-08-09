@@ -2054,9 +2054,9 @@ impl ConversionContext {
                         .files
                         .get(self.typed_context.file_map[node.loc.fileid as usize]);
                     let file = file.unwrap();
-                    if let Some(path) = file.path.as_ref() {
-                        if let Some(filename) = path.file_name() {
-                            if filename == "stdint.h"
+                    if let Some(path) = file.path.as_ref()
+                        && let Some(filename) = path.file_name()
+                        && (filename == "stdint.h"
                                 || filename == "types.h"
                                 || filename
                                     .to_str()
@@ -2067,11 +2067,9 @@ impl ConversionContext {
                                 || filename
                                     .to_str()
                                     .map(|s| s.starts_with("_int") || s.starts_with("_uint"))
-                                    .unwrap_or(false)
-                            {
-                                typ = id_for_name(&*name).unwrap_or(typ);
-                            }
-                        }
+                                    .unwrap_or(false))
+                    {
+                        typ = id_for_name(&*name).unwrap_or(typ);
                     }
 
                     let typdef_decl = CDeclKind::Typedef {

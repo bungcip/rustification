@@ -270,11 +270,11 @@ impl TypedAstContext {
         }
     }
 
-    pub fn iter_decls(&self) -> indexmap::map::Iter<CDeclId, CDecl> {
+    pub fn iter_decls(&self) -> indexmap::map::Iter<'_, CDeclId, CDecl> {
         self.c_decls.iter()
     }
 
-    pub fn iter_mut_decls(&mut self) -> indexmap::map::IterMut<CDeclId, CDecl> {
+    pub fn iter_mut_decls(&mut self) -> indexmap::map::IterMut<'_, CDeclId, CDecl> {
         self.c_decls.iter_mut()
     }
 
@@ -525,12 +525,11 @@ impl TypedAstContext {
     pub fn fn_declref_decl(&self, func_expr: CExprId) -> Option<&CDeclKind> {
         use CastKind::FunctionToPointerDecay;
         if let CExprKind::ImplicitCast(_, fexp, FunctionToPointerDecay, _, _) = self[func_expr].kind
+            && let CExprKind::DeclRef(_ty, decl_id, _rv) = &self[fexp].kind
         {
-            if let CExprKind::DeclRef(_ty, decl_id, _rv) = &self[fexp].kind {
-                let decl = &self.index(*decl_id).kind;
-                assert!(matches!(decl, CDeclKind::Function { .. }));
-                return Some(decl);
-            }
+            let decl = &self.index(*decl_id).kind;
+            assert!(matches!(decl, CDeclKind::Function { .. }));
+            return Some(decl);
         }
         None
     }
@@ -732,10 +731,10 @@ impl TypedAstContext {
                                 }
                             }
                         }
-                        if let CExprKind::DeclRef(_, decl_id, _) = &expr.kind {
-                            if wanted.insert(*decl_id) {
-                                to_walk.push(*decl_id);
-                            }
+                        if let CExprKind::DeclRef(_, decl_id, _) = &expr.kind
+                            && wanted.insert(*decl_id)
+                        {
+                            to_walk.push(*decl_id);
                         }
                     }
 
@@ -762,10 +761,10 @@ impl TypedAstContext {
         }
 
         // Unset c_main if we are not retaining its declaration
-        if let Some(main_id) = self.c_main {
-            if !wanted.contains(&main_id) {
-                self.c_main = None;
-            }
+        if let Some(main_id) = self.c_main
+            && !wanted.contains(&main_id)
+        {
+            self.c_main = None;
         }
 
         // Prune any declaration that isn't considered live
@@ -909,14 +908,13 @@ impl TypedAstContext {
     }
 
     pub fn is_aligned_struct_type(&self, typ: CTypeId) -> bool {
-        if let Some(decl_id) = self.resolve_type(typ).kind.as_underlying_decl() {
-            if let CDeclKind::Struct {
+        if let Some(decl_id) = self.resolve_type(typ).kind.as_underlying_decl()
+            && let CDeclKind::Struct {
                 manual_alignment: Some(_),
                 ..
             } = self.index(decl_id).kind
-            {
-                return true;
-            }
+        {
+            return true;
         }
         false
     }
