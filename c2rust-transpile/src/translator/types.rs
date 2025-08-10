@@ -27,7 +27,7 @@ impl<'c> Translation<'c> {
     }
 
     // display ctype name in nice format for debugging
-    // fn debug_ctype_name(&self, ctype: CTypeId) -> String {
+    // pub(crate) fn debug_ctype_name(&self, ctype: CTypeId) -> String {
     //     let type_kind = &self.ast_context.resolve_type(ctype).kind;
     //     match type_kind {
     //         CTypeKind::Pointer(pointee) => {

@@ -770,19 +770,37 @@ impl<'c> Translation<'c> {
                     match arg_kind {
                         CExprKind::CompoundLiteral(..) => {
                             // for compound literal, we must place it in a local so we can take its address
-                            arg.and_then(|a| {
+                            // if compounud literal is static, we place it in auxiliary static item stores
+                            // and take its address from there
+                            if ctx.is_static {
                                 let val_name = self.renamer.borrow_mut().fresh();
-                                let init_stmt = mk().local_stmt(Box::new(mk().local(
-                                    mk().set_mutbl(mutbl).ident_pat(&val_name),
-                                    None,
-                                    Some(a),
-                                )));
+                                let init = arg.to_expr();
+                                let static_item = mk().static_item(&val_name, ty, init);
+
+                                self.with_cur_file_item_store(|item_store| {
+                                    item_store.add_item(static_item);
+                                });
 
                                 let raw_addr = mk()
                                     .set_mutbl(mutbl)
-                                    .raw_addr_expr(mk().ident_expr(val_name));
-                                Ok(WithStmts::new(vec![init_stmt], raw_addr))
-                            })
+                                    .raw_addr_expr(mk().ident_expr(&val_name));
+
+                                Ok(WithStmts::new_val(raw_addr))
+                            } else {
+                                arg.and_then(|a| {
+                                    let val_name = self.renamer.borrow_mut().fresh();
+                                    let init_stmt = mk().local_stmt(Box::new(mk().local(
+                                        mk().set_mutbl(mutbl).ident_pat(&val_name),
+                                        None,
+                                        Some(a),
+                                    )));
+
+                                    let raw_addr = mk()
+                                        .set_mutbl(mutbl)
+                                        .raw_addr_expr(mk().ident_expr(val_name));
+                                    Ok(WithStmts::new(vec![init_stmt], raw_addr))
+                                })
+                            }
                         }
                         _ => {
                             // for everything else, we can just take the address
