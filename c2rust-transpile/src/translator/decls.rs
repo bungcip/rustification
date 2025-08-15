@@ -816,10 +816,9 @@ impl<'c> Translation<'c> {
             self.use_feature("register_tool");
             let attrs = item_attrs(&mut item).expect("no attrs field on unexpected item variant");
             add_src_loc_attr(attrs, &decl.loc.as_ref().map(|x| x.begin()));
-            let mut item_stores = self.items.borrow_mut();
-            let items = item_stores.entry(decl_file_id.unwrap()).or_default();
-
-            items.add_item(item);
+            self.with_item_store(decl_file_id.unwrap(), |item_store| {
+                item_store.add_item(item);
+            });
         } else {
             self.items.borrow_mut()[&self.main_file].add_item(item)
         }
@@ -835,10 +834,9 @@ impl<'c> Translation<'c> {
             let attrs = foreign_item_attrs(&mut item)
                 .expect("no attrs field on unexpected foreign item variant");
             add_src_loc_attr(attrs, &decl.loc.as_ref().map(|x| x.begin()));
-            let mut items = self.items.borrow_mut();
-            let mod_block_items = items.entry(decl_file_id.unwrap()).or_default();
-
-            mod_block_items.add_foreign_item(item);
+            self.with_item_store(decl_file_id.unwrap(), |item_store| {
+                item_store.add_foreign_item(item);
+            });
         } else {
             self.items.borrow_mut()[&self.main_file].add_foreign_item(item)
         }

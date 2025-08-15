@@ -1070,12 +1070,21 @@ impl<'c> Translation<'c> {
         }
     }
 
+    /// helper function to get the current file item store
     fn with_cur_file_item_store<F, T>(&self, f: F) -> T
     where
         F: FnOnce(&mut ItemStore) -> T,
     {
+        self.with_item_store(Self::cur_file(self), f)
+    }
+
+    /// helper function to get item store from file_id
+    fn with_item_store<F, T>(&self, file_id: usize, f: F) -> T
+    where
+        F: FnOnce(&mut ItemStore) -> T,
+    {
         let mut item_stores = self.items.borrow_mut();
-        let item_store = item_stores.entry(Self::cur_file(self)).or_default();
+        let item_store = item_stores.entry(file_id).or_default();
         f(item_store)
     }
 
