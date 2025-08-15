@@ -775,15 +775,23 @@ impl<'c> Translation<'c> {
                             if ctx.is_static {
                                 let val_name = self.renamer.borrow_mut().fresh();
                                 let init = arg.to_expr();
-                                let static_item = mk().static_item(&val_name, ty, init);
+                                let pointee_ty = self.convert_type(pointee_ty.ctype)?;
+                                let static_item = mk().static_item(&val_name, pointee_ty, init);
 
                                 self.with_cur_file_item_store(|item_store| {
                                     item_store.add_item(static_item);
                                 });
 
+                                let mutbl = Mutability::Immutable;
                                 let raw_addr = mk()
                                     .set_mutbl(mutbl)
                                     .raw_addr_expr(mk().ident_expr(&val_name));
+                                // let wrapper = match mutbl {
+                                //     Mutability::Immutable => "Pointer",
+                                //     Mutability::Mutable => "PointerMut",
+                                // };
+                                // let call = mk().call_expr(mk().ident_expr(wrapper), vec![raw_addr]);
+
 
                                 Ok(WithStmts::new_val(raw_addr))
                             } else {

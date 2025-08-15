@@ -2,7 +2,7 @@
 /// for transforming/refactoring Rust AST to Another Rust AST
 ///
 use c2rust_ast_builder::mk;
-use syn::{Expr, ExprCall, ExprParen, Lit};
+use syn::{Expr, ExprCall, ExprParen, Lit, ExprPath};
 
 /// TODO: refactor parameter need_lit_suffix = true, only used by one function
 pub(crate) fn cast_int(val: Box<Expr>, name: &str, need_lit_suffix: bool) -> Box<Expr> {
@@ -28,22 +28,17 @@ pub(crate) fn bool_to_int(val: Box<Expr>) -> Box<Expr> {
 /// helper that transform an expression that access a wrapped pointer to ".0"
 /// eg: let x = PointerMut(c" ".as_ptr()); x.0
 pub(crate) fn access_to_wrapped_pointer(expr: Box<Expr>) -> Box<Expr> {
-    let expr2 = expr.clone(); // TODO: don't clone this, use a reference instead
-    if let Expr::Call(ExprCall { func, args, .. }) = *expr {
-        if args.len() != 1 {
-            return expr2;
-        }
-
-        if let Expr::Path(p) = *func {
-            let ident = p.path.segments[0].ident.to_string();
-            if ident == "PointerMut" || ident == "Pointer" {
-                // If the function is PointerMut or PointerConst, we access the wrapped pointer
-                // by using ".0" to get the inner value.
-                return mk().anon_field_expr(expr2, 0);
-            }
-        }
+    if let Expr::Call(ExprCall { ref func, ref args, .. }) = *expr
+        && args.len() == 1
+        && let Expr::Path(ExprPath { ref path, .. }) = **func
+        && let ident = path.segments[0].ident.to_string()
+        && (ident == "PointerMut" || ident == "Pointer")
+    {
+        // If the function is PointerMut or PointerConst, we access the wrapped pointer
+        // by using ".0" to get the inner value.
+        return mk().anon_field_expr(expr, 0);
     };
-    expr2
+    expr
 }
 
 /// Unwrap a layer of parenthesization from an Expr, if present

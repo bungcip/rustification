@@ -246,6 +246,14 @@ impl<'c> Translation<'c> {
                     val = mk().method_call_expr(val, "as_mut_ptr", vec![]);
                 }
 
+                // if decl is a static variable and pointer, then to access it, we need '.0' because
+                //  the variable is wrapped in a PointerMut or Pointer
+                if let CDeclKind::Variable { has_static_duration: true,..} = decl 
+                    && let CTypeKind::Pointer(..) = self.ast_context.resolve_type(qual_ty.ctype).kind {
+                    val = mk().anon_field_expr(val, 0);
+                }
+
+
                 // if the context wants a different type, add a cast
                 if let Some(expected_ty) = override_ty
                     && expected_ty != qual_ty
