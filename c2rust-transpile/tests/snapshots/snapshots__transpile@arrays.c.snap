@@ -115,13 +115,9 @@ pub unsafe extern "C" fn short_initializer() {
 }
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct PointerMut<T>(pub *mut T)
-where
-    T: Copy + Clone;
+pub struct PointerMut<T>(pub *mut T);
 unsafe impl<T> Sync for PointerMut<T> where T: Copy + Clone {}
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct Pointer<T>(pub *const T)
-where
-    T: Copy + Clone;
+pub struct Pointer<T>(pub *const T);
 unsafe impl<T> Sync for Pointer<T> where T: Copy + Clone {}

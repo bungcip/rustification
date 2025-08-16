@@ -35,7 +35,6 @@ static fresh0: S = {
     init
 };
 static global_static_const_ref_struct: Pointer<S> = Pointer(&raw const fresh0);
-static global_static_const_literal_str_ptr: Pointer<ffi::c_char> = Pointer(c"hello".as_ptr());
 #[unsafe(no_mangle)]
 pub static fns: fn_ptrs = {
     let mut init = fn_ptrs {
@@ -47,17 +46,20 @@ pub static fns: fn_ptrs = {
 };
 #[unsafe(no_mangle)]
 pub static mut p: Pointer<fn_ptrs> = unsafe { Pointer(&raw const fns as *const fn_ptrs) };
+unsafe extern "C" fn other_c_to_i(mut c: ffi::c_char) -> ffi::c_int {
+    let mut null_var: *mut ffi::c_int = 0 as *mut ffi::c_int;
+    return c as ffi::c_int;
+}
+#[unsafe(no_mangle)]
+pub static mut global_fn: Option<unsafe extern "C" fn(ffi::c_char) -> ffi::c_int> =
+    unsafe { Some(other_c_to_i as unsafe extern "C" fn(ffi::c_char) -> ffi::c_int) };
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn static_length() {}
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct PointerMut<T>(pub *mut T)
-where
-    T: Copy + Clone;
+pub struct PointerMut<T>(pub *mut T);
 unsafe impl<T> Sync for PointerMut<T> where T: Copy + Clone {}
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct Pointer<T>(pub *const T)
-where
-    T: Copy + Clone;
+pub struct Pointer<T>(pub *const T);
 unsafe impl<T> Sync for Pointer<T> where T: Copy + Clone {}

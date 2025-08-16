@@ -5,9 +5,12 @@ static const char * const array_of_string[] = {
     "null", "true", "false", "integer", "float", "string", 0
 };
   
-void static_length(){
+static const char *const const_string = "hello";
+
+void just_use(){
     (void) digits;
     (void) array_of_string;
+    (void) const_string;
 }
 
 void static_inside_local_function(){

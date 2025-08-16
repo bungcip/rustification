@@ -11,14 +11,19 @@ struct fn_ptrs {
 };
 
 static const struct S *const global_static_const_ref_struct = &((struct S){.i = 5});
-static const char *const global_static_const_literal_str_ptr = "hello";
 
 const struct fn_ptrs fns = {0, 0, 0};
 const struct fn_ptrs *p = &fns;
 
+static int other_c_to_i(char c) {
+  int *null_var = 0;
+  return (int) c;
+}
+
+int (*global_fn)(char) = other_c_to_i;
 
 void static_length(){
   (void) global_static_const_ref_struct;
-  (void) global_static_const_literal_str_ptr;
   (void) p;
+  (void) global_fn;
 }

@@ -650,6 +650,7 @@ pub fn translate(
                     &t.mod_names,
                     &t.global_uses,
                     tcfg.reorganize_definitions,
+                    *t.need_pointer_wrapper.borrow(),
                 );
                 let comments = t.comment_context.get_remaining_comments(*file_id);
                 submodule.set_span(match t.comment_store.borrow_mut().add_comments(&comments) {
@@ -834,6 +835,7 @@ fn make_submodule(
     mod_names: &RefCell<IndexMap<String, PathBuf>>,
     global_uses: &RefCell<indexmap::IndexSet<Box<Item>>>,
     reorganize_definitions: bool,
+    need_pointer_wrapper: bool,
 ) -> Box<Item> {
     let (mut items, foreign_items, uses) = item_store.drain();
     let file_path = ast_context.get_file_path(file_id);
@@ -879,6 +881,12 @@ fn make_submodule(
 
     if !foreign_items.is_empty() {
         items.push(mk().unsafe_().extern_("C").foreign_items(foreign_items));
+    }
+
+    // if reorganize_definitions is true, we add use statement for PointerWrapper struct
+    if reorganize_definitions && need_pointer_wrapper {
+        items.push(mk().use_simple_item(vec!["super", "Pointer"], None::<Ident>));
+        items.push(mk().use_simple_item(vec!["super", "PointerMut"], None::<Ident>));
     }
 
     let module_builder = mk().vis("pub");
@@ -1905,13 +1913,26 @@ impl<'c> Translation<'c> {
                 }
             }
 
-            CTypeKind::Pointer(pointee) if ctx.is_static => {
-                let ty = self.convert_type(pointee.ctype)?;
+            // for static pointer type (except function pointers), we wrap it in PointerMut or PointerConst
+            CTypeKind::Pointer(pointee)
+                if ctx.is_static
+                    && matches!(
+                        &self.ast_context.resolve_type(pointee.ctype).kind,
+                        CTypeKind::Function(..)
+                    ) == false =>
+            {
                 pointee_mutbl = if pointee.qualifiers.is_const {
                     Mutability::Immutable
                 } else {
                     Mutability::Mutable
                 };
+
+                let kind = &self.ast_context.resolve_type(pointee.ctype).kind;
+                let ty = match kind {
+                    CTypeKind::Void => mk().path_ty(vec!["ffi", "c_void"]), // for void pointers, we use `c_void` type
+                    _ => self.convert_type(pointee.ctype)?,
+                };
+
                 need_pointer_wrapper = true;
                 pointer_wrapper_type(ty, pointee_mutbl)
             }

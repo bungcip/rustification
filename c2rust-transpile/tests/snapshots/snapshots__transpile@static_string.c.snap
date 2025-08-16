@@ -36,8 +36,9 @@ static array_of_string: [Pointer<ffi::c_char>; 7] = [
     Pointer(c"string".as_ptr()),
     Pointer(0 as *const ffi::c_char),
 ];
+static const_string: Pointer<ffi::c_char> = Pointer(c"hello".as_ptr());
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn static_length() {}
+pub unsafe extern "C" fn just_use() {}
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn static_inside_local_function() {
     static aTable: [C2RustUnnamed; 2] = [
@@ -63,13 +64,9 @@ pub unsafe extern "C" fn static_inside_local_function() {
 }
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct PointerMut<T>(pub *mut T)
-where
-    T: Copy + Clone;
+pub struct PointerMut<T>(pub *mut T);
 unsafe impl<T> Sync for PointerMut<T> where T: Copy + Clone {}
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct Pointer<T>(pub *const T)
-where
-    T: Copy + Clone;
+pub struct Pointer<T>(pub *const T);
 unsafe impl<T> Sync for Pointer<T> where T: Copy + Clone {}
