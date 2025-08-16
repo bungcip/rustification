@@ -62,12 +62,16 @@ impl<'c> Translation<'c> {
     /// Translate a C expression into a Rust one, possibly collecting side-effecting statements
     /// to run before the expression.
     ///
-    /// The `use_` argument informs us how the C expression we are translating is used in the C
-    /// program. See `ExprUse` for more information.
+    /// `ctx.is_used()` informs us how the C expression we are translating is used in the C
+    /// program.
     ///
-    /// In the case that `use_` is unused, all side-effecting components will be in the
+    /// In the case that `ctx.is_unused()`, all side-effecting components will be in the
     /// `stmts` field of the output and it is expected that the `val` field of the output will be
     /// ignored.
+    ///
+    /// `override_ty` is the type expected by the surrounding expression context.
+    /// This can be different from the type of the AST node itself
+    /// and in many cases should override it.
     pub fn convert_expr(
         &self,
         mut ctx: ExprContext,
@@ -84,7 +88,7 @@ impl<'c> Translation<'c> {
             expr_id, self.ast_context[expr_id]
         );
 
-        if let Some(converted) = self.convert_const_macro_expansion(ctx, expr_id)? {
+        if let Some(converted) = self.convert_const_macro_expansion(ctx, expr_id, override_ty)? {
             return Ok(converted);
         }
 
@@ -133,11 +137,11 @@ impl<'c> Translation<'c> {
                 Ok(result)
             }
 
-            ConstantExpr(_ty, child, value) => {
+            ConstantExpr(ty, child, value) => {
                 if let Some(constant) = value {
                     self.convert_constant(constant).map(WithStmts::new_val)
                 } else {
-                    self.convert_expr(ctx, child, Some(_ty))
+                    self.convert_expr(ctx, child, Some(ty))
                 }
             }
 

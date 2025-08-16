@@ -16,6 +16,7 @@ impl<'c> Translation<'c> {
         &self,
         ctx: ExprContext,
         expr_id: CExprId,
+        override_ty: Option<CQualTypeId>,
     ) -> TranslationResult<Option<WithStmts<Box<Expr>>>> {
         let macros = match self.ast_context.macro_invocations.get(&expr_id) {
             Some(macros) => macros.as_slice(),
@@ -66,7 +67,13 @@ impl<'c> Translation<'c> {
         let val = WithStmts::new_val(mk().path_expr(vec![rust_name]));
 
         let expr_kind = &self.ast_context[expr_id].kind;
-        if let Some(expr_ty) = expr_kind.get_qual_type() {
+        // TODO We'd like to get rid of this cast eventually (see #1321).
+        // Currently, const macros do not get the correct `override_ty` themselves,
+        // so they aren't declared with the correct portable type,
+        // but its uses are expecting the correct portable type,
+        // so we need to cast it to the `override_ty` here.
+        let expr_ty = override_ty.or_else(|| expr_kind.get_qual_type());
+        if let Some(expr_ty) = expr_ty {
             self.convert_cast(
                 ctx,
                 CQualTypeId::new(macro_ty),
