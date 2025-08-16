@@ -22,12 +22,31 @@ use core::ffi;
 pub struct S {
     pub i: ffi::c_int,
 }
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct fn_ptrs {
+    pub v: *mut ffi::c_void,
+    pub fn1: Option<unsafe extern "C" fn() -> ffi::c_int>,
+    pub fn2: Option<unsafe extern "C" fn(ffi::c_int) -> ffi::c_int>,
+}
+unsafe impl Sync for fn_ptrs {}
 static fresh0: S = {
     let mut init = S { i: 5 };
     init
 };
 static global_static_const_ref_struct: Pointer<S> = Pointer(&raw const fresh0);
 static global_static_const_literal_str_ptr: Pointer<ffi::c_char> = Pointer(c"hello".as_ptr());
+#[unsafe(no_mangle)]
+pub static fns: fn_ptrs = {
+    let mut init = fn_ptrs {
+        v: 0 as *const ffi::c_void as *mut ffi::c_void,
+        fn1: None,
+        fn2: None,
+    };
+    init
+};
+#[unsafe(no_mangle)]
+pub static mut p: Pointer<fn_ptrs> = unsafe { Pointer(&raw const fns as *const fn_ptrs) };
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn static_length() {}
 #[derive(Copy, Clone)]

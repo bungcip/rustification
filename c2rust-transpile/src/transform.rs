@@ -2,7 +2,7 @@
 /// for transforming/refactoring Rust AST to Another Rust AST
 ///
 use c2rust_ast_builder::mk;
-use syn::{Expr, ExprCall, ExprParen, Lit, ExprPath};
+use syn::{Expr, ExprCall, ExprParen, ExprPath, Lit};
 
 /// TODO: refactor parameter need_lit_suffix = true, only used by one function
 pub(crate) fn cast_int(val: Box<Expr>, name: &str, need_lit_suffix: bool) -> Box<Expr> {
@@ -28,7 +28,9 @@ pub(crate) fn bool_to_int(val: Box<Expr>) -> Box<Expr> {
 /// helper that transform an expression that access a wrapped pointer to ".0"
 /// eg: let x = PointerMut(c" ".as_ptr()); x.0
 pub(crate) fn access_to_wrapped_pointer(expr: Box<Expr>) -> Box<Expr> {
-    if let Expr::Call(ExprCall { ref func, ref args, .. }) = *expr
+    if let Expr::Call(ExprCall {
+        ref func, ref args, ..
+    }) = *expr
         && args.len() == 1
         && let Expr::Path(ExprPath { ref path, .. }) = **func
         && let ident = path.segments[0].ident.to_string()

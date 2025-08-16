@@ -1858,18 +1858,12 @@ impl<'c> Translation<'c> {
         typ: CQualTypeId,
     ) -> TranslationResult<ConvertedVariable> {
         let type_kind = self.ast_context.resolve_type(typ.ctype).kind.clone();
-        let mutbl = if typ.qualifiers.is_const {
-            Mutability::Immutable
-        } else {
-            Mutability::Mutable
-        };
-
-        let pointer_wrapper_type = |pointee: Box<Type>, mutbl: Mutability| -> Box<Type>{
+        let pointer_wrapper_type = |pointee: Box<Type>, mutbl: Mutability| -> Box<Type> {
             // need to generate PointerMut struct
             *self.need_pointer_wrapper.borrow_mut() = true;
 
             let name = match mutbl {
-                Mutability::Immutable =>"Pointer",
+                Mutability::Immutable => "Pointer",
                 Mutability::Mutable => "PointerMut",
             };
 
@@ -1877,10 +1871,11 @@ impl<'c> Translation<'c> {
                 name,
                 mk().angle_bracketed_args(vec![pointee]),
             )])
-
         };
 
         let mut need_pointer_wrapper = false;
+        let mut pointee_mutbl = Mutability::Immutable;
+
         let ty = match type_kind {
             // Variable declarations for variable-length arrays use the type of a pointer to the
             // underlying array element
@@ -1911,9 +1906,14 @@ impl<'c> Translation<'c> {
             }
 
             CTypeKind::Pointer(pointee) if ctx.is_static => {
-                let pointee = self.convert_type(pointee.ctype)?;
+                let ty = self.convert_type(pointee.ctype)?;
+                pointee_mutbl = if pointee.qualifiers.is_const {
+                    Mutability::Immutable
+                } else {
+                    Mutability::Mutable
+                };
                 need_pointer_wrapper = true;
-                pointer_wrapper_type(pointee, mutbl)
+                pointer_wrapper_type(ty, pointee_mutbl)
             }
 
             _ => self.convert_type(typ.ctype)?,
@@ -1927,18 +1927,24 @@ impl<'c> Translation<'c> {
         // wrap init expression in a PointerMut or Pointer if it is static
         if need_pointer_wrapper {
             init = init.and_then(|init| {
-                let name = match mutbl {
-                    Mutability::Immutable =>"Pointer",
+                let name = match pointee_mutbl {
+                    Mutability::Immutable => "Pointer",
                     Mutability::Mutable => "PointerMut",
                 };
 
                 init.and_then(|init| {
                     Ok(WithStmts::new_val(
-                        mk().call_expr(mk().ident_expr(name), vec![init])
+                        mk().call_expr(mk().ident_expr(name), vec![init]),
                     ))
                 })
             });
         }
+
+        let mutbl = if typ.qualifiers.is_const {
+            Mutability::Immutable
+        } else {
+            Mutability::Mutable
+        };
 
         Ok(ConvertedVariable { ty, mutbl, init })
     }
