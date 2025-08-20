@@ -3,9 +3,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use c2rust_transpile::{
-    MAX_NIGHTLY_VERSION, ReplaceMode, RustChannel, TranslateMacros, TranspilerConfig,
-};
+use c2rust_transpile::{MAX_NIGHTLY_VERSION, ReplaceMode, RustChannel, TranspilerConfig};
 
 fn config() -> TranspilerConfig {
     TranspilerConfig {
