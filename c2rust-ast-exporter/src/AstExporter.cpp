@@ -621,7 +621,12 @@ class TranslateASTVisitor final
         auto isVaList = false;
         auto encodeMacroExpansions = true;
         assert(Context && "Expected Context to be non-NULL");
-        bool isRValue = ast->Classify(*Context).isRValue();
+        bool isRValue;
+        if (isa<clang::StringLiteral>(ast)) {
+            isRValue = false;
+        } else {
+            isRValue = ast->Classify(*Context).isRValue();
+        }
         encode_entry_raw(ast, tag, ast->getSourceRange(), ty, isRValue, isVaList,
                          encodeMacroExpansions, childIds, extra);
         typeEncoder.VisitQualType(ty);
