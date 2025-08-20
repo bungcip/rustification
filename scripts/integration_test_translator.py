@@ -95,7 +95,7 @@ def _test_minimal(code_snippet: str) -> bool:
         ld_lib_path += ':' + pb.local.env['LD_LIBRARY_PATH']
 
     args = []
-    args += ['--ddump-untyped-clang-ast']
+    args += ['--dump-untyped-clang-ast']
     args += [cfile]
 
     # import ast
@@ -112,6 +112,16 @@ def test_minimal(_: argparse.Namespace) -> bool:
 
 def test_hello_world(_: argparse.Namespace) -> bool:
     return _test_minimal(hello_world_snippet)
+
+
+def test_static_assert(_: argparse.Namespace) -> bool:
+    snippet = """
+int main() {
+    _Static_assert (1, "Expression evaluates to false");
+    return 0;
+}
+"""
+    return _test_minimal(snippet)
 
 
 def test_json_c(args: argparse.Namespace) -> bool:
@@ -229,6 +239,7 @@ def main() -> None:
     # filter what gets tested using `what` argument
     tests = [test_minimal,
              test_hello_world,
+             test_static_assert,
              test_json_c,
              test_ruby,
              test_lua]
