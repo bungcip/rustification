@@ -620,8 +620,12 @@ class TranslateASTVisitor final
         auto ty = ast->getType();
         auto isVaList = false;
         auto encodeMacroExpansions = true;
-        assert(Context && "Expected Context to be non-NULL");
-        bool isRValue = ast->Classify(*Context).isRValue();
+        // prvalues are equivalent to rvalues in C++03.
+        //
+        // NOTE: We used to call ast->Classify(*Context).isRValue() but that may
+        // result in a segfault on LLVM 18 and 19 for certain string literals.
+        // See https://github.com/immunant/c2rust/issues/1124
+        bool isRValue = ast->getValueKind() == VK_PRValue;        
         encode_entry_raw(ast, tag, ast->getSourceRange(), ty, isRValue, isVaList,
                          encodeMacroExpansions, childIds, extra);
         typeEncoder.VisitQualType(ty);
