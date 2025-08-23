@@ -2,7 +2,7 @@
 
 use std::{ffi::CString, str};
 
-use proc_macro2::{Literal, Punct, Spacing, Span, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, Group, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
 use std::default::Default;
 use std::iter::FromIterator;
 use syn::{__private::ToTokens, punctuated::Punctuated, *};
@@ -252,17 +252,6 @@ impl Make<Extern> for Abi {
     }
 }
 
-impl Make<UnOp> for &str {
-    fn make(self, _mk: &Builder) -> UnOp {
-        match self {
-            "deref" | "*" => UnOp::Deref(Default::default()),
-            "not" | "!" => UnOp::Not(Default::default()),
-            "neg" | "-" => UnOp::Neg(Default::default()),
-            _ => panic!("unrecognized string for UnOp: {self:?}"),
-        }
-    }
-}
-
 impl<I: Make<Ident>> Make<Lifetime> for I {
     fn make(self, mk: &Builder) -> Lifetime {
         Lifetime {
@@ -300,6 +289,12 @@ impl<S: Make<PathSegment>> Make<Path> for Vec<S> {
     }
 }
 
+impl Make<TokenTree> for Literal {
+    fn make(self, _mk: &Builder) -> TokenTree {
+        TokenTree::Literal(self)
+    }
+}
+
 impl Make<TokenStream> for Vec<TokenTree> {
     fn make(self, _mk: &Builder) -> TokenStream {
         self.into_iter().collect::<TokenStream>()
@@ -315,7 +310,7 @@ where
 
     for item in items {
         if first == false {
-            TokenTree::Punct(Punct::new(',', Spacing::Alone)).to_tokens(&mut tokens);
+            mk().punct_tt(',', Spacing::Alone).to_tokens(&mut tokens);
         } else {
             first = false;
         }
@@ -328,8 +323,7 @@ where
 impl Make<TokenStream> for Vec<&str> {
     fn make(self, _mk: &Builder) -> TokenStream {
         comma_separated(self, |tokens, s| {
-            let tt = TokenTree::Ident(Ident::new(s, Span::call_site()));
-            tt.to_tokens(tokens);
+            mk().ident_tt(s).to_tokens(tokens);
         })
     }
 }
@@ -337,8 +331,7 @@ impl Make<TokenStream> for Vec<&str> {
 impl Make<TokenStream> for Vec<u64> {
     fn make(self, _mk: &Builder) -> TokenStream {
         comma_separated(self, |tokens, s| {
-            let tt = TokenTree::Literal(Literal::u64_unsuffixed(s));
-            tt.to_tokens(tokens);
+            mk().lit_tt(s).to_tokens(tokens);
         })
     }
 }
@@ -422,6 +415,18 @@ impl Make<Lit> for u64 {
 impl Make<Lit> for char {
     fn make(self, mk: &Builder) -> Lit {
         Lit::Char(LitChar::new(self, mk.span))
+    }
+}
+
+impl Make<Literal> for &str {
+    fn make(self, _mk: &Builder) -> Literal {
+        Literal::string(self)
+    }
+}
+
+impl Make<Literal> for u64 {
+    fn make(self, _mk: &Builder) -> Literal {
+        Literal::u64_unsuffixed(self)
     }
 }
 
@@ -2073,19 +2078,6 @@ impl Builder {
         })
     }
 
-    pub fn empty_mac<Pa>(self, path: Pa, delim: MacroDelimiter) -> Macro
-    where
-        Pa: Make<Path>,
-    {
-        let path = path.make(&self);
-        Macro {
-            path,
-            tokens: TokenStream::new(),
-            bang_token: Token![!](self.span),
-            delimiter: delim,
-        }
-    }
-
     pub fn mac<Pa, Ts>(self, func: Pa, arguments: Ts, delim: MacroDelimiter) -> Macro
     where
         Pa: Make<Path>,
@@ -2094,7 +2086,7 @@ impl Builder {
         let path = func.make(&self);
         let tokens = arguments.make(&self);
         Macro {
-            path: path,
+            path,
             tokens,
             bang_token: Token![!](self.span),
             delimiter: delim,
@@ -2108,11 +2100,25 @@ impl Builder {
     ///     vec![TokenTree::Literal(proc_macro2::Literal::string("Hello, world!"))]
     /// )
     /// ->  `println!("Hello, world!")`
-    pub fn call_mac<Pa>(self, func: Pa, arguments: Vec<TokenTree>) -> Macro
+    pub fn call_mac<Pa, Tt>(self, func: Pa, arguments: Vec<Tt>) -> Macro
+    where
+        Pa: Make<Path>,
+        Tt: Make<TokenTree>,
+    {
+        let tokens = comma_separated(arguments, |tokens, tt| {
+            let tt = tt.make(&self);
+            tt.to_tokens(tokens);
+        });
+
+        mk().mac(func, tokens, MacroDelimiter::Paren(Default::default()))
+    }
+
+    pub fn call0_mac<Pa>(self, path: Pa) -> Macro
     where
         Pa: Make<Path>,
     {
-        mk().mac(func, arguments, MacroDelimiter::Paren(Default::default()))
+        let args: Vec<TokenTree> = vec![];
+        mk().call_mac(path, args)
     }
 
     /// Create a local variable
@@ -2214,6 +2220,34 @@ impl Builder {
             inputs,
             output,
         }))
+    }
+
+    pub fn punct_tt(self, ch: char, spacing: Spacing) -> TokenTree {
+        TokenTree::Punct(Punct::new(ch, spacing))
+    }
+
+    pub fn ident_tt<I>(self, name: I) -> TokenTree
+    where
+        I: Make<Ident>,
+    {
+        let ident = name.make(&self);
+        TokenTree::Ident(ident)
+    }
+
+    pub fn lit_tt<L>(self, lit: L) -> TokenTree
+    where
+        L: Make<Literal>,
+    {
+        let lit = lit.make(&self);
+        TokenTree::Literal(lit)
+    }
+
+    pub fn group_tt<Ts>(self, delim: Delimiter, stream: Ts) -> TokenTree
+    where
+        Ts: Make<TokenStream>,
+    {
+        let stream = stream.make(&self);
+        TokenTree::Group(Group::new(delim, stream))
     }
 }
 

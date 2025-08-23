@@ -5,7 +5,7 @@ use crate::{diagnostics::TranslationResult, generic_err};
 
 use super::*;
 use log::warn;
-use proc_macro2::TokenTree;
+use proc_macro2::{Delimiter, TokenTree};
 use syn::__private::ToTokens;
 
 /// An argument direction specifier for a Rust asm! expression
@@ -658,8 +658,14 @@ impl<'c> Translation<'c> {
 
         self.use_feature("asm");
 
+        fn push_tokenstream(tokens: &mut Vec<TokenTree>, ts: TokenStream) {
+            tokens.push(mk().group_tt(Delimiter::None, ts));
+        }
+
         fn push_expr(tokens: &mut Vec<TokenTree>, expr: Box<Expr>) {
-            tokens.extend(expr.to_token_stream());
+            let mut ts = TokenStream::new();
+            expr.to_tokens(&mut ts);
+            push_tokenstream(tokens, ts);
         }
 
         let mut stmts: Vec<Stmt> = vec![];
@@ -795,7 +801,7 @@ impl<'c> Translation<'c> {
         // Outputs and Inputs
         let mut operand_renames = HashMap::new();
         for operand in args {
-            tokens.push(TokenTree::Punct(Punct::new(',', Alone)));
+            let mut ts = TokenStream::new();
 
             // First, convert output expr if present
             let out_expr = if let Some((output_idx, out_expr)) = operand.out_expr {
@@ -886,12 +892,13 @@ impl<'c> Translation<'c> {
 
             // Emit "name =" if a name is given
             if let Some(name) = operand.name {
-                push_expr(&mut tokens, mk().ident_expr(name));
-                tokens.push(TokenTree::Punct(Punct::new('=', Alone)));
+                mk().ident_expr(name).to_tokens(&mut ts);
+                mk().punct_tt('=', Alone).to_tokens(&mut ts);
             }
 
             // Emit dir_spec(constraint), quoting constraint if needed
-            push_expr(&mut tokens, mk().ident_expr(operand.dir_spec.to_string()));
+            mk().ident_expr(operand.dir_spec.to_string())
+                .to_tokens(&mut ts);
             let constraints_ident = if is_regname_or_int(&operand.constraints) {
                 mk().lit_expr(operand.constraints.trim_matches('"'))
             } else {
@@ -899,26 +906,27 @@ impl<'c> Translation<'c> {
             };
 
             // Emit input and/or output expressions, separated by "=>" if both
-            push_expr(&mut tokens, mk().paren_expr(constraints_ident));
+            mk().paren_expr(constraints_ident).to_tokens(&mut ts);
             if let Some(in_expr) = in_expr {
-                let in_expr_span = in_expr.span();
-                push_expr(&mut tokens, in_expr);
+                in_expr.to_tokens(&mut ts);
                 if out_expr.is_some() {
-                    tokens.push(TokenTree::Punct(Punct::new('=', Joint)));
-                    tokens.push(TokenTree::Punct(Punct::new('>', Alone)));
+                    mk().punct_tt('=', Joint).to_tokens(&mut ts);
+                    mk().punct_tt('>', Alone).to_tokens(&mut ts);
                 } else {
                     // If inout but no out expr was given, mark clobbered ('_')
                     if let ArgDirSpec::InOut | ArgDirSpec::InLateOut = operand.dir_spec {
-                        tokens.push(TokenTree::Punct(Punct::new('=', Joint)));
-                        tokens.push(TokenTree::Punct(Punct::new('>', Alone)));
+                        mk().punct_tt('=', Joint).to_tokens(&mut ts);
+                        mk().punct_tt('>', Alone).to_tokens(&mut ts);
 
-                        tokens.push(TokenTree::Ident(Ident::new("_", in_expr_span)));
+                        mk().ident_tt("_").to_tokens(&mut ts);
                     }
                 }
             }
             if let Some(out_expr) = out_expr {
-                push_expr(&mut tokens, out_expr);
+                out_expr.to_tokens(&mut ts);
             }
+
+            push_tokenstream(&mut tokens, ts);
         }
 
         let mut preserves_flags = true;
@@ -950,10 +958,12 @@ impl<'c> Translation<'c> {
                 continue;
             }
 
-            tokens.push(TokenTree::Punct(Punct::new(',', Alone)));
+            let mut ts = TokenStream::new();
             let result = mk().call_expr(mk().ident_expr("out"), vec![mk().lit_expr(clobber)]);
-            push_expr(&mut tokens, result);
-            push_expr(&mut tokens, mk().ident_expr("_"));
+            result.to_tokens(&mut ts);
+            mk().ident_expr("_").to_tokens(&mut ts);
+
+            push_tokenstream(&mut tokens, ts);
         }
 
         // Options
@@ -976,7 +986,6 @@ impl<'c> Translation<'c> {
             }
 
             if !options.is_empty() {
-                tokens.push(TokenTree::Punct(Punct::new(',', Alone)));
                 let result = mk().call_expr(mk().ident_expr("options"), options);
                 push_expr(&mut tokens, result);
             }

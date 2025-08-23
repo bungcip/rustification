@@ -12,7 +12,7 @@ use dtoa;
 use indexmap::indexmap;
 use indexmap::{IndexMap, IndexSet};
 use log::{error, trace, warn};
-use proc_macro2::{Punct, Spacing::*, Span, TokenStream, TokenTree};
+use proc_macro2::{Literal, Spacing::*, Span, TokenStream};
 use syn::BinOp;
 use syn::spanned::Spanned as _;
 use syn::*; // To override c_ast::BinOp from glob import
@@ -1144,7 +1144,7 @@ impl<'c> Translation<'c> {
 
     fn panic_or_err_helper(&self, msg: &str, panic: bool) -> Box<Expr> {
         let macro_name = if panic { "panic" } else { "compile_error" };
-        let macro_msg = vec![TokenTree::Literal(proc_macro2::Literal::string(msg))];
+        let macro_msg = vec![Literal::string(msg)];
         mk().mac_expr(mk().call_mac(macro_name, macro_msg))
     }
 

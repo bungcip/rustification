@@ -4,7 +4,7 @@ use c2rust_ast_builder::properties::Mutability;
 use std::ops::Index;
 
 use log::trace;
-use proc_macro2::{Punct, Spacing::*, TokenTree};
+use proc_macro2::Delimiter;
 use syn::*;
 use syn::{BinOp, UnOp}; // To override c_ast::{BinOp,UnOp} from glob import
 
@@ -316,16 +316,17 @@ impl<'c> Translation<'c> {
                     let index_expr = expr.to_token_stream();
 
                     // offset_of!(Struct, field[expr as usize]) as ty
-                    let macro_body = vec![
-                        TokenTree::Ident(ty_ident),
-                        TokenTree::Punct(Punct::new(',', Alone)),
-                        TokenTree::Ident(field_ident),
-                        TokenTree::Group(proc_macro2::Group::new(
-                            proc_macro2::Delimiter::Bracket,
-                            index_expr,
-                        )),
+                    let macro_args = vec![
+                        mk().ident_tt(ty_ident),
+                        mk().group_tt(
+                            Delimiter::None,
+                            vec![
+                                mk().ident_tt(field_ident),
+                                mk().group_tt(Delimiter::Bracket, index_expr),
+                            ],
+                        ),
                     ];
-                    let mac = mk().mac_expr(mk().call_mac("offset_of", macro_body));
+                    let mac = mk().mac_expr(mk().call_mac("offset_of", macro_args));
 
                     // Cast type
                     let cast_ty = self.convert_type(override_ty.unwrap_or(ty).ctype)?;

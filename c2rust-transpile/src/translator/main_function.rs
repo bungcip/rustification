@@ -6,7 +6,6 @@
 use crate::generic_err;
 
 use super::*;
-use proc_macro2::TokenTree;
 
 impl<'c> Translation<'c> {
     pub fn convert_main(&self, main_id: CDeclId) -> TranslationResult<Box<Item>> {
@@ -146,11 +145,9 @@ impl<'c> Translation<'c> {
                             Some(mk().mac_expr(mk().call_mac(
                                 "format",
                                 vec![
-                                    TokenTree::Literal(proc_macro2::Literal::string("{}={}")),
-                                    TokenTree::Punct(Punct::new(',', proc_macro2::Spacing::Alone)),
-                                    TokenTree::Ident(var_name_ident),
-                                    TokenTree::Punct(Punct::new(',', proc_macro2::Spacing::Alone)),
-                                    TokenTree::Ident(var_value_ident),
+                                    mk().lit_tt("{}={}"),
+                                    mk().ident_tt(var_name_ident),
+                                    mk().ident_tt(var_value_ident),
                                 ],
                             ))),
                         ))),
