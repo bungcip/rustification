@@ -430,9 +430,9 @@ unsafe extern "C" fn run_static_initializers() {
 static INIT_ARRAY: [unsafe extern "C" fn(); 1] = [run_static_initializers];
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct PointerMut<T>(pub *mut T);
+pub struct PointerMut<T: ?Sized>(pub *mut T);
 unsafe impl<T> Sync for PointerMut<T> where T: Copy + Clone {}
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct Pointer<T>(pub *const T);
+pub struct Pointer<T: ?Sized>(pub *const T);
 unsafe impl<T> Sync for Pointer<T> where T: Copy + Clone {}

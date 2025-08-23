@@ -22,8 +22,13 @@ static int other_c_to_i(char c) {
 
 int (*global_fn)(char) = other_c_to_i;
 
+// from sqlite3
+typedef struct sqlite3_mutex sqlite3_mutex;
+static sqlite3_mutex *unixBigLock = 0;
+
 void static_length(){
   (void) global_static_const_ref_struct;
   (void) p;
   (void) global_fn;
+  (void) unixBigLock;
 }

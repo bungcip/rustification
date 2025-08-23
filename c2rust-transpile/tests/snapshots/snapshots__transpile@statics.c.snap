@@ -16,7 +16,11 @@ input_file: c2rust-transpile/tests/snapshots/statics.c
     unused_unsafe,
     unused_variables
 )]
+#![feature(extern_types)]
 use core::ffi;
+unsafe extern "C" {
+    pub type sqlite3_mutex;
+}
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct S {
@@ -53,13 +57,15 @@ unsafe extern "C" fn other_c_to_i(mut c: ffi::c_char) -> ffi::c_int {
 #[unsafe(no_mangle)]
 pub static mut global_fn: Option<unsafe extern "C" fn(ffi::c_char) -> ffi::c_int> =
     unsafe { Some(other_c_to_i as unsafe extern "C" fn(ffi::c_char) -> ffi::c_int) };
+static mut unixBigLock: PointerMut<sqlite3_mutex> =
+    PointerMut(0 as *const sqlite3_mutex as *mut sqlite3_mutex);
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn static_length() {}
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct PointerMut<T>(pub *mut T);
+pub struct PointerMut<T: ?Sized>(pub *mut T);
 unsafe impl<T> Sync for PointerMut<T> where T: Copy + Clone {}
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct Pointer<T>(pub *const T);
+pub struct Pointer<T: ?Sized>(pub *const T);
 unsafe impl<T> Sync for Pointer<T> where T: Copy + Clone {}

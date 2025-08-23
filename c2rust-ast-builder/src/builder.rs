@@ -2049,7 +2049,7 @@ impl Builder {
         })
     }
 
-    pub fn ty_param<I>(self, ident: I) -> GenericParam
+    pub fn ty_param<I>(self, ident: I, bounds: Vec<TypeParamBound>) -> GenericParam
     where
         I: Make<Ident>,
     {
@@ -2057,8 +2057,12 @@ impl Builder {
         GenericParam::Type(TypeParam {
             attrs: self.attrs,
             ident,
-            bounds: punct(vec![]),
-            colon_token: None,
+            colon_token: if bounds.is_empty() {
+                None
+            } else {
+                Some(Token![:](self.span))
+            },
+            bounds: punct(bounds),
             eq_token: None,
             default: None,
         })

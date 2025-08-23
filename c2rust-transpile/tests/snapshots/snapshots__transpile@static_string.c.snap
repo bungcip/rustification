@@ -64,9 +64,9 @@ pub unsafe extern "C" fn static_inside_local_function() {
 }
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct PointerMut<T>(pub *mut T);
+pub struct PointerMut<T: ?Sized>(pub *mut T);
 unsafe impl<T> Sync for PointerMut<T> where T: Copy + Clone {}
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct Pointer<T>(pub *const T);
+pub struct Pointer<T: ?Sized>(pub *const T);
 unsafe impl<T> Sync for Pointer<T> where T: Copy + Clone {}

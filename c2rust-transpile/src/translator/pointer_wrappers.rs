@@ -1,5 +1,6 @@
 use c2rust_ast_builder::{mk, properties::Mutability};
-use syn::Item;
+use proc_macro2::Span;
+use syn::{Item, Token, TraitBound, TraitBoundModifier, TypeParamBound};
 
 use super::Translation;
 
@@ -17,10 +18,17 @@ impl<'c> Translation<'c> {
             Mutability::Immutable => "Pointer",
         };
 
+        let maybe_sized = TypeParamBound::Trait(TraitBound {
+            paren_token: None,
+            modifier: TraitBoundModifier::Maybe(Token![?](Span::call_site())),
+            lifetimes: None,
+            path: mk().path(vec!["Sized"]),
+        });
+
         let struct_item = mk()
             .call_attr("derive", vec!["Copy", "Clone"])
             .call_attr("repr", vec!["transparent"])
-            .generic_over(mk().ty_param(mk().ident("T")))
+            .generic_over(mk().ty_param(mk().ident("T"), vec![maybe_sized]))
             // .where_clause(vec![
             //     mk().where_predicate(mk().ident_ty("T"), vec!["Copy", "Clone"]),
             // ])
@@ -36,7 +44,7 @@ impl<'c> Translation<'c> {
 
         let sync_impl = mk()
             .unsafe_()
-            .generic_over(mk().ty_param(mk().ident("T")))
+            .generic_over(mk().ty_param(mk().ident("T"), vec![]))
             .where_clause(vec![
                 mk().where_predicate(mk().path_ty(vec!["T"]), vec!["Copy", "Clone"]),
             ])
