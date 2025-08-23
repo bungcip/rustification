@@ -252,36 +252,6 @@ impl Make<Extern> for Abi {
     }
 }
 
-impl Make<Mutability> for &str {
-    fn make(self, _mk: &Builder) -> Mutability {
-        match self {
-            "" | "imm" | "immut" | "immutable" => Mutability::Immutable,
-            "mut" | "mutable" => Mutability::Mutable,
-            _ => panic!("unrecognized string for Mutability: {self:?}"),
-        }
-    }
-}
-
-impl Make<Unsafety> for &str {
-    fn make(self, _mk: &Builder) -> Unsafety {
-        match self {
-            "" | "safe" | "normal" => Unsafety::Normal,
-            "unsafe" => Unsafety::Unsafe,
-            _ => panic!("unrecognized string for Unsafety: {self:?}"),
-        }
-    }
-}
-
-impl Make<Constness> for &str {
-    fn make(self, _mk: &Builder) -> Constness {
-        match self {
-            "" | "normal" | "not-const" => Constness::NotConst,
-            "const" => Constness::Const,
-            _ => panic!("unrecognized string for Constness: {self:?}"),
-        }
-    }
-}
-
 impl Make<UnOp> for &str {
     fn make(self, _mk: &Builder) -> UnOp {
         match self {
@@ -336,88 +306,54 @@ impl Make<TokenStream> for Vec<TokenTree> {
     }
 }
 
-impl Make<TokenStream> for Vec<String> {
-    fn make(self, _mk: &Builder) -> TokenStream {
-        let mut tokens = vec![];
-        let mut first = true;
+fn comma_separated<T, F>(items: Vec<T>, f: F) -> TokenStream
+where
+    F: Fn(&mut TokenStream, T),
+{
+    let mut tokens = TokenStream::new();
+    let mut first = true;
 
-        for s in self {
-            if first == false {
-                tokens.push(TokenTree::Punct(Punct::new(',', Spacing::Alone)));
-            } else {
-                first = false;
-            }
-
-            tokens.push(TokenTree::Ident(Ident::new(&s, Span::call_site())));
+    for item in items {
+        if first == false {
+            TokenTree::Punct(Punct::new(',', Spacing::Alone)).to_tokens(&mut tokens);
+        } else {
+            first = false;
         }
-        tokens.into_iter().collect::<TokenStream>()
+
+        f(&mut tokens, item);
     }
+    tokens
 }
 
 impl Make<TokenStream> for Vec<&str> {
     fn make(self, _mk: &Builder) -> TokenStream {
-        let mut tokens = vec![];
-        let mut first = true;
-
-        for s in self {
-            if first == false {
-                tokens.push(TokenTree::Punct(Punct::new(',', Spacing::Alone)));
-            } else {
-                first = false;
-            }
-
-            tokens.push(TokenTree::Ident(Ident::new(s, Span::call_site())));
-        }
-        tokens.into_iter().collect::<TokenStream>()
+        comma_separated(self, |tokens, s| {
+            let tt = TokenTree::Ident(Ident::new(s, Span::call_site()));
+            tt.to_tokens(tokens);
+        })
     }
 }
 
 impl Make<TokenStream> for Vec<u64> {
     fn make(self, _mk: &Builder) -> TokenStream {
-        let mut tokens = vec![];
-        let mut first = true;
-
-        for s in self {
-            if first == false {
-                tokens.push(TokenTree::Punct(Punct::new(',', Spacing::Alone)));
-            } else {
-                first = false;
-            }
-
-            tokens.push(TokenTree::Literal(Literal::u64_unsuffixed(s)));
-        }
-        tokens.into_iter().collect::<TokenStream>()
+        comma_separated(self, |tokens, s| {
+            let tt = TokenTree::Literal(Literal::u64_unsuffixed(s));
+            tt.to_tokens(tokens);
+        })
     }
 }
 
 impl Make<TokenStream> for Vec<Meta> {
     fn make(self, _mk: &Builder) -> TokenStream {
-        let mut tokens = TokenStream::new();
-        let mut first = true;
-
-        for meta in self {
-            if first == false {
-                let tt = TokenTree::Punct(Punct::new(',', Spacing::Alone));
-                tokens.extend(vec![tt]);
-            } else {
-                first = false;
-            }
-
-            meta.to_tokens(&mut tokens);
-        }
-        tokens
+        comma_separated(self, |tokens, s| {
+            s.to_tokens(tokens);
+        })
     }
 }
 
 impl Make<PathArguments> for AngleBracketedGenericArguments {
     fn make(self, _mk: &Builder) -> PathArguments {
         PathArguments::AngleBracketed(self)
-    }
-}
-
-impl Make<PathArguments> for ParenthesizedGenericArguments {
-    fn make(self, _mk: &Builder) -> PathArguments {
-        PathArguments::Parenthesized(self)
     }
 }
 
@@ -486,12 +422,6 @@ impl Make<Lit> for u64 {
 impl Make<Lit> for char {
     fn make(self, mk: &Builder) -> Lit {
         Lit::Char(LitChar::new(self, mk.span))
-    }
-}
-
-impl Make<Lit> for u128 {
-    fn make(self, mk: &Builder) -> Lit {
-        Lit::Int(LitInt::new(&self.to_string(), mk.span))
     }
 }
 
@@ -608,7 +538,7 @@ impl Builder {
         self.vis(Visibility::Public(pub_token))
     }
 
-    pub fn set_mutbl<M: Make<Mutability>>(self, mutbl: M) -> Self {
+    pub fn set_mutbl(self, mutbl: Mutability) -> Self {
         let mutbl = mutbl.make(&self);
         Builder { mutbl, ..self }
     }
@@ -674,7 +604,7 @@ impl Builder {
     }
 
     fn prepared_attr(self, meta: Meta) -> Self {
-        let attr = self.clone().attribute(AttrStyle::Outer, meta);
+        let attr = mk().attribute(AttrStyle::Outer, meta);
         let mut attrs = self.attrs;
         attrs.push(attr);
         Builder { attrs, ..self }
@@ -1505,7 +1435,7 @@ impl Builder {
 
     pub fn variadic_arg(self, name: Option<String>) -> Variadic {
         let pat = if let Some(name) = name {
-            let pat = Box::new(self.clone().ident_pat(name));
+            let pat = Box::new(mk().ident_pat(name));
             Some((pat, Token![:](self.span)))
         } else {
             None
@@ -2156,17 +2086,33 @@ impl Builder {
         }
     }
 
-    pub fn mac<Ts>(self, func: Path, arguments: Ts, delim: MacroDelimiter) -> Macro
+    pub fn mac<Pa, Ts>(self, func: Pa, arguments: Ts, delim: MacroDelimiter) -> Macro
     where
+        Pa: Make<Path>,
         Ts: Make<TokenStream>,
     {
+        let path = func.make(&self);
         let tokens = arguments.make(&self);
         Macro {
-            path: func,
+            path: path,
             tokens,
             bang_token: Token![!](self.span),
             delimiter: delim,
         }
+    }
+
+    /// makes a macro call using paren as delimiter with the given path and some arguments
+    /// # Examples
+    /// mk().call_mac(
+    ///     "println",
+    ///     vec![TokenTree::Literal(proc_macro2::Literal::string("Hello, world!"))]
+    /// )
+    /// ->  `println!("Hello, world!")`
+    pub fn call_mac<Pa>(self, func: Pa, arguments: Vec<TokenTree>) -> Macro
+    where
+        Pa: Make<Path>,
+    {
+        mk().mac(func, arguments, MacroDelimiter::Paren(Default::default()))
     }
 
     /// Create a local variable

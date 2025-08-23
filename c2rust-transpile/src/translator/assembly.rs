@@ -5,7 +5,7 @@ use crate::{diagnostics::TranslationResult, generic_err};
 
 use super::*;
 use log::warn;
-use proc_macro2::{TokenStream, TokenTree};
+use proc_macro2::TokenTree;
 use syn::__private::ToTokens;
 
 /// An argument direction specifier for a Rust asm! expression
@@ -986,11 +986,7 @@ impl<'c> Translation<'c> {
             item_store.add_use(vec!["core".into(), "arch".into()], "asm");
         });
 
-        let mac = mk().mac(
-            mk().path(vec!["asm"]),
-            tokens.into_iter().collect::<TokenStream>(),
-            MacroDelimiter::Paren(Default::default()),
-        );
+        let mac = mk().call_mac("asm", tokens);
         let mac = mk().mac_expr(mac);
         let mac = mk().span(span).semi_stmt(mac);
         stmts.push(mac);

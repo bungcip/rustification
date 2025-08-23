@@ -325,12 +325,7 @@ impl<'c> Translation<'c> {
                             index_expr,
                         )),
                     ];
-                    let path = mk().path("offset_of");
-                    let mac = mk().mac_expr(mk().mac(
-                        path,
-                        macro_body,
-                        MacroDelimiter::Paren(Default::default()),
-                    ));
+                    let mac = mk().mac_expr(mk().call_mac("offset_of", macro_body));
 
                     // Cast type
                     let cast_ty = self.convert_type(override_ty.unwrap_or(ty).ctype)?;

@@ -6,7 +6,7 @@
 use crate::generic_err;
 
 use super::*;
-use proc_macro2::{TokenStream, TokenTree};
+use proc_macro2::TokenTree;
 
 impl<'c> Translation<'c> {
     pub fn convert_main(&self, main_id: CDeclId) -> TranslationResult<Box<Item>> {
@@ -140,37 +140,20 @@ impl<'c> Translation<'c> {
                     ]),
                     mk().call_expr(vars_fn, vec![]),
                     mk().block(vec![
-                        mk().local_stmt(Box::new(
-                            mk().local(
-                                mk().ident_pat("var"),
-                                Some(mk().path_ty(vec!["String"])),
-                                Some(
-                                    mk().mac_expr(
-                                        mk().mac(
-                                            mk().path(vec!["format"]),
-                                            vec![
-                                                TokenTree::Literal(
-                                                    proc_macro2::Literal::string("{}={}"),
-                                                ),
-                                                TokenTree::Punct(Punct::new(
-                                                    ',',
-                                                    proc_macro2::Spacing::Alone,
-                                                )),
-                                                TokenTree::Ident(var_name_ident),
-                                                TokenTree::Punct(Punct::new(
-                                                    ',',
-                                                    proc_macro2::Spacing::Alone,
-                                                )),
-                                                TokenTree::Ident(var_value_ident),
-                                            ]
-                                            .into_iter()
-                                            .collect::<TokenStream>(),
-                                            MacroDelimiter::Paren(Default::default()),
-                                        ),
-                                    ),
-                                ),
-                            ),
-                        )),
+                        mk().local_stmt(Box::new(mk().local(
+                            mk().ident_pat("var"),
+                            Some(mk().path_ty(vec!["String"])),
+                            Some(mk().mac_expr(mk().call_mac(
+                                "format",
+                                vec![
+                                    TokenTree::Literal(proc_macro2::Literal::string("{}={}")),
+                                    TokenTree::Punct(Punct::new(',', proc_macro2::Spacing::Alone)),
+                                    TokenTree::Ident(var_name_ident),
+                                    TokenTree::Punct(Punct::new(',', proc_macro2::Spacing::Alone)),
+                                    TokenTree::Ident(var_value_ident),
+                                ],
+                            ))),
+                        ))),
                         mk().semi_stmt(mk().method_call_expr(
                             mk().ident_expr("vars"),
                             "push",
@@ -185,8 +168,8 @@ impl<'c> Translation<'c> {
                                     ),
                                     "expect",
                                     vec![mk().lit_expr(
-                                    "Failed to convert environment variable into CString."
-                                )],
+                                        "Failed to convert environment variable into CString.",
+                                    )],
                                 ),
                                 "into_raw",
                                 vec![],
