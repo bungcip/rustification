@@ -1251,7 +1251,8 @@ impl ConversionContext {
                 }
 
                 ASTEntryTag::TagStringLiteral if expected_ty & (EXPR | STMT) != 0 => {
-                    let ty_old = node.type_id.expect("Expected expression to have type");
+                    // NOTE: string literal can have no type in some case like '_Static_assert' message
+                    let ty_old = node.type_id.unwrap_or(0);
                     let ty = self.visit_qualified_type(ty_old);
                     let width: u8 =
                         from_value(node.extras[1].clone()).expect("string literal char width");
@@ -2347,13 +2348,14 @@ impl ConversionContext {
                 }
 
                 ASTEntryTag::TagStaticAssertDecl if expected_ty & DECL != 0 => {
-                    let assert_expr = CExprId(
-                        node.children[0].expect("StaticAssert must point to an expression"),
-                    );
+                    let assert_expr =
+                        node.children[0].expect("StaticAssert must point to an expression");
+                    let assert_expr = self.visit_expr(assert_expr);
                     let message = if node.children.len() > 1 {
-                        Some(CExprId(
-                            node.children[1].expect("Expected static assert message"),
-                        ))
+                        let message_expr =
+                            node.children[1].expect("Expected static assert message");
+                        let message_expr = self.visit_expr(message_expr);
+                        Some(message_expr)
                     } else {
                         None
                     };
@@ -2362,6 +2364,7 @@ impl ConversionContext {
                         message,
                     };
                     self.add_decl(new_id, located(node, static_assert));
+                    self.processed_nodes.insert(new_id, OTHER_DECL);
                 }
 
                 t => panic!("Could not translate node {t:?} as type {expected_ty}"),
