@@ -289,12 +289,6 @@ impl<S: Make<PathSegment>> Make<Path> for Vec<S> {
     }
 }
 
-impl Make<TokenTree> for Literal {
-    fn make(self, _mk: &Builder) -> TokenTree {
-        TokenTree::Literal(self)
-    }
-}
-
 impl Make<TokenStream> for Vec<TokenTree> {
     fn make(self, _mk: &Builder) -> TokenStream {
         self.into_iter().collect::<TokenStream>()
