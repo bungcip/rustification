@@ -889,7 +889,7 @@ fn make_submodule(
         items.push(mk().use_simple_item(vec!["super", "PointerMut"], None::<Ident>));
     }
 
-    let module_builder = mk().vis("pub");
+    let module_builder = mk().pub_();
     let module_builder = if reorganize_definitions {
         let file_path_str = file_path.map_or(mod_name.as_str(), |path| {
             path.to_str().expect("Found invalid unicode")

@@ -208,28 +208,6 @@ impl Make<Path> for &str {
     }
 }
 
-impl Make<Visibility> for &str {
-    fn make(self, mk_: &Builder) -> Visibility {
-        match self {
-            "pub" => Visibility::Public(Token![pub](mk_.span)),
-            "priv" | "" | "inherit" => Visibility::Inherited,
-            "pub(crate)" => Visibility::Restricted(VisRestricted {
-                pub_token: Token![pub](mk_.span),
-                paren_token: token::Paren(mk_.span),
-                in_token: None,
-                path: Box::new(mk().path("crate")),
-            }),
-            "pub(super)" => Visibility::Restricted(VisRestricted {
-                pub_token: Token![pub](mk_.span),
-                paren_token: token::Paren(mk_.span),
-                in_token: None,
-                path: Box::new(mk().path("super")),
-            }),
-            _ => panic!("unrecognized string for Visibility: {self:?}"),
-        }
-    }
-}
-
 impl Make<Abi> for &str {
     fn make(self, mk: &Builder) -> Abi {
         Abi {

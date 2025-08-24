@@ -491,16 +491,15 @@ impl<'c> Translation<'c> {
                     .expect("Variables should already be renamed");
                 let ConvertedVariable { ty, mutbl, init: _ } =
                     self.convert_variable(ctx.static_(), None, typ)?;
-                // When putting extern statics into submodules, they need to be public to be accessible
-                let visibility = if self.tcfg.reorganize_definitions {
-                    "pub"
-                } else {
-                    ""
-                };
                 let mut extern_item = mk_linkage(true, &new_name, ident)
                     .span(span)
-                    .set_mutbl(mutbl)
-                    .vis(visibility);
+                    .set_mutbl(mutbl);
+
+                // When putting extern statics into submodules, they need to be public to be accessible
+                if self.tcfg.reorganize_definitions {
+                    extern_item = extern_item.pub_();
+                }
+
                 if has_thread_duration {
                     extern_item = extern_item.single_attr("thread_local");
                 }
@@ -1053,15 +1052,12 @@ impl<'c> Translation<'c> {
                 ))
             } else {
                 // Translating an extern function declaration
+                let mut mk_ = mk_linkage(true, new_name, name).span(span);
 
                 // When putting extern fns into submodules, they need to be public to be accessible
-                let visibility = if self.tcfg.reorganize_definitions {
-                    "pub"
-                } else {
-                    ""
-                };
-
-                let mut mk_ = mk_linkage(true, new_name, name).span(span).vis(visibility);
+                if self.tcfg.reorganize_definitions {
+                    mk_ = mk_.pub_();
+                }
 
                 for attr in attrs {
                     mk_ = match attr {
