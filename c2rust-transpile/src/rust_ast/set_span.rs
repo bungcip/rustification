@@ -133,6 +133,7 @@ impl SetSpan for Expr {
                 RangeLimits::Closed(mut r) => r.spans[0] = s,
                 RangeLimits::HalfOpen(mut r) => r.spans[0] = s,
             },
+            Expr::RawAddr(e) => e.and_token.span = s,
             Expr::Reference(e) => e.and_token.span = s,
             Expr::Repeat(..) => {}
             Expr::Return(e) => e.return_token.span = s,

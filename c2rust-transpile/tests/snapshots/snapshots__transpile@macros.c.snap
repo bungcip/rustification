@@ -344,12 +344,10 @@ pub unsafe extern "C" fn stmt_expr_inc() -> ffi::c_int {
     ({
         *b += 1;
         *b;
-        *b;
         *b
     });
     return ({
         *b += 1;
-        *b;
         *b
     });
 }

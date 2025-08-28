@@ -1,6 +1,5 @@
 ---
 source: c2rust-transpile/tests/snapshots.rs
-assertion_line: 67
 expression: cat tests/snapshots/factorial.rs
 input_file: c2rust-transpile/tests/snapshots/factorial.c
 ---
@@ -25,7 +24,6 @@ pub unsafe extern "C" fn factorial(mut n: ffi::c_ushort) -> ffi::c_ushort {
     while (i as ffi::c_int) < n as ffi::c_int {
         result = (result as ffi::c_int * i as ffi::c_int) as ffi::c_ushort;
         i = i.wrapping_add(1);
-        i;
     }
     return result;
 }

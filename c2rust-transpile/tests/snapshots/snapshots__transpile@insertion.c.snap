@@ -1,6 +1,5 @@
 ---
 source: c2rust-transpile/tests/snapshots.rs
-assertion_line: 67
 expression: cat tests/snapshots/insertion.rs
 input_file: c2rust-transpile/tests/snapshots/insertion.c
 ---
@@ -27,10 +26,8 @@ pub unsafe extern "C" fn insertion_sort(n: ffi::c_int, p: *mut ffi::c_int) {
         while j > 0 as ffi::c_int && *p.offset((j - 1 as ffi::c_int) as isize) > tmp {
             *p.offset(j as isize) = *p.offset((j - 1 as ffi::c_int) as isize);
             j -= 1;
-            j;
         }
         *p.offset(j as isize) = tmp;
         i += 1;
-        i;
     }
 }

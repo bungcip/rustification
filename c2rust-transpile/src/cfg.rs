@@ -32,7 +32,7 @@ use std::io::Write;
 use std::ops::Deref;
 use std::ops::Index;
 use syn::Lit;
-use syn::{Arm, Expr, Pat, Stmt, spanned::Spanned};
+use syn::{Expr, Pat, Stmt, spanned::Spanned};
 
 use indexmap::indexset;
 use indexmap::{IndexMap, IndexSet};
