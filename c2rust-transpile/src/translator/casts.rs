@@ -266,12 +266,11 @@ impl<'c> Translation<'c> {
                 })
             }
 
-            CastKind::IntegralToPointer if self.ast_context.is_function_pointer(ty.ctype) => {
-                val.and_then(|x| {
+            CastKind::IntegralToPointer if self.ast_context.is_function_pointer(ty.ctype) => val
+                .and_then(|x| {
                     let val = self.cast_to_function_pointer(source_ty, ty, x)?;
                     Ok(WithStmts::new_unsafe_val(val))
-                })
-            }
+                }),
 
             CastKind::IntegralToPointer
             | CastKind::PointerToIntegral
@@ -334,8 +333,7 @@ impl<'c> Translation<'c> {
                             .ast_context
                             .is_function_pointer(source_ty_for_fn_ptr.ctype)
                         {
-                            let val =
-                                self.cast_to_function_pointer(source_ty_for_fn_ptr, ty, x)?;
+                            let val = self.cast_to_function_pointer(source_ty_for_fn_ptr, ty, x)?;
                             Ok(WithStmts::new_unsafe_val(val))
                         } else {
                             Ok(WithStmts::new_val(mk().cast_expr(x, target_ty)))

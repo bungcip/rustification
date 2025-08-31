@@ -480,7 +480,9 @@ impl<'c> Translation<'c> {
                                 AssignDivide => (Divide, BinOp::DivAssign(Default::default())),
                                 AssignModulus => (Modulus, BinOp::RemAssign(Default::default())),
                                 AssignBitXor => (BitXor, BinOp::BitXorAssign(Default::default())),
-                                AssignShiftLeft => (ShiftLeft, BinOp::ShlAssign(Default::default())),
+                                AssignShiftLeft => {
+                                    (ShiftLeft, BinOp::ShlAssign(Default::default()))
+                                }
                                 AssignShiftRight => {
                                     (ShiftRight, BinOp::ShrAssign(Default::default()))
                                 }
