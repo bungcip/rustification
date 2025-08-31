@@ -154,7 +154,17 @@ pub struct Translation<'c> {
     cur_file: RefCell<Option<FileId>>,
 }
 
-/// Pointer offset that casts its argument to isize
+/// Pointer offset that casts its argument to isize.
+///
+/// This function generates a call to the `offset` method on a pointer,
+/// which is equivalent to pointer arithmetic in C.
+///
+/// `ptr` is the base pointer.
+/// `offset` is the number of elements to offset the pointer by.
+/// `multiply_by` is an optional expression to multiply the offset by,
+/// which is used for array indexing.
+/// `neg` indicates whether the offset should be negative.
+/// `deref` indicates whether the resulting pointer should be dereferenced.
 fn pointer_offset(
     ptr: Box<Expr>,
     offset: Box<Expr>,
@@ -178,13 +188,23 @@ fn pointer_offset(
     if deref { mk().deref_expr(res) } else { res }
 }
 
-/// Given an expression with type Option<fn(...)->...>, unwrap
-/// the Option and return the function.
+/// Given an expression with type `Option<fn(...)->...>`, unwrap the `Option`
+/// and return the function pointer. This is used when a C function pointer
+/// is translated to an `Option` in Rust, and we need to call it.
+/// The `expect` method will panic if the `Option` is `None`.
 fn unwrap_function_pointer(ptr: Box<Expr>) -> Box<Expr> {
     let err_msg = mk().lit_expr("non-null function pointer");
     mk().method_call_expr(ptr, "expect", vec![err_msg])
 }
 
+/// Generate a `core::mem::transmute` expression.
+///
+/// `source_ty` and `target_ty` are the source and target types of the transmute.
+/// `expr` is the expression to be transmuted.
+///
+/// If the source and target types are both `Type::Infer`, then no type
+/// arguments are generated for the `transmute` call, and the compiler is
+/// expected to infer them.
 fn transmute_expr(source_ty: Box<Type>, target_ty: Box<Type>, expr: Box<Expr>) -> Box<Expr> {
     let type_args = match (&*source_ty, &*target_ty) {
         (Type::Infer(_), Type::Infer(_)) => Vec::new(),
@@ -206,6 +226,12 @@ fn vec_expr(val: Box<Expr>, count: Box<Expr>) -> Box<Expr> {
     mk().call_expr(from_elem, vec![val, count])
 }
 
+/// Create a `Block` from a `Vec<Stmt>`.
+///
+/// This function is a convenience wrapper around `mk().block(stmts)`. It
+/// has a special case to handle a common pattern where the last statement is
+/// an expression that is itself a block. In this case, it will unwrap the
+/// block to avoid unnecessary nesting.
 pub fn stmts_block(mut stmts: Vec<Stmt>) -> Block {
     match stmts.pop() {
         None => {}
@@ -225,7 +251,20 @@ pub fn stmts_block(mut stmts: Vec<Stmt>) -> Block {
     mk().block(stmts)
 }
 
-/// Generate link attributes needed to ensure that the generated Rust libraries have the right symbol values.
+/// Generate link attributes needed to ensure that the generated Rust libraries
+/// have the right symbol values.
+///
+/// `in_extern_block` should be true if the item is in an `extern "C"` block.
+/// `new_name` is the Rust name of the item.
+/// `old_name` is the original C name of the item.
+///
+/// This function generates the following attributes:
+///  - `#[no_mangle]` if the item is not in an `extern` block and its name
+///    is unchanged.
+///  - `#[link_name = "..."]` if the item is in an `extern` block and its name
+///    has been changed.
+///  - `#[export_name = "..."]` if the item is not in an `extern` block and
+///    its name has been changed.
 fn mk_linkage(in_extern_block: bool, new_name: &str, old_name: &str) -> Builder {
     if new_name == old_name {
         if in_extern_block {
@@ -269,11 +308,15 @@ fn prefix_names(translation: &mut Translation, prefix: &str) {
     }
 }
 
-// This function is meant to create module names, for modules being created with the
-// `--reorganize-modules` flag. So what is done is, change '.' && '-' to '_', and depending
-// on whether there is a collision or not prepend the prior directory name to the path name.
-// To check for collisions, a IndexMap with the path name(key) and the path(value) associated with
-// the name. If the path name is in use, but the paths differ there is a collision.
+/// This function is meant to create module names for modules being created
+/// with the `--reorganize-modules` flag.
+///
+/// It sanitizes the path name by replacing `.` and `-` with `_`.
+///
+/// To avoid name collisions, it checks a map of module names to paths. If a
+/// collision is detected (i.e., the same module name is used for different
+/// paths), it prepends the parent directory name to the module name to
+/// disambiguate.
 pub(crate) fn clean_path(
     mod_names: &RefCell<IndexMap<String, PathBuf>>,
     path: Option<&path::Path>,
@@ -321,6 +364,42 @@ pub fn translate_failure(tcfg: &TranspilerConfig, msg: &str) {
     }
 }
 
+/// This is the main entry point for the C-to-Rust translation process.
+///
+/// It takes a `TypedAstContext` (which contains the C AST) and a
+/// `TranspilerConfig` and returns a string containing the translated Rust
+/// code, along with some metadata.
+///
+/// The translation process is as follows:
+///
+/// 1.  **Initialization:** A `Translation` context is created, which holds
+///     the state for the translation.
+///
+/// 2.  **AST Preprocessing:** The C AST is preprocessed to make it more
+///     amenable to translation. This includes:
+///     - Sorting top-level declarations by source location.
+///     - Pruning unused declarations.
+///     - Normalizing types.
+///     - Collapsing unnamed structs/unions/enums with their typedefs.
+///
+/// 3.  **Name Generation:** Top-level names are populated into the renamer.
+///
+/// 4.  **Declaration Conversion:** All C declarations (types, functions,
+///     variables) are converted to Rust items. This is the core of the
+///     translation process.
+///
+/// 5.  **Main Function Conversion:** The C `main` function is converted to a
+///     Rust `main` function.
+///
+/// 6.  **Static Initializers:** Global static initializers are generated if
+///     needed.
+///
+/// 7.  **Module Generation:** If the `--reorganize-modules` flag is used,
+///     the translated items are organized into submodules based on the
+///     original C header files.
+///
+/// 8.  **Pretty-Printing:** The translated Rust items are pretty-printed
+///     to a string.
 pub fn translate(
     ast_context: TypedAstContext,
     tcfg: &TranspilerConfig,
@@ -827,6 +906,25 @@ fn foreign_item_ident_vis(fi: &ForeignItem) -> Option<(&Ident, Visibility)> {
     })
 }
 
+/// Create a Rust submodule from the items in a C header file.
+///
+/// `ast_context` is the AST context.
+/// `item_store` contains the items that were translated from the header file.
+/// `file_id` is the ID of the header file.
+/// `use_item_store` is an item store to which `use` statements will be added
+/// for all of the public items in the submodule.
+/// `mod_names` is a map of module names to paths, used to avoid collisions.
+/// `global_uses` is a set of `use` statements that should be added to every
+/// submodule.
+/// `reorganize_definitions` is true if the `--reorganize-modules` flag is
+/// used.
+/// `need_pointer_wrapper` is true if the `Pointer` and `PointerMut` structs
+/// need to be imported into the submodule.
+///
+/// This function creates a `mod` item containing all of the items from the
+/// header file. It also adds `use` statements to the `use_item_store` for
+/// all of the public items in the submodule, so that they can be imported
+/// into the main crate.
 fn make_submodule(
     ast_context: &TypedAstContext,
     item_store: &mut ItemStore,
@@ -1467,6 +1565,20 @@ impl<'c> Translation<'c> {
         // common type to minimize casts.
     }
 
+    /// Convert a Control-Flow Graph (CFG) into a `Vec<Stmt>`.
+    ///
+    /// This function uses the "relooper" algorithm to convert the CFG into
+    /// structured Rust code (i.e., `if`, `loop`, `match` statements).
+    ///
+    /// `name` is the name of the function being converted, used for dumping
+    /// debug information.
+    /// `graph` is the CFG to be converted.
+    /// `store` is a store for the statements and declarations in the CFG.
+    /// `live_in` is the set of variables that are live at the entry to the
+    /// CFG.
+    /// `cut_out_trailing_ret` is true if the trailing `return` statement
+    /// should be omitted from the generated code. This is used for statement
+    /// expressions.
     pub fn convert_cfg(
         &self,
         name: &str,
@@ -1579,6 +1691,29 @@ impl<'c> Translation<'c> {
         false
     }
 
+    /// Convert a C `DeclStmt` into a `cfg::DeclStmtInfo`.
+    ///
+    /// A `DeclStmt` is a statement that contains a declaration, such as
+    /// `int x = 5;`.
+    ///
+    /// This function handles a few different cases:
+    ///
+    /// -   **Function-scoped statics:** If the declaration is a `static`
+    ///     variable, it is converted to a Rust `static` item. If the
+    ///     initializer is not a compile-time constant, it is moved to a
+    ///     special `run_static_initializers` function that is called at the
+    ///     beginning of `main`.
+    ///
+    /// -   **`va_list`:** If the declaration is a `va_list`, it is converted
+    ///     to a `VaListImpl` and the initializer is omitted.
+    ///
+    /// -   **Normal local variables:** Other local variables are converted to
+    ///     Rust `let` statements. If the variable has an initializer that
+    ///     refers to the variable itself (e.g., `int x = x + 1;`), it is
+    ///     split into a declaration and a separate assignment.
+    ///
+    /// -   **Other declarations:** Other declarations (e.g., `struct` or
+    ///     `enum` declarations) are converted to Rust items.
     pub fn convert_decl_stmt_info(
         &self,
         ctx: ExprContext,
