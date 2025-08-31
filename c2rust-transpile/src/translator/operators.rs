@@ -548,7 +548,7 @@ impl<'c> Translation<'c> {
             let mut offset = mk().method_call_expr(lhs, "offset_from", vec![rhs]);
 
             if let Some(sz) = self.compute_size_of_expr(pointee.ctype) {
-                let div = transform::cast_int(sz, "isize", false);
+                let div = transform::cast_int(sz, "isize");
                 offset = mk().binary_expr(BinOp::Div(Default::default()), offset, div);
             }
 

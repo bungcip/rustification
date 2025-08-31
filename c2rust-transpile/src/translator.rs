@@ -162,10 +162,10 @@ fn pointer_offset(
     neg: bool,
     mut deref: bool,
 ) -> Box<Expr> {
-    let mut offset = transform::cast_int(offset, "isize", false);
+    let mut offset = transform::cast_int(offset, "isize");
 
     if let Some(mul) = multiply_by {
-        let mul = transform::cast_int(mul, "isize", false);
+        let mul = transform::cast_int(mul, "isize");
         offset = mk().binary_expr(BinOp::Mul(Default::default()), offset, mul);
         deref = false;
     }
@@ -1419,7 +1419,7 @@ impl<'c> Translation<'c> {
         ctx: ExprContext,
         expansions: &[CExprId],
     ) -> TranslationResult<(Box<Expr>, CTypeId)> {
-        let (val, ty) = expansions
+        let (mut val, ty) = expansions
             .iter()
             .try_fold::<Option<(WithStmts<Box<Expr>>, CTypeId)>, _, _>(None, |canonical, &id| {
                 self.can_convert_const_macro_expansion(id)?;
@@ -1458,6 +1458,7 @@ impl<'c> Translation<'c> {
             })?
             .ok_or_else(|| generic_err!("Could not find a valid type for macro"))?;
 
+        val.set_unsafe();
         val.to_unsafe_pure_expr()
             .map(|val| (val, ty))
             .ok_or_else(|| generic_err!("Macro expansion is not a pure expression"))
@@ -2079,7 +2080,7 @@ impl<'c> Translation<'c> {
             return elts.and_then(|lhs| {
                 let len = self.convert_expr(ctx.used().not_static(), len, override_ty)?;
                 Ok(len.map(|len| {
-                    let rhs = transform::cast_int(len, "usize", true);
+                    let rhs = transform::cast_int_with_suffix(len, "usize");
                     mk().binary_expr(BinOp::Mul(Default::default()), lhs, rhs)
                 }))
             });

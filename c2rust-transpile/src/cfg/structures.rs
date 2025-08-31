@@ -3,7 +3,7 @@
 use super::*;
 use log::warn;
 use syn::{Arm, Expr, Stmt};
-use syn::{ExprBreak, ExprIf, ExprReturn, ExprUnary, spanned::Spanned as _};
+use syn::{ExprBreak, ExprIf, ExprReturn, spanned::Spanned as _};
 
 use crate::rust_ast::{BytePos, SpanExt, comment_store, set_span::SetSpan};
 use crate::transform;
@@ -522,7 +522,7 @@ impl StructureState {
                         mk().expr_stmt(if_expr)
                     }
                     (true, false) => {
-                        let negated_cond = not(&cond);
+                        let negated_cond = transform::not(&cond);
                         let if_expr = mk().ifte_expr(
                             negated_cond,
                             mk().span(els_span).block(els_stmts),
@@ -632,7 +632,7 @@ impl StructureState {
                         ] = then_branch.stmts.as_slice()
                     {
                         let e = mk().while_expr(
-                            not(cond),
+                            transform::not(cond),
                             mk().span(body_span)
                                 .block(body.iter().skip(1).cloned().collect()),
                             lbl.map(|l| l.pretty_print()),
@@ -663,20 +663,5 @@ impl StructureState {
         };
 
         (vec![stmt], ast.span)
-    }
-}
-
-/// Take the logical negation of an expression.
-///
-///   * Negating something of the form `!<expr>` produces `<expr>`
-///
-fn not(bool_expr: &Expr) -> Box<Expr> {
-    match *bool_expr {
-        Expr::Unary(ExprUnary {
-            op: syn::UnOp::Not(_),
-            ref expr,
-            ..
-        }) => Box::new(transform::unparen(expr).clone()),
-        _ => mk().not_expr(Box::new(bool_expr.clone())),
     }
 }

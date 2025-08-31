@@ -618,7 +618,7 @@ impl<'c> Translation<'c> {
                                 pointer_offset(lhs, rhs, mul, false, true)
                             } else {
                                 let mut expr =
-                                    mk().index_expr(lhs, transform::cast_int(rhs, "usize", false));
+                                    mk().index_expr(lhs, transform::cast_int(rhs, "usize"));
 
                                 if is_array_of_pointer.is_some() && is_static_variable {
                                     // if the array is pointer in static then just unwrap it

@@ -363,10 +363,7 @@ impl<'c> Translation<'c> {
                         vec![mk().local_stmt(Box::new(mk().local(
                             mk().mutbl().ident_pat(&alloca_name),
                             None,
-                            Some(vec_expr(
-                                zero_elem,
-                                transform::cast_int(count, "usize", false),
-                            )),
+                            Some(vec_expr(zero_elem, transform::cast_int(count, "usize"))),
                         )))],
                         mk().method_call_expr(mk().ident_expr(&alloca_name), "as_mut_ptr", vec![]),
                     ))
