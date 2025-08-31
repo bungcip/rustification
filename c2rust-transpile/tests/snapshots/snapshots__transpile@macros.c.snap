@@ -36,8 +36,8 @@ pub struct fn_ptrs {
 }
 unsafe impl Sync for fn_ptrs {}
 pub type zstd_platform_dependent_type = ffi::c_long;
-pub const UINTPTR_MAX: ffi::c_ulong = 18446744073709551615 as ffi::c_ulong;
-pub const NESTED_INT: ffi::c_int = 0xffff as ffi::c_int;
+pub const UINTPTR_MAX: ffi::c_ulong = unsafe { 18446744073709551615 as ffi::c_ulong };
+pub const NESTED_INT: ffi::c_int = unsafe { 0xffff as ffi::c_int };
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn local_muts() {
     let mut literal_int: ffi::c_int = 0xffff as ffi::c_int;
@@ -304,7 +304,7 @@ pub static mut global_const_member: ffi::c_int = 0;
 pub unsafe extern "C" fn test_fn_macro(mut x: ffi::c_int) -> ffi::c_int {
     return x * x;
 }
-pub const TEST_CONST2: ffi::c_int = 2 as ffi::c_int;
+pub const TEST_CONST2: ffi::c_int = unsafe { 2 as ffi::c_int };
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn reference_define() -> ffi::c_int {
     let mut x: ffi::c_int = 1 as ffi::c_int;
@@ -325,8 +325,8 @@ pub static fns: fn_ptrs = {
 };
 #[unsafe(no_mangle)]
 pub static mut p: Pointer<fn_ptrs> = unsafe { Pointer(&raw const fns as *const fn_ptrs) };
-pub const ZSTD_WINDOWLOG_MAX_32: ffi::c_int = 30 as ffi::c_int;
-pub const ZSTD_WINDOWLOG_MAX_64: ffi::c_int = 31 as ffi::c_int;
+pub const ZSTD_WINDOWLOG_MAX_32: ffi::c_int = unsafe { 30 as ffi::c_int };
+pub const ZSTD_WINDOWLOG_MAX_64: ffi::c_int = unsafe { 31 as ffi::c_int };
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn test_zstd() -> U64 {
     return (if ::core::mem::size_of::<zstd_platform_dependent_type>() as ffi::c_ulong
