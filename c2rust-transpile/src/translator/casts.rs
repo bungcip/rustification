@@ -22,6 +22,134 @@ use super::{ExprContext, Translation, transmute_expr};
 use crate::transform;
 
 impl<'c> Translation<'c> {
+    fn cast_to_function_pointer(
+        &self,
+        source_ty: CQualTypeId,
+        target_ty: CQualTypeId,
+        val: Box<Expr>,
+    ) -> TranslationResult<Box<Expr>> {
+        let target_ty_converted = self.convert_type(target_ty.ctype)?;
+        let source_ty_kind = &self.ast_context.resolve_type(source_ty.ctype).kind;
+        if source_ty_kind.is_integral_type() {
+            // core::ffi don't have a intptr_t type, so we use isize
+            let intptr_t = mk().path_ty(vec!["isize"]);
+            let intptr = mk().cast_expr(val, intptr_t.clone());
+            Ok(transmute_expr(intptr_t, target_ty_converted, intptr))
+        } else {
+            let source_ty_converted = self.convert_type(source_ty.ctype)?;
+            Ok(transmute_expr(
+                source_ty_converted,
+                target_ty_converted,
+                val,
+            ))
+        }
+    }
+
+    fn convert_array_to_pointer_decay(
+        &self,
+        ctx: ExprContext,
+        source_ty: CQualTypeId,
+        ty: CQualTypeId,
+        val: WithStmts<Box<Expr>>,
+        expr: Option<CExprId>,
+    ) -> TranslationResult<WithStmts<Box<Expr>>> {
+        // Because va_list is sometimes defined as a single-element
+        // array in order for it to allocate memory as a local variable
+        // and to be a pointer as a function argument we would get
+        // spurious casts when trying to treat it like a VaList which
+        // has reference semantics.
+        if self.ast_context.is_va_list(ty.ctype) {
+            return Ok(val);
+        }
+
+        let pointee = match self.ast_context.resolve_type(ty.ctype).kind {
+            CTypeKind::Pointer(pointee) => pointee,
+            _ => panic!("Dereferencing a non-pointer"),
+        };
+
+        let is_const = pointee.qualifiers.is_const;
+
+        let expr_kind = expr.map(|e| &self.ast_context.index(e).kind);
+        match expr_kind {
+            Some(&CExprKind::Literal(_, CLiteral::String(ref bytes, _))) if is_const => {
+                // discard val and use the string literal as CStr literal
+                // ex: c"hello".as_ptr()
+                let bytes = bytes.to_owned();
+                let cstr = match CString::new(bytes) {
+                    Ok(cstr) => cstr,
+                    Err(e) => {
+                        // we have interio NUL here, so we need to use byte literal
+                        // then cast it to pointer
+                        // ex: b"hello\0world\0".as_ptr()
+
+                        let mut bytes = e.into_vec();
+                        bytes.push(0);
+
+                        let source_ty = mk().ptr_ty(mk().path_ty("u8"));
+                        let target_ty = mk().ptr_ty(mk().path_ty(vec!["ffi", "c_char"]));
+
+                        let byte_literal = mk().lit_expr(bytes);
+                        let call = mk().method_call_expr(byte_literal, "as_ptr", vec![]);
+                        let pointer = transmute_expr(source_ty, target_ty, call);
+
+                        return Ok(WithStmts::new_val(pointer));
+                    }
+                };
+
+                let cstr_literal = mk().lit_expr(cstr);
+                let expr = mk().method_call_expr(cstr_literal, "as_ptr", vec![]);
+
+                // wrap it inside Pointer() struct when this const string is used in static variable
+                // and inside init list
+                if ctx.is_inside_init_list_aop() && ctx.is_static {
+                    let call = mk().call_expr(mk().ident_expr("Pointer"), vec![expr]);
+                    return Ok(WithStmts::new_val(call));
+                }
+
+                Ok(WithStmts::new_val(expr))
+            }
+            _ => {
+                // Variable length arrays are already represented as pointers.
+                if let CTypeKind::VariableArray(..) =
+                    self.ast_context.resolve_type(source_ty.ctype).kind
+                {
+                    Ok(val)
+                } else {
+                    let method = if is_const || ctx.is_static {
+                        Mutability::Immutable
+                    } else {
+                        Mutability::Mutable
+                    };
+
+                    let call = val.map(|x| mk().set_mutbl(method).raw_addr_expr(x));
+                    let target_ty = self.convert_type(pointee.ctype)?;
+                    let call = call.map(|x| {
+                        mk().method_call_expr(
+                            x,
+                            mk().path_segment_with_args(
+                                "cast",
+                                mk().angle_bracketed_args(vec![target_ty]),
+                            ),
+                            vec![],
+                        )
+                    });
+
+                    // Static arrays can now use as_ptr. Can also cast that const ptr to a
+                    // mutable pointer as we do here:
+                    if ctx.is_static && !is_const {
+                        return Ok(call.map(|val| {
+                            let inferred_type = mk().infer_ty();
+                            let ptr_type = mk().mutbl().ptr_ty(inferred_type);
+                            mk().cast_expr(val, ptr_type)
+                        }));
+                    }
+
+                    Ok(call)
+                }
+            }
+        }
+    }
+
     pub(crate) fn convert_cast(
         &self,
         ctx: ExprContext,
@@ -116,11 +244,8 @@ impl<'c> Translation<'c> {
                     if self.ast_context.is_function_pointer(ty.ctype)
                         || self.ast_context.is_function_pointer(source_ty.ctype)
                     {
-                        let source_ty = self.convert_type(source_ty.ctype)?;
-                        let target_ty = self.convert_type(ty.ctype)?;
-                        Ok(WithStmts::new_unsafe_val(transmute_expr(
-                            source_ty, target_ty, x,
-                        )))
+                        let val = self.cast_to_function_pointer(source_ty, ty, x)?;
+                        Ok(WithStmts::new_unsafe_val(val))
                     } else if ctx.is_inside_init_list_aop() {
                         // for array-of pointer and static we wrap it inside PointerMut
                         let target_ty = self.convert_type(ty.ctype)?;
@@ -142,14 +267,9 @@ impl<'c> Translation<'c> {
             }
 
             CastKind::IntegralToPointer if self.ast_context.is_function_pointer(ty.ctype) => {
-                let target_ty = self.convert_type(ty.ctype)?;
                 val.and_then(|x| {
-                    // core::ffi don't have a intptr_t type, so we use isize
-                    let intptr_t = mk().path_ty(vec!["isize"]);
-                    let intptr = mk().cast_expr(x, intptr_t.clone());
-                    Ok(WithStmts::new_unsafe_val(transmute_expr(
-                        intptr_t, target_ty, intptr,
-                    )))
+                    let val = self.cast_to_function_pointer(source_ty, ty, x)?;
+                    Ok(WithStmts::new_unsafe_val(val))
                 })
             }
 
@@ -162,9 +282,10 @@ impl<'c> Translation<'c> {
                 let target_ty = self.convert_type(ty.ctype)?;
                 let target_ty_ctype = &self.ast_context.resolve_type(ty.ctype).kind;
 
+                let source_ty_for_fn_ptr = source_ty;
                 let source_ty_ctype_id = source_ty.ctype;
 
-                let source_ty = self.convert_type(source_ty_ctype_id)?;
+                let source_ty_converted = self.convert_type(source_ty_ctype_id)?;
                 if let CTypeKind::LongDouble = target_ty_ctype {
                     if ctx.is_const {
                         return Err(generic_err!(
@@ -182,7 +303,14 @@ impl<'c> Translation<'c> {
                     // Casts targeting `enum` types...
                     let expr =
                         expr.ok_or_else(|| generic_err!("Casts to enums require a C ExprId"))?;
-                    Ok(self.enum_cast(ty.ctype, enum_decl_id, expr, val, source_ty, target_ty))
+                    Ok(self.enum_cast(
+                        ty.ctype,
+                        enum_decl_id,
+                        expr,
+                        val,
+                        source_ty_converted,
+                        target_ty,
+                    ))
                 } else if target_ty_ctype.is_floating_type() && source_ty_kind.is_bool() {
                     val.and_then(|x| {
                         Ok(WithStmts::new_val(mk().cast_expr(
@@ -202,10 +330,13 @@ impl<'c> Translation<'c> {
                     // Other numeric casts translate to Rust `as` casts,
                     // unless the cast is to a function pointer then use `transmute`.
                     val.and_then(|x| {
-                        if self.ast_context.is_function_pointer(source_ty_ctype_id) {
-                            Ok(WithStmts::new_unsafe_val(transmute_expr(
-                                source_ty, target_ty, x,
-                            )))
+                        if self
+                            .ast_context
+                            .is_function_pointer(source_ty_for_fn_ptr.ctype)
+                        {
+                            let val =
+                                self.cast_to_function_pointer(source_ty_for_fn_ptr, ty, x)?;
+                            Ok(WithStmts::new_unsafe_val(val))
                         } else {
                             Ok(WithStmts::new_val(mk().cast_expr(x, target_ty)))
                         }
@@ -220,101 +351,7 @@ impl<'c> Translation<'c> {
             }
 
             CastKind::ArrayToPointerDecay => {
-                // Because va_list is sometimes defined as a single-element
-                // array in order for it to allocate memory as a local variable
-                // and to be a pointer as a function argument we would get
-                // spurious casts when trying to treat it like a VaList which
-                // has reference semantics.
-                if self.ast_context.is_va_list(ty.ctype) {
-                    return Ok(val);
-                }
-
-                let pointee = match self.ast_context.resolve_type(ty.ctype).kind {
-                    CTypeKind::Pointer(pointee) => pointee,
-                    _ => panic!("Dereferencing a non-pointer"),
-                };
-
-                let is_const = pointee.qualifiers.is_const;
-
-                let expr_kind = expr.map(|e| &self.ast_context.index(e).kind);
-                match expr_kind {
-                    Some(&CExprKind::Literal(_, CLiteral::String(ref bytes, _))) if is_const => {
-                        // discard val and use the string literal as CStr literal
-                        // ex: c"hello".as_ptr()
-                        let bytes = bytes.to_owned();
-                        let cstr = match CString::new(bytes) {
-                            Ok(cstr) => cstr,
-                            Err(e) => {
-                                // we have interio NUL here, so we need to use byte literal
-                                // then cast it to pointer
-                                // ex: b"hello\0world\0".as_ptr()
-
-                                let mut bytes = e.into_vec();
-                                bytes.push(0);
-
-                                let source_ty = mk().ptr_ty(mk().path_ty("u8"));
-                                let target_ty = mk().ptr_ty(mk().path_ty(vec!["ffi", "c_char"]));
-
-                                let byte_literal = mk().lit_expr(bytes);
-                                let call = mk().method_call_expr(byte_literal, "as_ptr", vec![]);
-                                let pointer = transmute_expr(source_ty, target_ty, call);
-
-                                return Ok(WithStmts::new_val(pointer));
-                            }
-                        };
-
-                        let cstr_literal = mk().lit_expr(cstr);
-                        let expr = mk().method_call_expr(cstr_literal, "as_ptr", vec![]);
-
-                        // wrap it inside Pointer() struct when this const string is used in static variable
-                        // and inside init list
-                        if ctx.is_inside_init_list_aop() && ctx.is_static {
-                            let call = mk().call_expr(mk().ident_expr("Pointer"), vec![expr]);
-                            return Ok(WithStmts::new_val(call));
-                        }
-
-                        Ok(WithStmts::new_val(expr))
-                    }
-                    _ => {
-                        // Variable length arrays are already represented as pointers.
-                        if let CTypeKind::VariableArray(..) =
-                            self.ast_context.resolve_type(source_ty.ctype).kind
-                        {
-                            Ok(val)
-                        } else {
-                            let method = if is_const || ctx.is_static {
-                                Mutability::Immutable
-                            } else {
-                                Mutability::Mutable
-                            };
-
-                            let call = val.map(|x| mk().set_mutbl(method).raw_addr_expr(x));
-                            let target_ty = self.convert_type(pointee.ctype)?;
-                            let call = call.map(|x| {
-                                mk().method_call_expr(
-                                    x,
-                                    mk().path_segment_with_args(
-                                        "cast",
-                                        mk().angle_bracketed_args(vec![target_ty]),
-                                    ),
-                                    vec![],
-                                )
-                            });
-
-                            // Static arrays can now use as_ptr. Can also cast that const ptr to a
-                            // mutable pointer as we do here:
-                            if ctx.is_static && !is_const {
-                                return Ok(call.map(|val| {
-                                    let inferred_type = mk().infer_ty();
-                                    let ptr_type = mk().mutbl().ptr_ty(inferred_type);
-                                    mk().cast_expr(val, ptr_type)
-                                }));
-                            }
-
-                            Ok(call)
-                        }
-                    }
-                }
+                self.convert_array_to_pointer_decay(ctx, source_ty, ty, val, expr)
             }
 
             CastKind::NullToPointer => {

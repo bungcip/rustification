@@ -2,10 +2,7 @@
 
 use super::*;
 use log::warn;
-use syn::{
-    Arm, BinOp, Expr, ExprAssign, ExprBinary, ExprLit, ExprPath, ExprReference, Lit, RangeLimits,
-    Stmt, UnOp,
-};
+use syn::{Arm, Expr, Stmt};
 use syn::{ExprBreak, ExprIf, ExprReturn, ExprUnary, spanned::Spanned as _};
 
 use crate::rust_ast::{BytePos, SpanExt, comment_store, set_span::SetSpan};
