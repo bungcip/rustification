@@ -37,195 +37,185 @@ pub struct fn_ptrs {
 unsafe impl Sync for fn_ptrs {}
 pub type zstd_platform_dependent_type = ffi::c_long;
 pub const UINTPTR_MAX: ffi::c_ulong = unsafe { 18446744073709551615 as ffi::c_ulong };
-pub const NESTED_INT: ffi::c_int = unsafe { 0xffff as ffi::c_int };
+pub const true_0: ffi::c_int = unsafe { 1 as ffi::c_int };
+pub const LITERAL_INT: ffi::c_int = unsafe { 0xffff as ffi::c_int };
+pub const LITERAL_BOOL: ffi::c_int = unsafe { true_0 };
+pub const LITERAL_FLOAT: ffi::c_double = unsafe { 3.14f64 };
+pub const LITERAL_CHAR: ffi::c_int = unsafe { 'x' as i32 };
+pub const LITERAL_STRUCT: S = unsafe {
+    {
+        let mut init = S { i: 5 as ffi::c_int };
+        init
+    }
+};
+pub const NESTED_INT: ffi::c_int = unsafe { LITERAL_INT };
+pub const NESTED_BOOL: ffi::c_int = unsafe { 1 as ffi::c_int };
+pub const NESTED_FLOAT: ffi::c_double = unsafe { LITERAL_FLOAT };
+pub const NESTED_CHAR: ffi::c_int = unsafe { 'x' as i32 };
+pub const NESTED_STRUCT: S = unsafe {
+    {
+        let mut init = S { i: 5 as ffi::c_int };
+        init
+    }
+};
+pub const PARENS: ffi::c_int = unsafe { NESTED_INT * (LITERAL_CHAR + true_0) };
+pub const WIDENING_CAST: ffi::c_int = unsafe { LITERAL_INT };
+pub const CONVERSION_CAST: ffi::c_int = unsafe { LITERAL_INT };
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn local_muts() {
-    let mut literal_int: ffi::c_int = 0xffff as ffi::c_int;
-    let mut literal_bool: bool = 1 as ffi::c_int != 0;
-    let mut literal_float: ffi::c_float = 3.14f32;
-    let mut literal_char: ffi::c_char = 'x' as i32 as ffi::c_char;
+    let mut literal_int: ffi::c_int = LITERAL_INT;
+    let mut literal_bool: bool = LITERAL_BOOL != 0;
+    let mut literal_float: ffi::c_float = LITERAL_FLOAT as ffi::c_float;
+    let mut literal_char: ffi::c_char = LITERAL_CHAR as ffi::c_char;
     let mut literal_str_ptr: *const ffi::c_char = c"hello".as_ptr();
     let mut literal_str: [ffi::c_char; 6] =
         *::core::mem::transmute::<&[u8; 6], &mut [ffi::c_char; 6]>(b"hello\0");
     let mut literal_array: [ffi::c_int; 3] = [1 as ffi::c_int, 2 as ffi::c_int, 3 as ffi::c_int];
-    let mut literal_struct: S = {
-        let mut init = S { i: 5 as ffi::c_int };
-        init
-    };
+    let mut literal_struct: S = LITERAL_STRUCT;
     let mut nested_int: ffi::c_int = NESTED_INT;
-    let mut nested_bool: bool = 1 as ffi::c_int != 0;
-    let mut nested_float: ffi::c_float = 3.14f32;
-    let mut nested_char: ffi::c_char = 'x' as i32 as ffi::c_char;
+    let mut nested_bool: bool = NESTED_BOOL != 0;
+    let mut nested_float: ffi::c_float = NESTED_FLOAT as ffi::c_float;
+    let mut nested_char: ffi::c_char = NESTED_CHAR as ffi::c_char;
     let mut nested_str_ptr: *const ffi::c_char = c"hello".as_ptr();
     let mut nested_str: [ffi::c_char; 6] =
         *::core::mem::transmute::<&[u8; 6], &mut [ffi::c_char; 6]>(b"hello\0");
     let mut nested_array: [ffi::c_int; 3] = [1 as ffi::c_int, 2 as ffi::c_int, 3 as ffi::c_int];
-    let mut nested_struct: S = {
-        let mut init = S { i: 5 as ffi::c_int };
-        init
-    };
-    let mut int_arithmetic: ffi::c_int = NESTED_INT + 0xffff as ffi::c_int + 1 as ffi::c_int;
-    let mut mixed_arithmetic: ffi::c_float =
-        (0xffff as ffi::c_int as ffi::c_double + 3.14f64 * 'x' as i32 as ffi::c_double
-            - 1 as ffi::c_int as ffi::c_double) as ffi::c_float;
-    let mut parens: ffi::c_int = NESTED_INT * ('x' as i32 + 1 as ffi::c_int);
+    let mut nested_struct: S = NESTED_STRUCT;
+    let mut int_arithmetic: ffi::c_int = NESTED_INT + LITERAL_INT + 1 as ffi::c_int;
+    let mut mixed_arithmetic: ffi::c_float = (LITERAL_INT as ffi::c_double
+        + NESTED_FLOAT * LITERAL_CHAR as ffi::c_double
+        - true_0 as ffi::c_double) as ffi::c_float;
+    let mut parens: ffi::c_int = PARENS;
     let mut ptr_arithmetic: *const ffi::c_char = c"hello"
         .as_ptr()
         .offset(5 as ffi::c_int as isize)
         .offset(-(3 as ffi::c_int as isize));
-    let mut widening_cast: ffi::c_ulonglong = 0xffff as ffi::c_int as ffi::c_ulonglong;
-    let mut narrowing_cast: ffi::c_char = 0xffff as ffi::c_int as ffi::c_char;
-    let mut conversion_cast: ffi::c_double = 0xffff as ffi::c_int as ffi::c_double;
+    let mut widening_cast: ffi::c_ulonglong = WIDENING_CAST as ffi::c_ulonglong;
+    let mut narrowing_cast: ffi::c_char = LITERAL_INT as ffi::c_char;
+    let mut conversion_cast: ffi::c_double = CONVERSION_CAST as ffi::c_double;
     let mut indexing: ffi::c_char =
         (*::core::mem::transmute::<&[u8; 6], &[ffi::c_char; 6]>(b"hello\0"))
-            [3.14f64 as ffi::c_int as usize];
+            [LITERAL_FLOAT as ffi::c_int as usize];
     let mut str_concatenation_ptr: *const ffi::c_char = c"hello hello world".as_ptr();
     let mut str_concatenation: [ffi::c_char; 18] =
         *::core::mem::transmute::<&[u8; 18], &mut [ffi::c_char; 18]>(b"hello hello world\0");
-    let mut builtin: ffi::c_int = (0xffff as ffi::c_int as ffi::c_uint).leading_zeros() as i32;
-    let mut ref_indexing: *const ffi::c_char =
-        &raw const *c"hello".as_ptr().offset(3.14f64 as ffi::c_int as isize) as *const ffi::c_char;
-    let mut fresh0 = {
-        let mut init = S { i: 5 as ffi::c_int };
-        init
-    };
+    let mut builtin: ffi::c_int = (LITERAL_INT as ffi::c_uint).leading_zeros() as i32;
+    let mut ref_indexing: *const ffi::c_char = &raw const *c"hello"
+        .as_ptr()
+        .offset(LITERAL_FLOAT as ffi::c_int as isize)
+        as *const ffi::c_char;
+    let mut fresh0 = LITERAL_STRUCT;
     let mut ref_struct: *const S = &raw mut fresh0;
-    let mut ternary: ffi::c_int = if 1 as ffi::c_int != 0 {
+    let mut ternary: ffi::c_int = if LITERAL_BOOL != 0 {
         1 as ffi::c_int
     } else {
         2 as ffi::c_int
     };
-    let mut member: ffi::c_int = {
-        let mut init = S { i: 5 as ffi::c_int };
-        init
-    }
-    .i;
+    let mut member: ffi::c_int = LITERAL_STRUCT.i;
 }
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn local_consts() {
-    let literal_int: ffi::c_int = 0xffff as ffi::c_int;
-    let literal_bool: bool = 1 as ffi::c_int != 0;
-    let literal_float: ffi::c_float = 3.14f32;
-    let literal_char: ffi::c_char = 'x' as i32 as ffi::c_char;
+    let literal_int: ffi::c_int = LITERAL_INT;
+    let literal_bool: bool = LITERAL_BOOL != 0;
+    let literal_float: ffi::c_float = LITERAL_FLOAT as ffi::c_float;
+    let literal_char: ffi::c_char = LITERAL_CHAR as ffi::c_char;
     let literal_str_ptr: *const ffi::c_char = c"hello".as_ptr();
     let literal_str: [ffi::c_char; 6] =
         *::core::mem::transmute::<&[u8; 6], &[ffi::c_char; 6]>(b"hello\0");
     let literal_array: [ffi::c_int; 3] = [1 as ffi::c_int, 2 as ffi::c_int, 3 as ffi::c_int];
-    let literal_struct: S = {
-        let mut init = S { i: 5 as ffi::c_int };
-        init
-    };
+    let literal_struct: S = LITERAL_STRUCT;
     let nested_int: ffi::c_int = NESTED_INT;
-    let nested_bool: bool = 1 as ffi::c_int != 0;
-    let nested_float: ffi::c_float = 3.14f32;
-    let nested_char: ffi::c_char = 'x' as i32 as ffi::c_char;
+    let nested_bool: bool = NESTED_BOOL != 0;
+    let nested_float: ffi::c_float = NESTED_FLOAT as ffi::c_float;
+    let nested_char: ffi::c_char = NESTED_CHAR as ffi::c_char;
     let nested_str_ptr: *const ffi::c_char = c"hello".as_ptr();
     let nested_str: [ffi::c_char; 6] =
         *::core::mem::transmute::<&[u8; 6], &[ffi::c_char; 6]>(b"hello\0");
     let nested_array: [ffi::c_int; 3] = [1 as ffi::c_int, 2 as ffi::c_int, 3 as ffi::c_int];
-    let nested_struct: S = {
-        let mut init = S { i: 5 as ffi::c_int };
-        init
-    };
-    let int_arithmetic: ffi::c_int = NESTED_INT + 0xffff as ffi::c_int + 1 as ffi::c_int;
-    let mixed_arithmetic: ffi::c_float =
-        (0xffff as ffi::c_int as ffi::c_double + 3.14f64 * 'x' as i32 as ffi::c_double
-            - 1 as ffi::c_int as ffi::c_double) as ffi::c_float;
-    let parens: ffi::c_int = NESTED_INT * ('x' as i32 + 1 as ffi::c_int);
+    let nested_struct: S = NESTED_STRUCT;
+    let int_arithmetic: ffi::c_int = NESTED_INT + LITERAL_INT + 1 as ffi::c_int;
+    let mixed_arithmetic: ffi::c_float = (LITERAL_INT as ffi::c_double
+        + NESTED_FLOAT * LITERAL_CHAR as ffi::c_double
+        - true_0 as ffi::c_double) as ffi::c_float;
+    let parens: ffi::c_int = PARENS;
     let ptr_arithmetic: *const ffi::c_char = c"hello"
         .as_ptr()
         .offset(5 as ffi::c_int as isize)
         .offset(-(3 as ffi::c_int as isize));
-    let widening_cast: ffi::c_ulonglong = 0xffff as ffi::c_int as ffi::c_ulonglong;
-    let narrowing_cast: ffi::c_char = 0xffff as ffi::c_int as ffi::c_char;
-    let conversion_cast: ffi::c_double = 0xffff as ffi::c_int as ffi::c_double;
+    let widening_cast: ffi::c_ulonglong = WIDENING_CAST as ffi::c_ulonglong;
+    let narrowing_cast: ffi::c_char = LITERAL_INT as ffi::c_char;
+    let conversion_cast: ffi::c_double = CONVERSION_CAST as ffi::c_double;
     let indexing: ffi::c_char =
         (*::core::mem::transmute::<&[u8; 6], &[ffi::c_char; 6]>(b"hello\0"))
-            [3.14f64 as ffi::c_int as usize];
+            [LITERAL_FLOAT as ffi::c_int as usize];
     let str_concatenation_ptr: *const ffi::c_char = c"hello hello world".as_ptr();
     let str_concatenation: [ffi::c_char; 18] =
         *::core::mem::transmute::<&[u8; 18], &[ffi::c_char; 18]>(b"hello hello world\0");
-    let builtin: ffi::c_int = (0xffff as ffi::c_int as ffi::c_uint).leading_zeros() as i32;
-    let ref_indexing: *const ffi::c_char =
-        &raw const *c"hello".as_ptr().offset(3.14f64 as ffi::c_int as isize) as *const ffi::c_char;
-    let mut fresh1 = {
-        let mut init = S { i: 5 as ffi::c_int };
-        init
-    };
+    let builtin: ffi::c_int = (LITERAL_INT as ffi::c_uint).leading_zeros() as i32;
+    let ref_indexing: *const ffi::c_char = &raw const *c"hello"
+        .as_ptr()
+        .offset(LITERAL_FLOAT as ffi::c_int as isize)
+        as *const ffi::c_char;
+    let mut fresh1 = LITERAL_STRUCT;
     let ref_struct: *const S = &raw mut fresh1;
-    let ternary: ffi::c_int = if 1 as ffi::c_int != 0 {
+    let ternary: ffi::c_int = if LITERAL_BOOL != 0 {
         1 as ffi::c_int
     } else {
         2 as ffi::c_int
     };
-    let member: ffi::c_int = {
-        let mut init = S { i: 5 as ffi::c_int };
-        init
-    }
-    .i;
+    let member: ffi::c_int = LITERAL_STRUCT.i;
 }
-static global_static_const_literal_int: ffi::c_int = 0xffff as ffi::c_int;
-static global_static_const_literal_bool: bool = 1 as ffi::c_int != 0;
-static global_static_const_literal_float: ffi::c_float = 3.14f32;
-static global_static_const_literal_char: ffi::c_char = 'x' as i32 as ffi::c_char;
+static global_static_const_literal_int: ffi::c_int = LITERAL_INT;
+static global_static_const_literal_bool: bool = LITERAL_BOOL != 0;
+static global_static_const_literal_float: ffi::c_float = LITERAL_FLOAT as ffi::c_float;
+static global_static_const_literal_char: ffi::c_char = LITERAL_CHAR as ffi::c_char;
 static global_static_const_literal_str_ptr: Pointer<ffi::c_char> = Pointer(c"hello".as_ptr());
 static global_static_const_literal_str: [ffi::c_char; 6] =
     unsafe { *::core::mem::transmute::<&[u8; 6], &[ffi::c_char; 6]>(b"hello\0") };
 static global_static_const_literal_array: [ffi::c_int; 3] =
     [1 as ffi::c_int, 2 as ffi::c_int, 3 as ffi::c_int];
-static global_static_const_literal_struct: S = {
-    let mut init = S { i: 5 };
-    init
-};
+static global_static_const_literal_struct: S = LITERAL_STRUCT;
 static global_static_const_nested_int: ffi::c_int = NESTED_INT;
-static global_static_const_nested_bool: bool = 1 as ffi::c_int != 0;
-static global_static_const_nested_float: ffi::c_float = 3.14f32;
-static global_static_const_nested_char: ffi::c_char = 'x' as i32 as ffi::c_char;
+static global_static_const_nested_bool: bool = NESTED_BOOL != 0;
+static global_static_const_nested_float: ffi::c_float = NESTED_FLOAT as ffi::c_float;
+static global_static_const_nested_char: ffi::c_char = NESTED_CHAR as ffi::c_char;
 static global_static_const_nested_str_ptr: Pointer<ffi::c_char> = Pointer(c"hello".as_ptr());
 static global_static_const_nested_str: [ffi::c_char; 6] =
     unsafe { *::core::mem::transmute::<&[u8; 6], &[ffi::c_char; 6]>(b"hello\0") };
 static global_static_const_nested_array: [ffi::c_int; 3] =
     [1 as ffi::c_int, 2 as ffi::c_int, 3 as ffi::c_int];
-static global_static_const_nested_struct: S = {
-    let mut init = S { i: 5 };
-    init
-};
-static global_static_const_int_arithmetic: ffi::c_int =
-    NESTED_INT + 0xffff as ffi::c_int + 1 as ffi::c_int;
+static global_static_const_nested_struct: S = NESTED_STRUCT;
+static global_static_const_int_arithmetic: ffi::c_int = NESTED_INT + LITERAL_INT + 1 as ffi::c_int;
 static global_static_const_mixed_arithmetic: ffi::c_float =
-    (0xffff as ffi::c_int as ffi::c_double + 3.14f64 * 'x' as i32 as ffi::c_double
-        - 1 as ffi::c_int as ffi::c_double) as ffi::c_float;
-static global_static_const_parens: ffi::c_int = NESTED_INT * ('x' as i32 + 1 as ffi::c_int);
+    (LITERAL_INT as ffi::c_double + NESTED_FLOAT * LITERAL_CHAR as ffi::c_double
+        - true_0 as ffi::c_double) as ffi::c_float;
+static global_static_const_parens: ffi::c_int = PARENS;
 static mut global_static_const_ptr_arithmetic: *const ffi::c_char = 0 as *const ffi::c_char;
-static global_static_const_widening_cast: ffi::c_ulonglong =
-    0xffff as ffi::c_int as ffi::c_ulonglong;
-static global_static_const_narrowing_cast: ffi::c_char = 0xffff as ffi::c_int as ffi::c_char;
-static global_static_const_conversion_cast: ffi::c_double = 0xffff as ffi::c_int as ffi::c_double;
+static global_static_const_widening_cast: ffi::c_ulonglong = WIDENING_CAST as ffi::c_ulonglong;
+static global_static_const_narrowing_cast: ffi::c_char = LITERAL_INT as ffi::c_char;
+static global_static_const_conversion_cast: ffi::c_double = CONVERSION_CAST as ffi::c_double;
 static mut global_static_const_indexing: ffi::c_char = 0;
 static global_static_const_str_concatenation_ptr: Pointer<ffi::c_char> =
     Pointer(c"hello hello world".as_ptr());
 static global_static_const_str_concatenation: [ffi::c_char; 18] =
     unsafe { *::core::mem::transmute::<&[u8; 18], &[ffi::c_char; 18]>(b"hello hello world\0") };
 static global_static_const_builtin: ffi::c_int =
-    (0xffff as ffi::c_int as ffi::c_uint).leading_zeros() as i32;
+    (LITERAL_INT as ffi::c_uint).leading_zeros() as i32;
 static mut global_static_const_ref_indexing: *const ffi::c_char = 0 as *const ffi::c_char;
-static fresh2: S = {
-    let mut init = S { i: 5 };
-    init
-};
+static fresh2: S = LITERAL_STRUCT;
 static global_static_const_ref_struct: Pointer<S> = Pointer(&raw const fresh2);
 static mut global_static_const_ternary: ffi::c_int = 0;
 static mut global_static_const_member: ffi::c_int = 0;
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn global_static_consts() {}
 #[unsafe(no_mangle)]
-pub static global_const_literal_int: ffi::c_int = 0xffff as ffi::c_int;
+pub static global_const_literal_int: ffi::c_int = LITERAL_INT;
 #[unsafe(no_mangle)]
-pub static global_const_literal_bool: bool = 1 as ffi::c_int != 0;
+pub static global_const_literal_bool: bool = LITERAL_BOOL != 0;
 #[unsafe(no_mangle)]
-pub static global_const_literal_float: ffi::c_float = 3.14f32;
+pub static global_const_literal_float: ffi::c_float = LITERAL_FLOAT as ffi::c_float;
 #[unsafe(no_mangle)]
-pub static global_const_literal_char: ffi::c_char = 'x' as i32 as ffi::c_char;
+pub static global_const_literal_char: ffi::c_char = LITERAL_CHAR as ffi::c_char;
 #[unsafe(no_mangle)]
 pub static global_const_literal_str_ptr: Pointer<ffi::c_char> = Pointer(c"hello".as_ptr());
 #[unsafe(no_mangle)]
@@ -235,18 +225,15 @@ pub static global_const_literal_str: [ffi::c_char; 6] =
 pub static global_const_literal_array: [ffi::c_int; 3] =
     [1 as ffi::c_int, 2 as ffi::c_int, 3 as ffi::c_int];
 #[unsafe(no_mangle)]
-pub static global_const_literal_struct: S = {
-    let mut init = S { i: 5 };
-    init
-};
+pub static global_const_literal_struct: S = LITERAL_STRUCT;
 #[unsafe(no_mangle)]
 pub static global_const_nested_int: ffi::c_int = NESTED_INT;
 #[unsafe(no_mangle)]
-pub static global_const_nested_bool: bool = 1 as ffi::c_int != 0;
+pub static global_const_nested_bool: bool = NESTED_BOOL != 0;
 #[unsafe(no_mangle)]
-pub static global_const_nested_float: ffi::c_float = 3.14f32;
+pub static global_const_nested_float: ffi::c_float = NESTED_FLOAT as ffi::c_float;
 #[unsafe(no_mangle)]
-pub static global_const_nested_char: ffi::c_char = 'x' as i32 as ffi::c_char;
+pub static global_const_nested_char: ffi::c_char = NESTED_CHAR as ffi::c_char;
 #[unsafe(no_mangle)]
 pub static global_const_nested_str_ptr: Pointer<ffi::c_char> = Pointer(c"hello".as_ptr());
 #[unsafe(no_mangle)]
@@ -256,27 +243,23 @@ pub static global_const_nested_str: [ffi::c_char; 6] =
 pub static global_const_nested_array: [ffi::c_int; 3] =
     [1 as ffi::c_int, 2 as ffi::c_int, 3 as ffi::c_int];
 #[unsafe(no_mangle)]
-pub static global_const_nested_struct: S = {
-    let mut init = S { i: 5 };
-    init
-};
+pub static global_const_nested_struct: S = NESTED_STRUCT;
 #[unsafe(no_mangle)]
-pub static global_const_int_arithmetic: ffi::c_int =
-    NESTED_INT + 0xffff as ffi::c_int + 1 as ffi::c_int;
+pub static global_const_int_arithmetic: ffi::c_int = NESTED_INT + LITERAL_INT + 1 as ffi::c_int;
 #[unsafe(no_mangle)]
 pub static global_const_mixed_arithmetic: ffi::c_float =
-    (0xffff as ffi::c_int as ffi::c_double + 3.14f64 * 'x' as i32 as ffi::c_double
-        - 1 as ffi::c_int as ffi::c_double) as ffi::c_float;
+    (LITERAL_INT as ffi::c_double + NESTED_FLOAT * LITERAL_CHAR as ffi::c_double
+        - true_0 as ffi::c_double) as ffi::c_float;
 #[unsafe(no_mangle)]
-pub static global_const_parens: ffi::c_int = NESTED_INT * ('x' as i32 + 1 as ffi::c_int);
+pub static global_const_parens: ffi::c_int = PARENS;
 #[unsafe(no_mangle)]
 pub static mut global_const_ptr_arithmetic: *const ffi::c_char = 0 as *const ffi::c_char;
 #[unsafe(no_mangle)]
-pub static global_const_widening_cast: ffi::c_ulonglong = 0xffff as ffi::c_int as ffi::c_ulonglong;
+pub static global_const_widening_cast: ffi::c_ulonglong = WIDENING_CAST as ffi::c_ulonglong;
 #[unsafe(no_mangle)]
-pub static global_const_narrowing_cast: ffi::c_char = 0xffff as ffi::c_int as ffi::c_char;
+pub static global_const_narrowing_cast: ffi::c_char = LITERAL_INT as ffi::c_char;
 #[unsafe(no_mangle)]
-pub static global_const_conversion_cast: ffi::c_double = 0xffff as ffi::c_int as ffi::c_double;
+pub static global_const_conversion_cast: ffi::c_double = CONVERSION_CAST as ffi::c_double;
 #[unsafe(no_mangle)]
 pub static mut global_const_indexing: ffi::c_char = 0;
 #[unsafe(no_mangle)]
@@ -286,14 +269,10 @@ pub static global_const_str_concatenation_ptr: Pointer<ffi::c_char> =
 pub static global_const_str_concatenation: [ffi::c_char; 18] =
     unsafe { *::core::mem::transmute::<&[u8; 18], &[ffi::c_char; 18]>(b"hello hello world\0") };
 #[unsafe(no_mangle)]
-pub static global_const_builtin: ffi::c_int =
-    (0xffff as ffi::c_int as ffi::c_uint).leading_zeros() as i32;
+pub static global_const_builtin: ffi::c_int = (LITERAL_INT as ffi::c_uint).leading_zeros() as i32;
 #[unsafe(no_mangle)]
 pub static mut global_const_ref_indexing: *const ffi::c_char = 0 as *const ffi::c_char;
-static fresh3: S = {
-    let mut init = S { i: 5 };
-    init
-};
+static fresh3: S = LITERAL_STRUCT;
 #[unsafe(no_mangle)]
 pub static global_const_ref_struct: Pointer<S> = Pointer(&raw const fresh3);
 #[unsafe(no_mangle)]
@@ -304,13 +283,16 @@ pub static mut global_const_member: ffi::c_int = 0;
 pub unsafe extern "C" fn test_fn_macro(mut x: ffi::c_int) -> ffi::c_int {
     return x * x;
 }
-pub const TEST_CONST2: ffi::c_int = unsafe { 2 as ffi::c_int };
+pub const TEST_CONST1: ffi::c_int = unsafe { 1 as ffi::c_int };
+pub const TEST_NESTED: ffi::c_int = unsafe { 2 as ffi::c_int };
+pub const TEST_CONST2: ffi::c_int = unsafe { TEST_NESTED };
+pub const TEST_PARENS: ffi::c_int = unsafe { (TEST_CONST2 + 1 as ffi::c_int) * 3 as ffi::c_int };
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn reference_define() -> ffi::c_int {
-    let mut x: ffi::c_int = 1 as ffi::c_int;
+    let mut x: ffi::c_int = TEST_CONST1;
     x += TEST_CONST2;
-    if (3 as ffi::c_int) < (TEST_CONST2 + 1 as ffi::c_int) * 3 as ffi::c_int {
-        x += (TEST_CONST2 + 1 as ffi::c_int) * 3 as ffi::c_int;
+    if (3 as ffi::c_int) < TEST_PARENS {
+        x += TEST_PARENS;
     }
     return x;
 }
@@ -354,17 +336,18 @@ pub unsafe extern "C" fn stmt_expr_inc() -> ffi::c_int {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn test_switch(mut x: ffi::c_int) -> ffi::c_int {
     match x {
-        1 => return 10 as ffi::c_int,
-        2 => return 20 as ffi::c_int,
+        TEST_CONST1 => return 10 as ffi::c_int,
+        TEST_NESTED => return 20 as ffi::c_int,
         _ => {}
     }
     return 0 as ffi::c_int;
 }
+pub const silk_int16_MIN: ffi::c_int = unsafe { 0x8000 as ffi::c_int };
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn test_silk_int16_MIN() -> ffi::c_int {
     let mut _null: ffi::c_char = (*::core::mem::transmute::<&[u8; 1], &[ffi::c_char; 1]>(b"\0"))
-        [(0x8000 as ffi::c_int as ffi::c_short as ffi::c_int + 0x8000 as ffi::c_int) as usize];
-    return 0x8000 as ffi::c_int as ffi::c_short as ffi::c_int;
+        [(silk_int16_MIN as ffi::c_short as ffi::c_int + 0x8000 as ffi::c_int) as usize];
+    return silk_int16_MIN;
 }
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn use_extern_value() -> ffi::c_int {
@@ -389,37 +372,33 @@ unsafe extern "C" fn run_static_initializers() {
         .offset(-(3 as ffi::c_int as isize));
     global_static_const_indexing =
         (*::core::mem::transmute::<&[u8; 6], &[ffi::c_char; 6]>(b"hello\0"))
-            [3.14f64 as ffi::c_int as usize];
-    global_static_const_ref_indexing =
-        &raw const *c"hello".as_ptr().offset(3.14f64 as ffi::c_int as isize) as *const ffi::c_char;
-    global_static_const_ternary = if 1 as ffi::c_int != 0 {
+            [LITERAL_FLOAT as ffi::c_int as usize];
+    global_static_const_ref_indexing = &raw const *c"hello"
+        .as_ptr()
+        .offset(LITERAL_FLOAT as ffi::c_int as isize)
+        as *const ffi::c_char;
+    global_static_const_ternary = if LITERAL_BOOL != 0 {
         1 as ffi::c_int
     } else {
         2 as ffi::c_int
     };
-    global_static_const_member = {
-        let mut init = S { i: 5 };
-        init
-    }
-    .i;
+    global_static_const_member = LITERAL_STRUCT.i;
     global_const_ptr_arithmetic = c"hello"
         .as_ptr()
         .offset(5 as ffi::c_int as isize)
         .offset(-(3 as ffi::c_int as isize));
     global_const_indexing = (*::core::mem::transmute::<&[u8; 6], &[ffi::c_char; 6]>(b"hello\0"))
-        [3.14f64 as ffi::c_int as usize];
-    global_const_ref_indexing =
-        &raw const *c"hello".as_ptr().offset(3.14f64 as ffi::c_int as isize) as *const ffi::c_char;
-    global_const_ternary = if 1 as ffi::c_int != 0 {
+        [LITERAL_FLOAT as ffi::c_int as usize];
+    global_const_ref_indexing = &raw const *c"hello"
+        .as_ptr()
+        .offset(LITERAL_FLOAT as ffi::c_int as isize)
+        as *const ffi::c_char;
+    global_const_ternary = if LITERAL_BOOL != 0 {
         1 as ffi::c_int
     } else {
         2 as ffi::c_int
     };
-    global_const_member = {
-        let mut init = S { i: 5 };
-        init
-    }
-    .i;
+    global_const_member = LITERAL_STRUCT.i;
 }
 #[used]
 #[cfg_attr(target_os = "linux", unsafe(link_section = ".init_array"))]
