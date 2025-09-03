@@ -1,0 +1,30 @@
+---
+source: c2rust-transpile/tests/snapshots.rs
+expression: cat tests/snapshots/enum_compound_literal.rs
+input_file: c2rust-transpile/tests/snapshots/enum_compound_literal.c
+---
+#![allow(
+    dead_code,
+    mutable_transmutes,
+    non_camel_case_types,
+    non_snake_case,
+    non_upper_case_globals,
+    path_statements,
+    unsafe_op_in_unsafe_fn,
+    unused_assignments,
+    unused_mut,
+    unused_unsafe,
+    unused_variables
+)]
+use core::ffi;
+pub type C2RustUnnamed = ffi::c_uint;
+pub const C: C2RustUnnamed = 2;
+pub const B: C2RustUnnamed = 1;
+pub const A: C2RustUnnamed = 0;
+unsafe fn main_0() -> ffi::c_int {
+    let mut a: ffi::c_int = B as ffi::c_int;
+    return a;
+}
+pub fn main() {
+    unsafe { ::std::process::exit(main_0() as i32) }
+}
