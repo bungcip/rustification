@@ -2059,6 +2059,7 @@ class TranslateASTVisitor final
         std::vector<void *> childIds;
         for (auto x : D->enumerators()) {
             childIds.push_back(x->getCanonicalDecl());
+            TraverseDecl(x);
         }
 
         auto underlying_type = D->getIntegerType();
