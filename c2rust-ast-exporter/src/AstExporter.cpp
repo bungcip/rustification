@@ -2059,7 +2059,6 @@ class TranslateASTVisitor final
         std::vector<void *> childIds;
         for (auto x : D->enumerators()) {
             childIds.push_back(x->getCanonicalDecl());
-            TraverseDecl(x);
         }
 
         auto underlying_type = D->getIntegerType();
@@ -2383,7 +2382,7 @@ void TypeEncoder::VisitEnumType(const EnumType *T) {
         cbor_encode_uint(local, uintptr_t(ed));
     });
 
-    if (ed != nullptr) astEncoder->VisitEnumDecl(ed);
+    if (ed != nullptr) astEncoder->TraverseDecl(ed);
 }
 
 void TypeEncoder::VisitRecordType(const RecordType *T) {
