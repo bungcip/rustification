@@ -2198,11 +2198,22 @@ impl ConversionContext {
                         Some(
                             node.children
                                 .iter()
-                                .map(|id| {
-                                    let field = id.expect("Record field decl not found");
-                                    let id = CDeclId(self.visit_node_type(field, FIELD_DECL));
+                                .filter_map(|id| {
+                                    let decl = id.expect("Record field/enum decl not found");
+                                    let child = untyped_context
+                                        .ast_nodes
+                                        .get(&decl)
+                                        .expect("child node not found found");
+
+                                    let id =
+                                        CDeclId(self.visit_node_type(decl, FIELD_DECL | ENUM_DECL));
                                     self.typed_context.parents.insert(id, CDeclId(new_id));
-                                    id
+
+                                    if child.tag == ASTEntryTag::TagFieldDecl {
+                                        Some(id)
+                                    } else {
+                                        None
+                                    }
                                 })
                                 .collect(),
                         )
