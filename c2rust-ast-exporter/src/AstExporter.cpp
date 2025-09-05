@@ -1986,7 +1986,13 @@ class TranslateASTVisitor final
         std::vector<void *> childIds;
         if (def) {
             for (auto x : def->decls()) {
-                childIds.push_back(x->getCanonicalDecl());
+                auto kind = x->getKind();
+                // Note: We skip IndirectFieldDecl
+                if(kind == Decl::Kind::Field 
+                    || kind == Decl::Kind::Enum 
+                    || kind == Decl::Kind::Record) {
+                    childIds.push_back(x->getCanonicalDecl());
+                }
             }
             // Since the RecordDecl D isn't the complete definition,
             // the actual location should be given. This should handle opaque

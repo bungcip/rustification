@@ -1,9 +1,17 @@
-struct AnonymousEnumInStruct
+struct AnonEnumInStruct
 {
     enum
     {
         VALUE1,
         VALUE2
+    };
+};
+
+struct AnonStructInStruct
+{
+    struct
+    {
+        int some_number;
     };
 };
 
@@ -15,15 +23,8 @@ struct NestedStructInStruct
     };
 };
 
-struct AnonymousStructInStruct
-{
-    struct
-    {
-        int some_number;
-    } member;
-};
 
-union AnonymousEnumInUnion
+union AnonEnumInUnion
 {
     enum
     {
@@ -33,13 +34,12 @@ union AnonymousEnumInUnion
     int a;
 };
 
-union AnonymousStructInUnion
+union AnonStructInUnion
 {
     struct
     {
-        unsigned int low;
-        unsigned int high;
-    } number;
+        int some_number;
+    };
     int a;
 };
 
@@ -55,8 +55,9 @@ union NestedStructInUnion
 void struct_declaration()
 {
     int value = VALUE2;
-    struct AnonymousEnumInStruct a;
-    struct AnonymousStructInStruct b;
+    struct AnonEnumInStruct a;
+    struct AnonStructInStruct b;
+    b.some_number = 7;
     struct NestedStructInStruct c;
     struct StructInsider d;
 }
@@ -64,8 +65,9 @@ void struct_declaration()
 void union_declaration()
 {
     int value = VALUE4;
-    union AnonymousEnumInUnion a;
-    union AnonymousStructInUnion b;
+    union AnonEnumInUnion a;
+    union AnonStructInUnion b;
+    b.some_number = 99;
     union NestedStructInUnion c;
     struct UnionInsider d;
 }
