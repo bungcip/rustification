@@ -1,8 +1,8 @@
-use std::path::{Path, PathBuf};
-use std::process;
+use crate::config::TranspilerConfig;
 use anyhow::Error;
 use log::warn;
-use crate::config::TranspilerConfig;
+use std::path::{Path, PathBuf};
+use std::process;
 
 // TODO: move this to a new reorganize.rs module
 fn invoke_refactor(_build_dir: &Path) -> Result<(), Error> {

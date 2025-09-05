@@ -6,14 +6,14 @@ use std::process;
 
 use log::warn;
 
-use crate::build_files::{emit_build_files, get_build_dir, CrateConfig};
+use crate::build_files::{CrateConfig, emit_build_files, get_build_dir};
+use crate::c_ast::ConversionContext;
 use crate::c_ast::Printer;
-use crate::c_ast::{ConversionContext};
 use crate::compile_cmds::get_compile_commands;
 use crate::diagnostics;
 use crate::{
-    get_module_name, reorganize_definitions, CrateSet, PragmaSet, PragmaVec, RustChannel,
-    TranspilerConfig,
+    CrateSet, PragmaSet, PragmaVec, RustChannel, TranspilerConfig, get_module_name,
+    reorganize_definitions,
 };
 use c2rust_ast_exporter as ast_exporter;
 

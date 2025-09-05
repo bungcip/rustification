@@ -1,12 +1,12 @@
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use crate::TranslateMacros;
+use crate::diagnostics::Diagnostic;
+use crate::get_module_name;
+use crate::translator::ReplaceMode;
 use itertools::Itertools;
 use log::{info, warn};
 use regex::Regex;
-use crate::diagnostics::Diagnostic;
-use crate::translator::ReplaceMode;
-use crate::get_module_name;
-use crate::TranslateMacros;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 
 /// Configuration settings for the translation process
 #[derive(Debug)]

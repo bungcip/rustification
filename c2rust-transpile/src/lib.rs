@@ -1,8 +1,8 @@
 #![allow(clippy::too_many_arguments)]
 
+mod config;
 mod diagnostics;
 mod driver;
-mod config;
 mod reorganize;
 
 pub mod build_files;
@@ -30,8 +30,8 @@ use crate::convert_type::RESERVED_NAMES;
 pub use crate::translator::ReplaceMode;
 use std::prelude::v1::Vec;
 
-pub use driver::transpile;
 pub use config::TranspilerConfig;
+pub use driver::transpile;
 pub use reorganize::reorganize_definitions;
 
 type PragmaVec = Vec<(&'static str, Vec<&'static str>)>;
