@@ -4,12 +4,10 @@ use log::warn;
 use std::path::{Path, PathBuf};
 use std::process;
 
-// TODO: move this to a new reorganize.rs module
 fn invoke_refactor(_build_dir: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-// TODO: move this to a new reorganize.rs module
 pub fn reorganize_definitions(
     tcfg: &TranspilerConfig,
     build_dir: &Path,
