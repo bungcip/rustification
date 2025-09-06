@@ -5,15 +5,13 @@ use std::process;
 
 use log::warn;
 
-use crate::build_files::{emit_build_files, CrateConfig, get_build_dir, create_dir_all_or_panic};
+use crate::build_files::{CrateConfig, create_dir_all_or_panic, emit_build_files, get_build_dir};
 use crate::c_ast::ConversionContext;
 use crate::c_ast::Printer;
 use crate::compile_cmds::get_compile_commands;
 use crate::diagnostics;
-use crate::{
-    CrateSet, PragmaSet, PragmaVec, RustChannel, TranspilerConfig, get_module_name,
-};
 use crate::reorganize::reorganize_definitions;
+use crate::{CrateSet, PragmaSet, PragmaVec, RustChannel, TranspilerConfig, get_module_name};
 use c2rust_ast_exporter as ast_exporter;
 
 type TranspileResult = Result<(PathBuf, String, PragmaVec, CrateSet, RustChannel), ()>;
@@ -294,13 +292,7 @@ fn transpile_single(
     let (translated_string, pragmas, crates, channel) =
         crate::translator::translate(typed_context, tcfg, input_path);
 
-    Ok((
-        output_path,
-        translated_string,
-        pragmas,
-        crates,
-        channel,
-    ))
+    Ok((output_path, translated_string, pragmas, crates, channel))
 }
 
 fn write_module<P: AsRef<Path>>(path: P, content: &str) {
@@ -312,7 +304,11 @@ fn write_module<P: AsRef<Path>>(path: P, content: &str) {
 
     use std::io::Write;
     if let Err(e) = file.write_all(content.as_bytes()) {
-        panic!("Unable to write translation to file {}: {}", path.display(), e);
+        panic!(
+            "Unable to write translation to file {}: {}",
+            path.display(),
+            e
+        );
     }
 }
 
