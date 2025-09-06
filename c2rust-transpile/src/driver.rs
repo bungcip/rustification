@@ -1,23 +1,22 @@
-use std::fs::{self, File};
+use std::fs;
 use std::io;
-use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::process;
 
 use log::warn;
 
-use crate::build_files::{CrateConfig, emit_build_files, get_build_dir};
+use crate::build_files::{emit_build_files, CrateConfig, get_build_dir, create_dir_all_or_panic};
 use crate::c_ast::ConversionContext;
 use crate::c_ast::Printer;
 use crate::compile_cmds::get_compile_commands;
 use crate::diagnostics;
 use crate::{
     CrateSet, PragmaSet, PragmaVec, RustChannel, TranspilerConfig, get_module_name,
-    reorganize_definitions,
 };
+use crate::reorganize::reorganize_definitions;
 use c2rust_ast_exporter as ast_exporter;
 
-type TranspileResult = Result<(PathBuf, PragmaVec, CrateSet, RustChannel), ()>;
+type TranspileResult = Result<(PathBuf, String, PragmaVec, CrateSet, RustChannel), ()>;
 
 /// Main entry point to transpiler. Called from CLI tools with the result of
 /// clap::App::get_matches().
@@ -106,7 +105,8 @@ pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]
         let mut crates = CrateSet::new();
         for res in results {
             match res {
-                Ok((module, pragma_vec, crate_set, channel)) => {
+                Ok((module, translated_string, pragma_vec, crate_set, channel)) => {
+                    write_module(&module, &translated_string);
                     modules.push(module);
                     crates.extend(crate_set);
 
@@ -149,8 +149,7 @@ pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]
                 top_level_ccfg = Some(ccfg);
             } else {
                 let crate_file = emit_build_files(&tcfg, &build_dir, Some(ccfg), None, use_nightly);
-                reorganize_definitions(&tcfg, &build_dir, crate_file)
-                    .unwrap_or_else(|e| warn!("Reorganizing definitions failed: {e}"));
+                run_refactoring(&tcfg, &build_dir, crate_file);
                 workspace_members.push(lcmd_name);
             }
         }
@@ -169,8 +168,7 @@ pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]
             Some(workspace_members),
             use_nightly,
         );
-        reorganize_definitions(&tcfg, &build_dir, crate_file)
-            .unwrap_or_else(|e| warn!("Reorganizing definitions failed: {e}"));
+        run_refactoring(&tcfg, &build_dir, crate_file);
     }
 
     tcfg.check_if_all_binaries_used(&transpiled_modules);
@@ -179,6 +177,13 @@ pub fn transpile(tcfg: TranspilerConfig, cc_db: &Path, extra_clang_args: &[&str]
         RustChannel::Nightly
     } else {
         RustChannel::Stable
+    }
+}
+
+fn run_refactoring(tcfg: &TranspilerConfig, build_dir: &Path, crate_file: Option<PathBuf>) {
+    if tcfg.reorganize_definitions {
+        reorganize_definitions(tcfg, build_dir, crate_file)
+            .unwrap_or_else(|e| warn!("Reorganizing definitions failed: {e}"));
     }
 }
 
@@ -289,25 +294,26 @@ fn transpile_single(
     let (translated_string, pragmas, crates, channel) =
         crate::translator::translate(typed_context, tcfg, input_path);
 
-    let mut file = match File::create(&output_path) {
+    Ok((
+        output_path,
+        translated_string,
+        pragmas,
+        crates,
+        channel,
+    ))
+}
+
+fn write_module<P: AsRef<Path>>(path: P, content: &str) {
+    let path = path.as_ref();
+    let mut file = match fs::File::create(path) {
         Ok(file) => file,
-        Err(e) => panic!(
-            "Unable to open file {} for writing: {}",
-            output_path.display(),
-            e
-        ),
+        Err(e) => panic!("Unable to open file {} for writing: {}", path.display(), e),
     };
 
-    match file.write_all(translated_string.as_bytes()) {
-        Ok(()) => (),
-        Err(e) => panic!(
-            "Unable to write translation to file {}: {}",
-            output_path.display(),
-            e
-        ),
-    };
-
-    Ok((output_path, pragmas, crates, channel))
+    use std::io::Write;
+    if let Err(e) = file.write_all(content.as_bytes()) {
+        panic!("Unable to write translation to file {}: {}", path.display(), e);
+    }
 }
 
 fn get_output_path(
@@ -345,9 +351,7 @@ fn get_output_path(
         // Create the parent directory if it doesn't exist
         let parent = output_path.parent().unwrap();
         if !parent.exists() {
-            fs::create_dir_all(parent).unwrap_or_else(|_| {
-                panic!("couldn't create source directory: {}", parent.display())
-            });
+            create_dir_all_or_panic(parent);
         }
         output_path
     } else {
