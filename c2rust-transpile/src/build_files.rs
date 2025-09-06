@@ -46,14 +46,17 @@ pub fn get_build_dir(tcfg: &TranspilerConfig, cc_db: &Path) -> PathBuf {
         Some(dir) => {
             let output_dir = dir.clone();
             if !output_dir.exists() {
-                fs::create_dir(&output_dir).unwrap_or_else(|_| {
-                    panic!("couldn't create build directory: {}", output_dir.display())
-                });
+                create_dir_all_or_panic(&output_dir);
             }
             output_dir
         }
         None => cc_db_dir.into(),
     }
+}
+
+pub fn create_dir_all_or_panic(path: &Path) {
+    fs::create_dir_all(path)
+        .unwrap_or_else(|_| panic!("couldn't create build directory: {}", path.display()));
 }
 
 pub struct CrateConfig<'lcmd> {
@@ -84,8 +87,7 @@ pub fn emit_build_files(
         .unwrap();
 
     if !build_dir.exists() {
-        fs::create_dir_all(build_dir)
-            .unwrap_or_else(|_| panic!("couldn't create build directory: {}", build_dir.display()));
+        create_dir_all_or_panic(build_dir);
     }
 
     emit_cargo_toml(tcfg, &reg, build_dir, &crate_cfg, workspace_members);
