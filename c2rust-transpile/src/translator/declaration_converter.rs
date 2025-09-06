@@ -1,7 +1,7 @@
 use super::{Translation, translate_failure};
 use crate::c_ast::*;
-use crate::translator::decls::ConvertedDecl;
 use crate::translator::context::ExprContext;
+use crate::translator::decls::ConvertedDecl;
 use std::ops::Index;
 
 fn convert_decl_and_insert(t: &mut Translation, ctx: ExprContext, decl_id: CDeclId, decl: &CDecl) {
@@ -36,7 +36,6 @@ fn convert_decl_and_insert(t: &mut Translation, ctx: ExprContext, decl_id: CDecl
         t.generate_submodule_imports(decl_id, decl_file_id);
     }
 }
-
 
 pub fn convert_declarations(t: &mut Translation, ctx: ExprContext) {
     // Export all types
