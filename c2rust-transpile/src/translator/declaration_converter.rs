@@ -2,7 +2,6 @@ use super::{Translation, translate_failure};
 use crate::c_ast::*;
 use crate::translator::context::ExprContext;
 use crate::translator::decls::ConvertedDecl;
-use std::ops::Index;
 
 fn convert_decl_and_insert(t: &mut Translation, ctx: ExprContext, decl_id: CDeclId, decl: &CDecl) {
     let decl_file_id = t.ast_context.file_id(decl);
