@@ -671,7 +671,7 @@ impl TypedAstContext {
             // although it seems we don't handle `sizeof(VLAs)`
             // correctly in macros elsewhere already.
             #[allow(unreachable_patterns)]
-            UnaryType(_, _, expr, _) => expr.map_or(true, is_const),
+            UnaryType(_, _, expr, _) => expr.is_none_or(is_const),
             // Not sure what a `OffsetOfKind::Variable` means.
             OffsetOf(_, _) => true,
             // `ptr::offset` (ptr `BinOp::Add`) was `const` stabilized in `1.61.0`.
@@ -2030,6 +2030,7 @@ pub enum CTypeKind {
     BuiltinFn,
 
     Attributed(CQualTypeId, Option<Attribute>),
+    CountAttributed(CQualTypeId, CountAttribute, CExprId),
 
     BlockPointer(CQualTypeId),
 
@@ -2158,6 +2159,15 @@ pub enum Attribute {
     Visibility(String),
     /// __attribute__((fallthrough, __fallthrough__))
     Fallthrough,
+}
+
+/// Enumeration of supported attributes for Declarations
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum CountAttribute {
+    CountedBy,
+    SizedBy,
+    CountedByOrNull,
+    SizedByOrNull,
 }
 
 impl CTypeKind {

@@ -155,6 +155,8 @@ enum TypeTag {
     TagFloat128,
     TagAtomicType,
 
+    TagCountAttributedType,
+
     TagDependent,
 };
 

@@ -763,6 +763,7 @@ impl<'c> Translation<'c> {
             | Elaborated(ctype)
             | Pointer(CQualTypeId { ctype, .. })
             | Attributed(CQualTypeId { ctype, .. }, _)
+            | CountAttributed(CQualTypeId { ctype, .. }, ..)
             | VariableArray(ctype, _)
             | Reference(CQualTypeId { ctype, .. })
             | BlockPointer(CQualTypeId { ctype, .. })
