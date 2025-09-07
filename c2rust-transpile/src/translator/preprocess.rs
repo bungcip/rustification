@@ -1,4 +1,5 @@
-use super::{Translation, prefix_names};
+use crate::driver::Translation;
+use crate::translator::utils::prefix_names;
 use crate::c_ast::*;
 use indexmap::IndexMap;
 

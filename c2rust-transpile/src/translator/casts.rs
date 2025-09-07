@@ -18,7 +18,8 @@ use crate::ExternCrate;
 use crate::c_ast;
 use crate::c_ast::*;
 
-use super::{ExprContext, Translation, transmute_expr};
+use super::{ExprContext, Translation};
+use super::utils::transmute_expr;
 use crate::transform;
 
 impl<'c> Translation<'c> {

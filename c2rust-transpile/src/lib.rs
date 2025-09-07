@@ -32,14 +32,14 @@ pub use tempfile::TempDir;
 pub use crate::diagnostics::Diagnostic;
 
 use crate::convert_type::RESERVED_NAMES;
-pub use crate::translator::ReplaceMode;
+pub use crate::driver::ReplaceMode;
 use std::prelude::v1::Vec;
 
 pub use config::TranspilerConfig;
-pub use driver::transpile;
+pub use driver::{transpile, translate, translate_failure, Translation};
 pub use reorganize::reorganize_definitions;
 
-type PragmaVec = Vec<(&'static str, Vec<&'static str>)>;
+pub type PragmaVec = Vec<(&'static str, Vec<&'static str>)>;
 type PragmaSet = indexmap::IndexSet<(&'static str, &'static str)>;
 type CrateSet = indexmap::IndexSet<ExternCrate>;
 /// The Rust channel to use for the transpiled code.

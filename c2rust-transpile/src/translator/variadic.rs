@@ -1,4 +1,16 @@
-use super::*;
+use super::{utils::transmute_expr, ExprContext, Translation};
+use crate::c_ast::{
+    CDeclId, CDeclKind, CExprId, CExprKind, CQualTypeId, CStmtId, CTypeKind, CastKind,
+    TypedAstContext,
+};
+use crate::c_ast::iterators::{DFExpr, SomeId};
+use crate::diagnostics::{TranslationError, TranslationResult};
+use crate::generic_err;
+use crate::with_stmts::WithStmts;
+use c2rust_ast_builder::mk;
+use c2rust_ast_builder::properties::Mutability;
+use indexmap::IndexSet;
+use syn::{Expr, Type};
 
 #[derive(Copy, Clone, Debug)]
 pub enum VaPart {

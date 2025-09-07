@@ -1,33 +1,25 @@
-use crate::rust_ast::set_span::SetSpan;
-use crate::translator::{
-    ConvertedVariable, MacroExpansion, PADDING_SUFFIX, TranslationError, mk_linkage,
+use super::{
+    context::MacroExpansion,
+    linkage::mk_linkage,
+    utils::{add_src_loc_attr, clean_path, foreign_item_attrs, item_attrs, stmts_block},
+    ConvertedVariable, ExprContext, PADDING_SUFFIX,
 };
-use c2rust_ast_builder::mk;
+use crate::c_ast::{
+    self, CDecl, CDeclId, CDeclKind, CQualTypeId, CStmtId, CStmtKind, CTypeId, CTypeKind,
+    ConstIntExpr, FileId,
+};
+use crate::c_ast::iterators::SomeId;
+use crate::diagnostics::{TranslationError, TranslationResult};
+use crate::driver::Translation;
+use crate::rust_ast::set_span::SetSpan;
+use crate::rust_ast::{pos_to_span, SpanExt};
+use crate::{cfg, generic_err, ExternCrate, ReplaceMode};
+use c2rust_ast_builder::{mk, properties::*};
 use indexmap::IndexSet;
-use std::ops::Index;
-
 use log::{info, trace, warn};
 use proc_macro2::Span;
-use syn::BinOp;
-use syn::*; // To override c_ast::{BinOp,UnOp} from glob import
-
-use crate::diagnostics::TranslationResult;
-use crate::rust_ast::{SpanExt, pos_to_span};
-use crate::{
-    c_ast::{CDeclKind, CTypeKind},
-    generic_err,
-};
-use c2rust_ast_builder::properties::*;
-
-use crate::c_ast::iterators::SomeId;
-use crate::c_ast::*;
-use crate::{ExternCrate, cfg};
-use crate::{ReplaceMode, c_ast};
-
-use super::{
-    ExprContext, Translation, add_src_loc_attr, clean_path, foreign_item_attrs, item_attrs,
-    stmts_block,
-};
+use std::ops::Index;
+use syn::{self, BinOp, FnArg, ForeignItem, Item, ReturnType};
 
 /// Declarations can be converted into a normal item, or into a foreign item.
 /// Foreign items are called out specially because we'll combine all of them
@@ -872,7 +864,7 @@ impl<'c> Translation<'c> {
             .add_use(module_path, ident_name);
     }
 
-    fn convert_function(
+    pub(crate) fn convert_function(
         &self,
         ctx: ExprContext,
         span: Span,

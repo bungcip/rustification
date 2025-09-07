@@ -11,19 +11,20 @@ use syn::{BinOp, UnOp}; // To override c_ast::{BinOp,UnOp} from glob import
 use crate::diagnostics::TranslationResult;
 use crate::transform;
 use crate::translator::named_references::NamedReference;
-use crate::translator::{DecayRef, pointer_offset, unwrap_function_pointer};
+use crate::driver::DecayRef;
 use crate::{
     c_ast::{CDeclKind, CExprKind, CTypeKind, UnTypeOp},
-    generic_err, generic_loc_err,
-    translator::transmute_expr,
+    generic_err,
+    generic_loc_err,
     with_stmts::WithStmts,
 };
 
-use crate::ExternCrate;
 use crate::c_ast;
 use crate::c_ast::*;
+use crate::translator::utils;
+use crate::ExternCrate;
 
-use super::{ExprContext, Translation, vec_expr};
+use super::{ExprContext, Translation};
 
 impl<'c> Translation<'c> {
     /// Convert multiple expressions (while collecting a context of statements) given either all or
@@ -224,7 +225,7 @@ impl<'c> Translation<'c> {
                         if let Some(cur_file) = *self.cur_file.borrow() {
                             self.import_type(qual_ty.ctype, cur_file);
                         }
-                        val = transmute_expr(actual_ty, ty, val);
+                            val = utils::transmute_expr(actual_ty, ty, val);
                         set_unsafe = true;
                     } else {
                         let decl_kind = &self.ast_context[decl_id].kind;
@@ -615,7 +616,7 @@ impl<'c> Translation<'c> {
                             // Don't dereference the offset if we're still within the variable portion
                             if let Some(elt_type_id) = var_elt_type_id {
                                 let mul = self.compute_size_of_expr(elt_type_id);
-                                pointer_offset(lhs, rhs, mul, false, true)
+                                utils::pointer_offset(lhs, rhs, mul, false, true)
                             } else {
                                 let mut expr =
                                     mk().index_expr(lhs, transform::cast_int(rhs, "usize"));
@@ -652,7 +653,7 @@ impl<'c> Translation<'c> {
                                 };
 
                             let mul = self.compute_size_of_expr(pointee_type_id.ctype);
-                            Ok(pointer_offset(lhs, rhs, mul, false, true))
+                            Ok(utils::pointer_offset(lhs, rhs, mul, false, true))
                         })
                     }
                 })
@@ -716,8 +717,8 @@ impl<'c> Translation<'c> {
                                 let ret_ty = self.convert_type(ret_ty.ctype)?;
                                 let target_ty = make_fn_ty(ret_ty);
                                 callee.map(|fn_ptr| {
-                                    let fn_ptr = unwrap_function_pointer(fn_ptr);
-                                    transmute_expr(mk().infer_ty(), target_ty, fn_ptr)
+                                    let fn_ptr = utils::unwrap_function_pointer(fn_ptr);
+                                    utils::transmute_expr(mk().infer_ty(), target_ty, fn_ptr)
                                 })
                             }
                             None => {
@@ -725,13 +726,13 @@ impl<'c> Translation<'c> {
                                 let ret_ty = self.convert_type(call_expr_ty.ctype)?;
                                 let target_ty = make_fn_ty(ret_ty);
                                 callee.map(|fn_ptr| {
-                                    transmute_expr(mk().infer_ty(), target_ty, fn_ptr)
+                                    utils::transmute_expr(mk().infer_ty(), target_ty, fn_ptr)
                                 })
                             }
                             Some(CTypeKind::Function(_, ty_arg_tys, ..)) => {
                                 arg_tys = Some(ty_arg_tys.clone());
                                 // Normal function pointer
-                                callee.map(unwrap_function_pointer)
+                                callee.map(utils::unwrap_function_pointer)
                             }
                             Some(_) => panic!("function pointer did not point to CTYpeKind::Function: {fn_ty:?}"),
                         }
@@ -957,7 +958,7 @@ impl<'c> Translation<'c> {
             let count = self.compute_size_of_expr(ty_id).unwrap();
             Ok(self
                 .implicit_default_expr(inner, is_static, inside_init_list_aop)?
-                .map(|val| vec_expr(val, count)))
+                .map(|val| utils::vec_expr(val, count)))
         } else if let &CTypeKind::Vector(CQualTypeId { ctype, .. }, len) = resolved_ty {
             self.implicit_vector_default(ctype, len, is_static)
         } else {
