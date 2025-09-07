@@ -11,15 +11,19 @@ use std::rc::Rc;
 
 pub use c2rust_ast_exporter::clang_ast::{BuiltinVaListKind, SrcFile, SrcLoc, SrcSpan};
 
+/// A C type ID.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Copy, Clone)]
 pub struct CTypeId(pub u64);
 
+/// A C expression ID.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Copy, Clone)]
 pub struct CExprId(pub u64);
 
+/// A C declaration ID.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Copy, Clone)]
 pub struct CDeclId(pub u64);
 
+/// A C statement ID.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Copy, Clone)]
 pub struct CStmtId(pub u64);
 
@@ -42,63 +46,79 @@ mod print;
 
 use iterators::{DFNodes, SomeId};
 
-/// AST context containing all of the nodes in the Clang AST
+/// AST context containing all of the nodes in the Clang AST.
 #[derive(Debug, Clone)]
 pub struct TypedAstContext {
+    /// The C types in the AST.
     c_types: HashMap<CTypeId, CType>,
+    /// The C expressions in the AST.
     c_exprs: HashMap<CExprId, CExpr>,
+    /// The C statements in the AST.
     c_stmts: HashMap<CStmtId, CStmt>,
 
-    // Decls require a stable iteration order as this map will be
-    // iterated over export all defined types during translation.
+    /// The C declarations in the AST.
+    ///
+    /// Decls require a stable iteration order as this map will be
+    /// iterated over export all defined types during translation.
     c_decls: IndexMap<CDeclId, CDecl>,
 
+    /// The top-level C declarations in the AST.
     pub c_decls_top: Vec<CDeclId>,
+    /// The `main` function, if any.
     pub c_main: Option<CDeclId>,
+    /// The parent of each declaration.
     pub parents: HashMap<CDeclId, CDeclId>, // record fields and enum constants
 
-    // Mapping from FileId to SrcFile. Deduplicated by file path.
+    /// The source files in the AST.
+    ///
+    /// Mapping from FileId to SrcFile. Deduplicated by file path.
     files: Vec<SrcFile>,
-    // Mapping from clang file id to translator FileId
+    /// Mapping from clang file id to translator FileId.
     file_map: Vec<FileId>,
 
-    // Vector of include paths, indexed by FileId. Each include path is the
-    // sequence of #include statement locations and the file being included at
-    // that location.
+    /// Vector of include paths, indexed by FileId. Each include path is the
+    /// sequence of #include statement locations and the file being included at
+    /// that location.
     include_map: Vec<Vec<SrcLoc>>,
 
-    // Names of the labels defined in the C source code.
+    /// The names of the labels defined in the C source code.
     pub label_names: IndexMap<CLabelId, Rc<str>>,
 
-    // map expressions to the stack of macros they were expanded from
+    /// A map from expressions to the stack of macros they were expanded from.
     pub macro_invocations: IndexMap<CExprId, Vec<CDeclId>>,
 
-    // map macro decls to the expressions they expand to
+    /// A map from macro declarations to the expressions they expand to.
     pub macro_expansions: IndexMap<CDeclId, Vec<CExprId>>,
 
-    // map expressions to the text of the macro invocation they expanded from,
-    // if any
+    /// A map from expressions to the text of the macro invocation they expanded
+    /// from, if any.
     pub macro_expansion_text: IndexMap<CExprId, String>,
 
+    /// The comments in the AST.
     pub comments: Vec<Located<String>>,
 
-    // The key is the typedef decl being squashed away,
-    // and the value is the decl id to the corresponding structure
+    /// The key is the typedef decl being squashed away,
+    /// and the value is the decl id to the corresponding structure.
     pub prenamed_decls: IndexMap<CDeclId, CDeclId>,
 
+    /// The kind of `va_list` used in the C code.
     pub va_list_kind: BuiltinVaListKind,
+    /// The target triple.
     pub target: String,
 }
 
-/// Comments associated with a typed AST context
+/// Comments associated with a typed AST context.
 #[derive(Debug, Clone)]
 pub struct CommentContext {
     comments_by_file: HashMap<FileId, RefCell<Vec<Located<String>>>>,
 }
 
+/// A source span that can be displayed.
 #[derive(Debug, Clone)]
 pub struct DisplaySrcSpan {
+    /// The file path, if available.
     file: Option<PathBuf>,
+    /// The source span.
     loc: SrcSpan,
 }
 
@@ -118,12 +138,15 @@ impl Display for DisplaySrcSpan {
     }
 }
 
+/// A file ID.
 pub type FileId = usize;
 
-/// Represents some AST node possibly with source location information bundled with it
+/// Represents some AST node possibly with source location information bundled with it.
 #[derive(Debug, Clone)]
 pub struct Located<T> {
+    /// The source location of the node.
     pub loc: Option<SrcSpan>,
+    /// The node itself.
     pub kind: T,
 }
 
@@ -137,8 +160,10 @@ impl<T> Located<T> {
 }
 
 impl TypedAstContext {
-    // TODO: build the TypedAstContext during initialization, rather than
-    // building an empty one and filling it later.
+    /// Creates a new `TypedAstContext`.
+    ///
+    /// TODO: build the TypedAstContext during initialization, rather than
+    /// building an empty one and filling it later.
     pub fn new(clang_files: &[SrcFile]) -> TypedAstContext {
         let mut files: Vec<SrcFile> = vec![];
         let mut file_map: Vec<FileId> = vec![];
@@ -190,6 +215,7 @@ impl TypedAstContext {
         }
     }
 
+    /// Returns a `DisplaySrcSpan` for a given `SrcSpan`.
     pub fn display_loc(&self, loc: &Option<SrcSpan>) -> Option<DisplaySrcSpan> {
         loc.as_ref().map(|loc| DisplaySrcSpan {
             file: self.files[self.file_map[loc.fileid as usize]].path.clone(),
@@ -197,16 +223,18 @@ impl TypedAstContext {
         })
     }
 
+    /// Gets the source path for a given node.
     pub fn get_source_path<'a, T>(&'a self, node: &Located<T>) -> Option<&'a Path> {
         self.file_id(node)
             .and_then(|fileid| self.get_file_path(fileid))
     }
 
+    /// Gets the file path for a given file ID.
     pub fn get_file_path(&self, id: FileId) -> Option<&Path> {
         self.files[id].path.as_deref()
     }
 
-    /// Compare two [`SrcLoc`]s based on their import path
+    /// Compare two [`SrcLoc`]s based on their import path.
     pub fn compare_src_locs(&self, a: &SrcLoc, b: &SrcLoc) -> Ordering {
         /// Compare without regard to `fileid`.
         fn cmp_pos(a: &SrcLoc, b: &SrcLoc) -> Ordering {
@@ -243,16 +271,19 @@ impl TypedAstContext {
         }
     }
 
+    /// Gets the line number of the include directive for a given file.
     pub fn get_file_include_line_number(&self, file: FileId) -> Option<u64> {
         self.include_map[file].first().map(|loc| loc.line)
     }
 
+    /// Finds the file ID for a given path.
     pub fn find_file_id(&self, path: &Path) -> Option<FileId> {
         self.files
             .iter()
             .position(|f| f.path.as_ref().is_some_and(|p| p == path))
     }
 
+    /// Gets the file ID for a given located node.
     pub fn file_id<T>(&self, located: &Located<T>) -> Option<FileId> {
         located
             .loc
@@ -260,6 +291,7 @@ impl TypedAstContext {
             .and_then(|loc| self.file_map.get(loc.fileid as usize).copied())
     }
 
+    /// Gets the source location for a given ID.
     pub fn get_src_loc(&self, id: SomeId) -> Option<SrcSpan> {
         use SomeId::*;
         match id {
@@ -270,18 +302,22 @@ impl TypedAstContext {
         }
     }
 
+    /// Returns an iterator over the declarations in the AST.
     pub fn iter_decls(&self) -> indexmap::map::Iter<'_, CDeclId, CDecl> {
         self.c_decls.iter()
     }
 
+    /// Returns a mutable iterator over the declarations in the AST.
     pub fn iter_mut_decls(&mut self) -> indexmap::map::IterMut<'_, CDeclId, CDecl> {
         self.c_decls.iter_mut()
     }
 
+    /// Gets a declaration by its ID.
     pub fn get_decl(&self, key: &CDeclId) -> Option<&CDecl> {
         self.c_decls.get(key)
     }
 
+    /// Returns `true` if the given expression is a null pointer.
     pub fn is_null_expr(&self, expr_id: CExprId) -> bool {
         use CExprKind::*;
         match self[expr_id].kind {
@@ -299,7 +335,7 @@ impl TypedAstContext {
 
     /// Predicate for struct, union, and enum declarations without
     /// bodies. These forward declarations are suitable for use as
-    /// the targets of pointers
+    /// the targets of pointers.
     pub fn is_forward_declared_type(&self, typ: CTypeId) -> bool {
         use CDeclKind::*;
         || -> Option<()> {
@@ -394,7 +430,7 @@ impl TypedAstContext {
         }
     }
 
-    /// Predicate for function pointers
+    /// Predicate for function pointers.
     pub fn is_function_pointer(&self, typ: CTypeId) -> bool {
         let resolved_ctype = self.resolve_type(typ);
         use CTypeKind::*;
@@ -412,6 +448,7 @@ impl TypedAstContext {
         matches!(field_ty.kind, IncompleteArray(_) | ConstantArray(_, 0 | 1))
     }
 
+    /// Gets the pointee of a pointer type.
     pub fn get_pointee_qual_type(&self, typ: CTypeId) -> Option<CQualTypeId> {
         let resolved_ctype = self.resolve_type(typ);
         if let CTypeKind::Pointer(p) = resolved_ctype.kind {
@@ -421,7 +458,7 @@ impl TypedAstContext {
         }
     }
 
-    /// Resolve expression value, ignoring any casts
+    /// Resolve expression value, ignoring any casts.
     pub fn resolve_expr(&self, expr_id: CExprId) -> (CExprId, &CExprKind) {
         let expr = &self.index(expr_id).kind;
         use CExprKind::*;
@@ -463,12 +500,14 @@ impl TypedAstContext {
         ty.map(|ty| (expr_id, ty))
     }
 
+    /// Gets the type ID for a given type kind.
     pub fn type_for_kind(&self, kind: &CTypeKind) -> Option<CTypeId> {
         self.c_types
             .iter()
             .find_map(|(id, k)| if kind == &k.kind { Some(*id) } else { None })
     }
 
+    /// Resolves a type ID, iterating through any typedefs.
     pub fn resolve_type_id(&self, typ: CTypeId) -> CTypeId {
         use CTypeKind::*;
         let ty = match self.index(typ).kind {
@@ -486,12 +525,13 @@ impl TypedAstContext {
         self.resolve_type_id(ty)
     }
 
+    /// Resolves a type, iterating through any typedefs.
     pub fn resolve_type(&self, typ: CTypeId) -> &CType {
         let resolved_typ_id = self.resolve_type_id(typ);
         self.index(resolved_typ_id)
     }
 
-    /// check if variable and has static storage
+    /// Checks if a variable has static storage.
     pub fn is_static_variable(&self, expr: CExprId) -> bool {
         match self.index(expr).kind {
             CExprKind::DeclRef(_, decl_id, _) => {
@@ -509,7 +549,7 @@ impl TypedAstContext {
         }
     }
 
-    /// check if expression is string literal
+    /// Checks if an expression is a string literal.
     pub fn is_expr_string_literal(&self, expr: CExprId) -> bool {
         match &self.index(expr).kind {
             CExprKind::Literal(_, CLiteral::String(..)) => true,
@@ -521,7 +561,7 @@ impl TypedAstContext {
     }
 
     /// Extract decl of referenced function.
-    /// Looks for ImplicitCast(FunctionToPointerDecay, DeclRef(function_decl))
+    /// Looks for ImplicitCast(FunctionToPointerDecay, DeclRef(function_decl)).
     pub fn fn_declref_decl(&self, func_expr: CExprId) -> Option<&CDeclKind> {
         use CastKind::FunctionToPointerDecay;
         if let CExprKind::ImplicitCast(_, fexp, FunctionToPointerDecay, _, _) = self[func_expr].kind
@@ -582,41 +622,41 @@ impl TypedAstContext {
         None
     }
 
-    /// Pessimistically try to check if an expression has side effects. If it does, or we can't tell
-    /// that it doesn't, return `false`.
+    /// Pessimistically try to check if an expression has side effects. If it
+    /// does, or we can't tell that it doesn't, return `false`.
     pub fn is_expr_pure(&self, expr: CExprId) -> bool {
         use CExprKind::*;
         let pure = |expr| self.is_expr_pure(expr);
         match self.index(expr).kind {
-            BadExpr |
-            ShuffleVector(..) |
-            ConvertVector(..) |
-            Call(..) |
-            Unary(_, UnOp::PreIncrement, _, _) |
-            Unary(_, UnOp::PostIncrement, _, _) |
-            Unary(_, UnOp::PreDecrement, _, _) |
-            Unary(_, UnOp::PostDecrement, _, _) |
-            Binary(_, BinOp::Assign, _, _, _, _) |
-            InitList { .. } |
-            ImplicitValueInit { .. } |
-            Predefined(..) |
-            Statements(..) | // TODO: more precision
-            VAArg(..) |
-            Atomic{..} => false,
+            BadExpr
+            | ShuffleVector(..)
+            | ConvertVector(..)
+            | Call(..)
+            | Unary(_, UnOp::PreIncrement, _, _)
+            | Unary(_, UnOp::PostIncrement, _, _)
+            | Unary(_, UnOp::PreDecrement, _, _)
+            | Unary(_, UnOp::PostDecrement, _, _)
+            | Binary(_, BinOp::Assign, _, _, _, _)
+            | InitList { .. }
+            | ImplicitValueInit { .. }
+            | Predefined(..)
+            | Statements(..) // TODO: more precision
+            | VAArg(..)
+            | Atomic { .. } => false,
 
-            Literal(_, _) |
-            DeclRef(_, _, _) |
-            UnaryType(_, _, _, _) |
-            OffsetOf(..) |
-            ConstantExpr(..) => true,
+            Literal(_, _)
+            | DeclRef(_, _, _)
+            | UnaryType(_, _, _, _)
+            | OffsetOf(..)
+            | ConstantExpr(..) => true,
 
-            DesignatedInitExpr(_,_,e) |
-            ImplicitCast(_, e, _, _, _) |
-            ExplicitCast(_, e, _, _, _) |
-            Member(_, e, _, _, _) |
-            Paren(_, e) |
-            CompoundLiteral(_, e) |
-            Unary(_, _, e, _) => pure(e),
+            DesignatedInitExpr(_, _, e)
+            | ImplicitCast(_, e, _, _, _)
+            | ExplicitCast(_, e, _, _, _)
+            | Member(_, e, _, _, _)
+            | Paren(_, e)
+            | CompoundLiteral(_, e)
+            | Unary(_, _, e, _) => pure(e),
 
             Binary(_, op, _, _, _, _) if op.underlying_assignment().is_some() => false,
             Binary(_, _, lhs, rhs, _, _) => pure(lhs) && pure(rhs),
@@ -718,11 +758,13 @@ impl TypedAstContext {
         }
     }
 
+    /// Pessimistically try to check if a statement is `const`.
     pub fn is_const_stmt(&self, _stmt: CStmtId) -> bool {
         // TODO
         false
     }
 
+    /// Prune unwanted declarations from the AST.
     pub fn prune_unwanted_decls(&mut self, want_unused_functions: bool) {
         // Starting from a set of root declarations, walk each one to find declarations it
         // depends on. Then walk each of those, recursively.
@@ -938,6 +980,7 @@ impl TypedAstContext {
         }
     }
 
+    /// Sort the top-level declarations in the AST.
     pub fn sort_top_decls(&mut self) {
         // Group and sort declarations by file and by position
         let mut decls_top = mem::take(&mut self.c_decls_top);
@@ -955,6 +998,7 @@ impl TypedAstContext {
         self.c_decls_top = decls_top;
     }
 
+    /// Checks if a struct declaration has a manual alignment attribute.
     pub fn has_inner_struct_decl(&self, decl_id: CDeclId) -> bool {
         matches!(
             self.index(decl_id).kind,
@@ -965,6 +1009,7 @@ impl TypedAstContext {
         )
     }
 
+    /// Checks if a struct declaration is packed.
     pub fn is_packed_struct_decl(&self, decl_id: CDeclId) -> bool {
         use CDeclKind::*;
         matches!(
@@ -979,6 +1024,7 @@ impl TypedAstContext {
         )
     }
 
+    /// Checks if a struct type is aligned.
     pub fn is_aligned_struct_type(&self, typ: CTypeId) -> bool {
         if let Some(decl_id) = self.resolve_type(typ).kind.as_underlying_decl()
             && let CDeclKind::Struct {
@@ -993,13 +1039,14 @@ impl TypedAstContext {
 }
 
 impl CommentContext {
+    /// Creates an empty `CommentContext`.
     pub fn empty() -> CommentContext {
         CommentContext {
             comments_by_file: HashMap::new(),
         }
     }
 
-    /// Build a CommentContext from the comments in this `ast_context`
+    /// Build a CommentContext from the comments in this `ast_context`.
     pub fn new(ast_context: &mut TypedAstContext) -> CommentContext {
         let mut comments_by_file: HashMap<FileId, Vec<Located<String>>> = HashMap::new();
 
@@ -1031,6 +1078,7 @@ impl CommentContext {
         CommentContext { comments_by_file }
     }
 
+    /// Gets the comments before a given source location.
     pub fn get_comments_before(&self, loc: SrcLoc, ctx: &TypedAstContext) -> Vec<String> {
         let file_id = ctx.file_map[loc.fileid as usize];
         let mut extracted_comments = vec![];
@@ -1053,6 +1101,7 @@ impl CommentContext {
         extracted_comments
     }
 
+    /// Gets the comments before a given located node.
     pub fn get_comments_before_located<T>(
         &self,
         located: &Located<T>,
@@ -1064,6 +1113,7 @@ impl CommentContext {
         }
     }
 
+    /// Peeks at the next comment on the same line as the given source location.
     pub fn peek_next_comment_on_line(
         &self,
         loc: SrcLoc,
@@ -1083,13 +1133,14 @@ impl CommentContext {
         })
     }
 
-    /// Advance over the current comment in `file`
+    /// Advance over the current comment in `file`.
     pub fn advance_comment(&self, file: FileId) {
         if let Some(comments) = self.comments_by_file.get(&file) {
             let _ = comments.borrow_mut().pop();
         }
     }
 
+    /// Gets the remaining comments in a file.
     pub fn get_remaining_comments(&mut self, file_id: FileId) -> Vec<String> {
         match self.comments_by_file.remove(&file_id) {
             Some(comments) => comments.into_inner().into_iter().map(|c| c.kind).collect(),
@@ -1158,102 +1209,159 @@ pub type CStmt = Located<CStmtKind>;
 pub type CExpr = Located<CExprKind>;
 pub type CType = Located<CTypeKind>;
 
+/// The kind of a C declaration.
 #[derive(Debug, Clone)]
 pub enum CDeclKind {
-    // http://clang.llvm.org/doxygen/classclang_1_1FunctionDecl.html
+    /// A function declaration.
+    /// http://clang.llvm.org/doxygen/classclang_1_1FunctionDecl.html
     Function {
+        /// Whether the function is global.
         is_global: bool,
+        /// Whether the function is inline.
         is_inline: bool,
+        /// Whether the function is implicit.
         is_implicit: bool,
+        /// Whether the function is extern.
         is_extern: bool,
+        /// Whether the function is inline and externally visible.
         is_inline_externally_visible: bool,
+        /// The type of the function.
         typ: CFuncTypeId,
+        /// The name of the function.
         name: String,
+        /// The parameters of the function.
         parameters: Vec<CParamId>,
+        /// The body of the function.
         body: Option<CStmtId>,
+        /// The attributes of the function.
         attrs: IndexSet<Attribute>,
     },
 
-    // http://clang.llvm.org/doxygen/classclang_1_1VarDecl.html
+    /// A variable declaration.
+    /// http://clang.llvm.org/doxygen/classclang_1_1VarDecl.html
     Variable {
+        /// Whether the variable has static duration.
         has_static_duration: bool,
+        /// Whether the variable has thread-local storage duration.
         has_thread_duration: bool,
+        /// Whether the variable is externally visible.
         is_externally_visible: bool,
+        /// Whether this is a definition.
         is_defn: bool,
+        /// The name of the variable.
         ident: String,
+        /// The initializer of the variable.
         initializer: Option<CExprId>,
+        /// The type of the variable.
         typ: CQualTypeId,
+        /// The attributes of the variable.
         attrs: IndexSet<Attribute>,
     },
 
-    // Enum (http://clang.llvm.org/doxygen/classclang_1_1EnumDecl.html)
+    /// An enum declaration.
+    /// http://clang.llvm.org/doxygen/classclang_1_1EnumDecl.html
     Enum {
+        /// The name of the enum.
         name: Option<String>,
+        /// The variants of the enum.
         variants: Vec<CEnumConstantId>,
+        /// The integral type of the enum.
         integral_type: Option<CQualTypeId>,
     },
 
+    /// An enum constant declaration.
     EnumConstant {
+        /// The name of the enum constant.
         name: String,
+        /// The value of the enum constant.
         value: ConstIntExpr,
     },
 
-    // Typedef
+    /// A typedef declaration.
     Typedef {
+        /// The name of the typedef.
         name: String,
+        /// The type of the typedef.
         typ: CQualTypeId,
+        /// Whether the typedef is implicit.
         is_implicit: bool,
+        /// The target-dependent macro that this typedef is a part of, if any.
         target_dependent_macro: Option<String>,
     },
 
-    // Struct
+    /// A struct declaration.
     Struct {
+        /// The name of the struct.
         name: Option<String>,
+        /// The fields of the struct.
         fields: Option<Vec<CFieldId>>,
+        /// Whether the struct is packed.
         is_packed: bool,
+        /// The manual alignment of the struct, if any.
         manual_alignment: Option<u64>,
+        /// The maximum field alignment of the struct, if any.
         max_field_alignment: Option<u64>,
+        /// The size of the struct in bytes on the target platform.
         platform_byte_size: u64,
+        /// The alignment of the struct in bytes on the target platform.
         platform_alignment: u64,
     },
 
-    // Union
+    /// A union declaration.
     Union {
+        /// The name of the union.
         name: Option<String>,
+        /// The fields of the union.
         fields: Option<Vec<CFieldId>>,
+        /// Whether the union is packed.
         is_packed: bool,
     },
 
-    // Field
+    /// A field declaration.
     Field {
+        /// The name of the field.
         name: String,
+        /// The type of the field.
         typ: CQualTypeId,
+        /// The width of the bitfield, if any.
         bitfield_width: Option<u64>,
+        /// The bit offset of the field on the target platform.
         platform_bit_offset: u64,
+        /// The bit width of the type of the field on the target platform.
         platform_type_bitwidth: u64,
     },
 
+    /// An object-like macro declaration.
     MacroObject {
+        /// The name of the macro.
         name: String,
         // replacements: Vec<CExprId>,
     },
 
+    /// A function-like macro declaration.
     MacroFunction {
+        /// The name of the macro.
         name: String,
         // replacements: Vec<CExprId>,
     },
 
+    /// A non-canonical declaration.
     NonCanonicalDecl {
+        /// The canonical declaration.
         canonical_decl: CDeclId,
     },
 
+    /// A static assert declaration.
     StaticAssert {
+        /// The expression to assert.
         assert_expr: CExprId,
+        /// The message to display if the assertion fails.
         message: Option<String>,
     },
 }
 
 impl CDeclKind {
+    /// Gets the name of the declaration, if it has one.
     pub fn get_name(&self) -> Option<&String> {
         use CDeclKind::*;
         Some(match self {
@@ -1282,31 +1390,31 @@ pub enum OffsetOfKind {
     Variable(CQualTypeId, CDeclId, CExprId),
 }
 
-/// Represents an expression in C (6.5 Expressions)
+/// Represents an expression in C (6.5 Expressions).
 ///
 /// This is modeled on Clang's APIs, so where documentation
 /// is lacking here, look at Clang.
 ///
-/// We've kept a qualified type on every node since Clang has this information available, and since
-/// the semantics of translations of certain constructs often depend on the type of the things they
-/// are given.
+/// We've kept a qualified type on every node since Clang has this information
+/// available, and since the semantics of translations of certain constructs
+/// often depend on the type of the things they are given.
 ///
 /// As per the C standard, qualifiers on types make sense only on lvalues.
 #[derive(Debug, Clone)]
 pub enum CExprKind {
-    /// Literals
+    /// A literal value.
     Literal(CQualTypeId, CLiteral),
 
-    /// Unary operator.
+    /// A unary operator.
     Unary(CQualTypeId, UnOp, CExprId, LRValue),
 
-    /// Unary type operator.
+    /// A unary type operator.
     UnaryType(CQualTypeId, UnTypeOp, Option<CExprId>, CQualTypeId),
 
-    /// `offsetof` expression.
+    /// An `offsetof` expression.
     OffsetOf(CQualTypeId, OffsetOfKind),
 
-    /// Binary operator
+    /// A binary operator.
     Binary(
         CQualTypeId,
         BinOp,
@@ -1316,35 +1424,35 @@ pub enum CExprKind {
         Option<CQualTypeId>,
     ),
 
-    /// Implicit cast
+    /// An implicit cast.
     ImplicitCast(CQualTypeId, CExprId, CastKind, Option<CFieldId>, LRValue),
 
-    /// Explicit cast
+    /// An explicit cast.
     ExplicitCast(CQualTypeId, CExprId, CastKind, Option<CFieldId>, LRValue),
 
-    /// Constant context expression
+    /// A constant expression.
     ConstantExpr(CQualTypeId, CExprId, Option<ConstIntExpr>),
 
-    /// Reference to a decl (a variable, for instance).
+    /// A reference to a declaration (a variable, for instance).
     // TODO: consider enforcing what types of declarations are allowed here
     DeclRef(CQualTypeId, CDeclId, LRValue),
 
-    /// Function call
+    /// A function call.
     Call(CQualTypeId, CExprId, Vec<CExprId>),
 
-    /// Member access
+    /// A member access.
     Member(CQualTypeId, CExprId, CDeclId, MemberKind, LRValue),
 
-    // Array subscript access
+    /// An array subscript access.
     ArraySubscript(CQualTypeId, CExprId, CExprId, LRValue),
 
-    /// Ternary conditional operator
+    /// A ternary conditional operator.
     Conditional(CQualTypeId, CExprId, CExprId, CExprId),
 
-    /// Binary conditional operator `?:` (GNU extension).
+    /// A binary conditional operator `?:` (a GNU extension).
     BinaryConditional(CQualTypeId, CExprId, CExprId),
 
-    /// Initializer list.
+    /// An initializer list.
     ///
     /// * type
     /// * initializers
@@ -1352,36 +1460,36 @@ pub enum CExprKind {
     /// * syntactic form
     InitList(CQualTypeId, Vec<CExprId>, Option<CFieldId>, Option<CExprId>),
 
-    /// Designated initializer
+    /// An implicit value initialization.
     ImplicitValueInit(CQualTypeId),
 
-    /// Parenthesized expression.
+    /// A parenthesized expression.
     ///
     /// Ignored, but needed so we have a corresponding node.
     Paren(CQualTypeId, CExprId),
 
-    /// Compound literal.
+    /// A compound literal.
     CompoundLiteral(CQualTypeId, CExprId),
 
-    /// Predefined expression.
+    /// A predefined expression.
     Predefined(CQualTypeId, CExprId),
 
-    /// Statement expression.
+    /// A statement expression.
     Statements(CQualTypeId, CStmtId),
 
-    /// Variable argument list.
+    /// A `va_arg` expression.
     VAArg(CQualTypeId, CExprId),
 
-    /// Unsupported vector operations.
+    /// An unsupported vector operation.
     ShuffleVector(CQualTypeId, Vec<CExprId>),
 
-    /// Unsupported convert vector operation.
+    /// An unsupported convert vector operation.
     ConvertVector(CQualTypeId, Vec<CExprId>),
 
-    /// From syntactic form of initializer list expressions.
+    /// A designated initializer expression.
     DesignatedInitExpr(CQualTypeId, Vec<Designator>, CExprId),
 
-    /// GNU choose expression.
+    /// A GNU `__builtin_choose_expr`.
     ///
     /// * condition
     /// * true expr
@@ -1389,24 +1497,36 @@ pub enum CExprKind {
     /// * was condition true?
     Choose(CQualTypeId, CExprId, CExprId, CExprId, bool),
 
-    /// GNU/C11 atomic expression.
+    /// A GNU/C11 atomic expression.
     Atomic {
+        /// The type of the expression.
         typ: CQualTypeId,
+        /// The name of the atomic operation.
         name: String,
+        /// A pointer to the atomic object.
         ptr: CExprId,
+        /// The memory ordering of the operation.
         order: CExprId,
+        /// The first value operand.
         val1: Option<CExprId>,
+        /// The memory ordering of the operation on failure.
         order_fail: Option<CExprId>,
+        /// The second value operand.
         val2: Option<CExprId>,
+        /// Whether the operation is weak.
         weak: Option<CExprId>,
     },
 
+    /// An expression that could not be parsed.
     BadExpr,
 }
 
+/// The kind of a member access.
 #[derive(Copy, Debug, Clone)]
 pub enum MemberKind {
+    /// `->`
     Arrow,
+    /// `.`
     Dot,
 }
 
@@ -1771,18 +1891,27 @@ impl BinOp {
     }
 }
 
+/// The base of an integer literal.
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
 pub enum IntBase {
+    /// Decimal.
     Dec,
+    /// Hexadecimal.
     Hex,
+    /// Octal.
     Oct,
 }
 
+/// A C literal.
 #[derive(Debug, Clone)]
 pub enum CLiteral {
+    /// An integer literal.
     Integer(u64, IntBase), // value and base
+    /// A character literal.
     Character(u64),
+    /// A floating-point literal.
     Floating(f64, String),
+    /// A string literal.
     String(Vec<u8>, u8), // Literal bytes and unit byte width
 }
 
@@ -1799,93 +1928,129 @@ impl CLiteral {
     }
 }
 
-/// Represents a constant integer expression as used in a case expression
+/// Represents a constant integer expression as used in a case expression.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ConstIntExpr {
+    /// An unsigned integer.
     U(u64),
+    /// A signed integer.
     I(i64),
 }
 
-/// Represents a statement in C (6.8 Statements)
+/// Represents a statement in C (6.8 Statements).
 ///
 /// Reflects the types in <http://clang.llvm.org/doxygen/classclang_1_1Stmt.html>
 #[derive(Debug, Clone)]
 pub enum CStmtKind {
-    // Labeled statements (6.8.1)
-    //
-    // All of these have a `CStmtId` to represent the substatement that comes after them
+    /// A labeled statement (6.8.1).
+    ///
+    /// All of these have a `CStmtId` to represent the substatement that comes
+    /// after them.
     Label(CStmtId),
+    /// A `case` statement.
     Case(CExprId, CStmtId, ConstIntExpr),
+    /// A `default` statement.
     Default(CStmtId),
 
-    // Compound statements (6.8.2)
+    /// A compound statement (6.8.2).
     Compound(Vec<CStmtId>),
 
-    // Expression and null statements (6.8.3)
+    /// An expression statement (6.8.3).
     Expr(CExprId),
+    /// A null statement (6.e.3).
     Empty,
 
-    // Selection statements (6.8.4)
+    /// A selection statement (6.8.4).
     If {
+        /// The scrutinee of the `if` statement.
         scrutinee: CExprId,
+        /// The `then` branch of the `if` statement.
         true_variant: CStmtId,
+        /// The `else` branch of the `if` statement.
         false_variant: Option<CStmtId>,
     },
+    /// A `switch` statement.
     Switch {
+        /// The scrutinee of the `switch` statement.
         scrutinee: CExprId,
+        /// The body of the `switch` statement.
         body: CStmtId,
     },
 
-    // Iteration statements (6.8.5)
+    /// An iteration statement (6.8.5).
     While {
+        /// The condition of the `while` loop.
         condition: CExprId,
+        /// The body of the `while` loop.
         body: CStmtId,
     },
+    /// A `do-while` loop.
     DoWhile {
+        /// The body of the `do-while` loop.
         body: CStmtId,
+        /// The condition of the `do-while` loop.
         condition: CExprId,
     },
+    /// A `for` loop.
     ForLoop {
+        /// The initializer of the `for` loop.
         init: Option<CStmtId>,
+        /// The condition of the `for` loop.
         condition: Option<CExprId>,
+        /// The increment of the `for` loop.
         increment: Option<CExprId>,
+        /// The body of the `for` loop.
         body: CStmtId,
     },
 
-    // Jump statements (6.8.6)
+    /// A jump statement (6.8.6).
     Goto(CLabelId),
+    /// A `break` statement.
     Break,
+    /// A `continue` statement.
     Continue,
+    /// A `return` statement.
     Return(Option<CExprId>),
 
-    // Declarations (variables, etc.)
+    /// A declaration statement.
     Decls(Vec<CDeclId>),
 
-    // GCC inline assembly
+    /// A GCC-style inline assembly statement.
     Asm {
+        /// The assembly code.
         asm: String,
+        /// The input operands.
         inputs: Vec<AsmOperand>,
+        /// The output operands.
         outputs: Vec<AsmOperand>,
+        /// The clobbered registers.
         clobbers: Vec<String>,
+        /// Whether the assembly is volatile.
         is_volatile: bool,
     },
 
-    // Statements annotated with attributes. The substatement can be a NULL
-    // statement in case of __attribute__((__fallthrough__)) at the end of a
-    // case statement
+    /// A statement with attributes.
+    ///
+    /// The substatement can be a NULL statement in case of
+    /// `__attribute__((__fallthrough__))` at the end of a case statement.
     Attributed {
+        /// The attributes.
         attributes: Vec<Attribute>,
+        /// The substatement.
         substatement: CStmtId,
     },
 }
 
+/// An operand for an inline assembly statement.
 #[derive(Clone, Debug)]
 pub struct AsmOperand {
+    /// The constraints on the operand.
     pub constraints: String,
+    /// The expression for the operand.
     pub expression: CExprId,
 }
 
-/// Type qualifiers (6.7.3)
+/// Type qualifiers (6.7.3).
 #[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
 pub struct Qualifiers {
     /// The `const` qualifier, which marks lvalues as non-assignable.
@@ -1895,18 +2060,21 @@ pub struct Qualifiers {
     ///   * The pointed type in pointers (which matches up to Rust's `*const`/`*mut`)
     pub is_const: bool,
 
+    /// The `restrict` qualifier.
     pub is_restrict: bool,
 
-    /// The `volatile` qualifier, which prevents the compiler from reordering accesses through such
-    /// qualified lvalues past other observable side effects (other accesses, or sequence points).
+    /// The `volatile` qualifier, which prevents the compiler from reordering
+    /// accesses through such qualified lvalues past other observable side
+    /// effects (other accesses, or sequence points).
     ///
-    /// The part here about not reordering (or changing in any way) access to something volatile
-    /// can be replicated in Rust via `std::ptr::read_volatile`  and `std::ptr::write_volatile`.
-    /// Since Rust's execution model is still unclear, I am unsure that we get all of the guarantees
-    /// `volatile` needs, especially regarding reordering of other side-effects.
+    /// The part here about not reordering (or changing in any way) access to
+    /// something volatile can be replicated in Rust via `std::ptr::read_volatile`
+    /// and `std::ptr::write_volatile`. Since Rust's execution model is still
+    /// unclear, I am unsure that we get all of the guarantees `volatile` needs,
+    /// especially regarding reordering of other side-effects.
     ///
-    /// To see where we use `volatile`, check the call-sites of `Translation::volatile_write` and
-    /// `Translation::volatile_read`.
+    /// To see where we use `volatile`, check the call-sites of
+    /// `Translation::volatile_write` and `Translation::volatile_read`.
     pub is_volatile: bool,
 }
 
@@ -1921,10 +2089,12 @@ impl Qualifiers {
     }
 }
 
-/// Qualified type
+/// A qualified C type ID.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct CQualTypeId {
+    /// The qualifiers of the type.
     pub qualifiers: Qualifiers,
+    /// The ID of the type.
     pub ctype: CTypeId,
 }
 
@@ -1942,127 +2112,170 @@ impl CQualTypeId {
 //  * UnaryTransformType <http://clang.llvm.org/doxygen/classclang_1_1UnaryTransformType.html>
 //  * AdjustedType <http://clang.llvm.org/doxygen/classclang_1_1AdjustedType.html>
 
-/// Represents a type in C (6.2.5 Types)
+/// Represents a type in C (6.2.5 Types).
 ///
 /// Reflects the types in <http://clang.llvm.org/doxygen/classclang_1_1Type.html>
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CTypeKind {
+    /// The `void` type.
     Void,
 
-    // Boolean type (6.2.5.2)
+    /// The boolean type (6.2.5.2).
     Bool,
 
-    // Character type (6.2.5.3)
+    /// The character type (6.2.5.3).
     Char,
 
-    // Signed types (6.2.5.4)
+    /// The signed integer types (6.2.5.4).
     SChar,
+    /// The signed integer types (6.2.5.4).
     Short,
+    /// The signed integer types (6.2.5.4).
     Int,
+    /// The signed integer types (6.2.5.4).
     Long,
+    /// The signed integer types (6.2.5.4).
     LongLong,
 
-    // Unsigned types (6.2.5.6) (actually this also includes `_Bool`)
+    /// The unsigned integer types (6.2.5.6).
     UChar,
+    /// The unsigned integer types (6.2.5.6).
     UShort,
+    /// The unsigned integer types (6.2.5.6).
     UInt,
+    /// The unsigned integer types (6.2.5.6).
     ULong,
+    /// The unsigned integer types (6.2.5.6).
     ULongLong,
 
-    // Real floating types (6.2.5.10). Ex: `double`
+    /// The real floating types (6.2.5.10). Ex: `double`.
     Float,
+    /// The real floating types (6.2.5.10). Ex: `double`.
     Double,
+    /// The real floating types (6.2.5.10). Ex: `double`.
     LongDouble,
 
-    // Clang specific types
+    /// Clang-specific 128-bit integer types.
     Int128,
+    /// Clang-specific 128-bit integer types.
     UInt128,
 
+    /// A complex number type.
     Complex(CTypeId),
 
-    // Pointer types (6.7.5.1)
+    /// A pointer type (6.7.5.1).
     Pointer(CQualTypeId),
 
-    // C++ Reference
+    /// A C++ reference type.
     Reference(CQualTypeId),
 
-    // Array types (6.7.5.2)
-    //
-    // A qualifier on an array type means the same thing as a qualifier on its element type. Since
-    // Clang tracks the qualifiers in both places, we choose to discard qualifiers on the element
-    // type.
-    //
-    // The size expression on a variable-length array is optional, it might be replaced with `*`
+    /// An array type (6.7.5.2).
+    ///
+    /// A qualifier on an array type means the same thing as a qualifier on its
+    /// element type. Since Clang tracks the qualifiers in both places, we
+    /// choose to discard qualifiers on the element type.
+    ///
+    /// The size expression on a variable-length array is optional, it might be
+    /// replaced with `*`.
     ConstantArray(CTypeId, usize),
+    /// An incomplete array type.
     IncompleteArray(CTypeId),
+    /// A variable-length array type.
     VariableArray(CTypeId, Option<CExprId>),
 
-    // Type of type or expression (GCC extension)
+    /// A `typeof` type (a GCC extension).
     TypeOf(CTypeId),
+    /// A `typeof` expression (a GCC extension).
     TypeOfExpr(CExprId),
 
-    // Function type (6.7.5.3)
-    //
-    // Note a function taking no arguments should have one `void` argument. Functions without any
-    // arguments are in K&R format.
-    // Flags: is_variable_argument, is_noreturn, has prototype
+    /// A function type (6.7.5.3).
+    ///
+    /// Note a function taking no arguments should have one `void` argument.
+    /// Functions without any arguments are in K&R format.
+    ///
+    /// Flags: is_variable_argument, is_noreturn, has prototype
     Function(CQualTypeId, Vec<CQualTypeId>, bool, bool, bool),
 
-    // Type definition type (6.7.7)
+    /// A typedef type (6.7.7).
     Typedef(CTypedefId),
 
-    // Represents a pointer type decayed from an array or function type.
+    /// A decayed pointer type.
     Decayed(CTypeId),
+    /// An elaborated type.
     Elaborated(CTypeId),
 
-    // Type wrapped in parentheses
+    /// A type wrapped in parentheses.
     Paren(CTypeId),
 
-    // Struct type
+    /// A struct type.
     Struct(CRecordId),
 
-    // Union type
+    /// A union type.
     Union(CRecordId),
 
-    // Enum definition type
+    /// An enum type.
     Enum(CEnumId),
 
+    /// A built-in function type.
     BuiltinFn,
 
+    /// An attributed type.
     Attributed(CQualTypeId, Option<Attribute>),
+    /// A `counted_by` or `sized_by` attributed type.
     CountAttributed(CQualTypeId, CountAttribute, CExprId),
 
+    /// A block pointer type.
     BlockPointer(CQualTypeId),
 
+    /// A vector type.
     Vector(CQualTypeId, usize),
 
+    /// A 16-bit floating-point type.
     Half,
+    /// A 16-bit floating-point type.
     BFloat16,
 
-    // ARM Scalable Vector Extension types
+    /// An ARM Scalable Vector Extension type.
     // TODO: represent all the individual types in AArch64SVEACLETypes.def
     UnhandledSveType,
 
+    /// A 128-bit floating-point type.
     Float128,
-    // Atomic types (6.7.2.4)
+    /// An atomic type (6.7.2.4).
     Atomic(CQualTypeId),
 
     // Rust sized types, pullback'd into C so that we can treat uint16_t, etc. as real types.
+    /// `int8_t`
     Int8,
+    /// `int16_t`
     Int16,
+    /// `int32_t`
     Int32,
+    /// `int64_t`
     Int64,
+    /// `intptr_t`
     IntPtr,
+    /// `uint8_t`
     UInt8,
+    /// `uint16_t`
     UInt16,
+    /// `uint32_t`
     UInt32,
+    /// `uint64_t`
     UInt64,
+    /// `uintptr_t`
     UIntPtr,
+    /// `intmax_t`
     IntMax,
+    /// `uintmax_t`
     UIntMax,
+    /// `size_t`
     Size,
+    /// `ssize_t`
     SSize,
+    /// `ptrdiff_t`
     PtrDiff,
+    /// `wchar_t`
     WChar,
 }
 
@@ -2128,45 +2341,56 @@ impl Display for CTypeKind {
     }
 }
 
+/// A C designator.
 #[derive(Copy, Clone, Debug)]
 pub enum Designator {
+    /// An array index designator.
     Index(u64),
+    /// A range designator.
     Range(u64, u64),
+    /// A field designator.
     Field(CFieldId),
 }
 
-/// Enumeration of supported attributes for Declarations
+/// An enumeration of supported attributes for declarations.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Attribute {
-    /// __attribute__((alias("foo"), __alias__("foo")))
+    /// `__attribute__((alias("foo")))`
     Alias(String),
-    /// __attribute__((always_inline, __always_inline__))
+    /// `__attribute__((always_inline))`
     AlwaysInline,
-    /// __attribute__((cold, __cold__))
+    /// `__attribute__((cold))`
     Cold,
-    /// __attribute__((gnu_inline, __gnu_inline__))
+    /// `__attribute__((gnu_inline))`
     GnuInline,
-    /// __attribute__((no_inline, __no_inline__))
+    /// `__attribute__((no_inline))`
     NoInline,
+    /// `__attribute__((noreturn))`
     NoReturn,
+    /// `__attribute__((nonnull))`
     NotNull,
+    /// `__attribute__((nullable))`
     Nullable,
-    /// __attribute__((section("foo"), __section__("foo")))
+    /// `__attribute__((section("foo")))`
     Section(String),
-    /// __attribute__((used, __used__))
+    /// `__attribute__((used))`
     Used,
-    /// __attribute((visibility("hidden")))
+    /// `__attribute__((visibility("hidden")))`
     Visibility(String),
-    /// __attribute__((fallthrough, __fallthrough__))
+    /// `__attribute__((fallthrough))`
     Fallthrough,
 }
 
-/// Enumeration of supported attributes for Declarations
+/// An enumeration of supported `counted_by` and `sized_by` attributes.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum CountAttribute {
+    /// `__attribute__((counted_by(field)))`
     CountedBy,
+    /// `__attribute__((sized_by(field)))`
     SizedBy,
+    /// `__attribute__((counted_by_or_null(field)))`
     CountedByOrNull,
+    /// `__attribute__((sized_by_or_null(field)))`
     SizedByOrNull,
 }
 

@@ -1,3 +1,9 @@
+//! This crate provides a library for exporting Clang ASTs as CBOR.
+//!
+//! It is used by `c2rust-transpile` to get an AST of the C code to be
+//! transpiled. It uses `libclang` to parse the C code and then walks the
+//! Clang AST, serializing it to a CBOR file.
+
 use serde_cbor::{Value, from_slice};
 use std::collections::HashMap;
 use std::ffi::{CStr, CString, c_char, c_int};
@@ -7,6 +13,18 @@ use std::slice;
 
 pub mod clang_ast;
 
+/// Get the untyped AST for a given file.
+///
+/// # Arguments
+///
+/// * `file_path` - The path to the file to be parsed.
+/// * `cc_db` - The path to the compilation database.
+/// * `extra_args` - Extra arguments to pass to Clang.
+/// * `debug` - Whether to enable debug output.
+///
+/// # Returns
+///
+/// A `Result` containing the `AstContext` or an `Error`.
 pub fn get_untyped_ast(
     file_path: &Path,
     cc_db: &Path,

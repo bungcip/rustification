@@ -5,6 +5,7 @@ use std::{ffi::OsStr, fs, path::PathBuf};
 
 use c2rust_transpile::{Diagnostic, ReplaceMode, TranspilerConfig};
 
+/// A C-to-Rust transpiler.
 #[derive(Debug, Parser)]
 #[clap(
 name = "transpile",
@@ -15,27 +16,27 @@ version,
 about = "Translate C code to equivalent Rust code",
 long_about = None)]
 struct Args {
-    /// Adds a prefix to all function names. Generally only useful for testing
+    /// Adds a prefix to all function names. Generally only useful for testing.
     #[clap(long)]
     prefix_function_names: Option<String>,
 
-    /// Prints out CBOR based Clang AST
+    /// Prints out CBOR based Clang AST.
     #[clap(long)]
     dump_untyped_clang_ast: bool,
 
-    /// Prints out the parsed typed Clang AST
+    /// Prints out the parsed typed Clang AST.
     #[clap(long)]
     dump_typed_clang_ast: bool,
 
-    /// Pretty-prints out the parsed typed Clang AST
+    /// Pretty-prints out the parsed typed Clang AST.
     #[clap(long)]
     pretty_typed_clang_ast: bool,
 
-    /// Debug Clang AST exporter plugin
+    /// Debug Clang AST exporter plugin.
     #[clap(long)]
     debug_ast_exporter: bool,
 
-    /// Verbose mode
+    /// Verbose mode.
     #[clap(short = 'v', long)]
     verbose: bool,
 
@@ -47,117 +48,124 @@ struct Args {
     #[clap(long, value_enum, default_value_t)]
     translate_fn_macros: TranslateMacros,
 
-    /// Disable relooping function bodies incrementally
+    /// Disable relooping function bodies incrementally.
     #[clap(long)]
     no_incremental_relooper: bool,
 
-    /// Do not run a pass to simplify structures
+    /// Do not run a pass to simplify structures.
     #[clap(long)]
     no_simplify_structures: bool,
 
-    /// Don't keep/use information about C loops
+    /// Don't keep/use information about C loops.
     #[clap(long)]
     ignore_c_loop_info: bool,
 
-    /// Don't keep/use information about C branches
+    /// Don't keep/use information about C branches.
     #[clap(long)]
     ignore_c_multiple_info: bool,
 
-    /// Dumps into files DOT visualizations of the CFGs of every function
+    /// Dumps into files DOT visualizations of the CFGs of every function.
     #[clap(long = "ddump-function-cfgs")]
     dump_function_cfgs: bool,
 
-    /// Dumps into files JSON visualizations of the CFGs of every function
+    /// Dumps into files JSON visualizations of the CFGs of every function.
     #[clap(long)]
     json_function_cfgs: bool,
 
-    /// Dump into the DOT file visualizations liveness information
+    /// Dump into the DOT file visualizations liveness information.
     #[clap(long = "ddump-cfgs-liveness")]
     dump_cfgs_liveness: bool,
 
-    /// Dumps out to STDERR the intermediate structures produced by relooper
+    /// Dumps out to STDERR the intermediate structures produced by relooper.
     #[clap(long = "ddump-structures")]
     dump_structures: bool,
 
-    /// Generate readable 'current_block' values in relooper
+    /// Generate readable 'current_block' values in relooper.
     #[clap(long = "ddebug-labels")]
     debug_labels: bool,
 
-    /// Path to compile_commands.json, or a list of source files
+    /// Path to compile_commands.json, or a list of source files.
     #[clap(value_parser, num_args=1..)]
     compile_commands: Vec<PathBuf>,
 
-    /// How to handle violated invariants or invalid code
+    /// How to handle violated invariants or invalid code.
     #[clap(long, value_enum, default_value_t = InvalidCodes::CompileError)]
     invalid_code: InvalidCodes,
 
-    /// Emit .rs files as modules instead of crates, excluding the crate preambles
+    /// Emit .rs files as modules instead of crates, excluding the crate preambles.
     #[clap(long)]
     emit_modules: bool,
 
-    /// Emit Rust build files, i.e., Cargo.toml for a library (and one or more binaries if -b/--binary is given). Implies --emit-modules.
+    /// Emit Rust build files, i.e., Cargo.toml for a library (and one or more
+    /// binaries if -b/--binary is given). Implies --emit-modules.
     #[clap(short = 'e', long)]
     emit_build_files: bool,
 
-    /// Path to output directory. Rust sources will be emitted in DIR/src/ and build files will be emitted in DIR/.
+    /// Path to output directory. Rust sources will be emitted in DIR/src/ and
+    /// build files will be emitted in DIR/.
     #[clap(short = 'o', long, value_name = "DIR")]
     output_dir: Option<PathBuf>,
 
-    /// Only transpile files matching filter
+    /// Only transpile files matching filter.
     #[clap(short = 'f', long)]
     filter: Option<Regex>,
 
-    /// Fail to translate a module when a portion is not able to be translated
+    /// Fail to translate a module when a portion is not able to be translated.
     #[clap(long)]
     fail_on_error: bool,
 
-    /// Emit Rust build files for a binary using the main function in the specified translation unit (implies -e/--emit-build-files)
+    /// Emit Rust build files for a binary using the main function in the
+    /// specified translation unit (implies -e/--emit-build-files).
     #[clap(short = 'b', long = "binary", num_args=1..)]
     binary: Option<Vec<String>>,
 
-    /// Emit files even if it causes existing files to be overwritten
+    /// Emit files even if it causes existing files to be overwritten.
     #[clap(long)]
     overwrite_existing: bool,
 
-    /// Reduces the number of explicit type annotations where it should be safe to do so
+    /// Reduces the number of explicit type annotations where it should be safe
+    /// to do so.
     #[clap(long)]
     reduce_type_annotations: bool,
 
-    /// Output file in such a way that the refactoring tool can deduplicate code
+    /// Output file in such a way that the refactoring tool can deduplicate
+    /// code.
     #[clap(short = 'r', long)]
     reorganize_definitions: bool,
 
-    /// Extra arguments to pass to clang frontend during parsing the input C file
+    /// Extra arguments to pass to clang frontend during parsing the input C
+    /// file.
     #[clap(num_args=0.., last(true))]
     extra_clang_args: Vec<String>,
 
-    /// Enable the specified warning (all enables all warnings)
+    /// Enable the specified warning (all enables all warnings).
     #[clap(short = 'W')]
     warn: Option<Diagnostic>,
 
-    /// Emit code using core rather than std
+    /// Emit code using core rather than std.
     #[clap(long)]
     emit_no_std: bool,
 
-    /// Disable running refactoring tool after translation
+    /// Disable running refactoring tool after translation.
     #[clap(long)]
     disable_refactoring: bool,
 
-    /// Include static and inline functions in translation
+    /// Include static and inline functions in translation.
     #[clap(long)]
     preserve_unused_functions: bool,
 
-    /// Logging level
+    /// Logging level.
     #[clap(long, default_value_t = LevelFilter::Warn)]
     log_level: LevelFilter,
 
-    /// Fail when the control-flow graph generates branching constructs
+    /// Fail when the control-flow graph generates branching constructs.
     #[clap(long)]
     fail_on_multiple: bool,
 }
 
 // TODO Eventually move this code into `c2rust-transpile`
 // so that it doesn't have to be duplicated for the `clap` derives.
+/// How to translate macros.
 #[derive(Default, Debug, PartialEq, Eq, ValueEnum, Clone)]
 pub enum TranslateMacros {
     /// Don't translate any macros.

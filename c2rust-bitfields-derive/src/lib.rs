@@ -1,3 +1,8 @@
+//! A derive macro for structs with bitfields.
+//!
+//! This crate provides a `BitfieldStruct` derive macro that generates getter
+//! and setter methods for bitfields in a struct.
+
 #![recursion_limit = "512"]
 
 use proc_macro::{Span, TokenStream};
@@ -137,6 +142,21 @@ fn parse_bitfield_ty_path(field: &BFFieldAttr) -> Path {
     }
 }
 
+// A derive macro for structs with bitfields.
+//
+// This macro generates getter and setter methods for bitfields in a struct.
+//
+// # Example
+//
+// ```
+// use c2rust_bitfields::BitfieldStruct;
+//
+// #[derive(BitfieldStruct)]
+// struct MyStruct {
+//     #[bitfield(name = "my_field", ty = "u32", bits = "0..=3")]
+//     _my_field: [u8; 1],
+// }
+// ```
 #[proc_macro_derive(BitfieldStruct, attributes(bitfield))]
 pub fn bitfield_struct(input: TokenStream) -> TokenStream {
     let struct_item = parse_macro_input!(input as ItemStruct);

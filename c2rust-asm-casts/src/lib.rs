@@ -1,20 +1,39 @@
 #![no_std]
 use core::marker::PhantomData;
 
-/// Pseudo-structure that provides the inner type definition
-/// and cast functions for every pair of types used
-/// in C2Rust's implementation of tied inline assembly operands.
-/// For two tied operands of types `In` and `Out`, this
-/// implementation provides the smallest type that can
-/// hold both operands, along with the casts to convert
-/// each operand to this type.
+/// A pseudo-structure that provides the inner type definition and cast
+/// functions for every pair of types used in C2Rust's implementation of tied
+/// inline assembly operands.
+///
+/// For two tied operands of types `In` and `Out`, this implementation provides
+/// the smallest type that can hold both operands, along with the casts to
+/// convert each operand to this type.
 pub struct AsmCast<Out, In>(PhantomData<(Out, In)>);
 
-/// This trait implements the cast functions for the type pair
+/// This trait implements the cast functions for the type pair.
 pub trait AsmCastTrait<Out, In> {
+    /// The smallest type that can hold both `In` and `Out`.
     type Type;
 
+    /// Casts the input operand `x` of type `In` to the common type `Self::Type`.
+    ///
+    /// # Parameters
+    ///
+    /// * `_`: A mutable reference to the output operand, which is not used in this function.
+    /// * `x`: The input operand of type `In`.
+    ///
+    /// # Returns
+    ///
+    /// The input operand `x` cast to the common type `Self::Type`.
     fn cast_in(_: &mut Out, x: In) -> Self::Type;
+
+    /// Casts the common type `x` to the output operand of type `Out`.
+    ///
+    /// # Parameters
+    ///
+    /// * `out`: A mutable reference to the output operand.
+    /// * `_`: The input operand, which is not used in this function.
+    /// * `x`: The value of the common type `Self::Type` to be cast to the output operand.
     fn cast_out(out: &mut Out, _: In, x: Self::Type);
 }
 
