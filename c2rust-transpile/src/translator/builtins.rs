@@ -1,9 +1,13 @@
 #![deny(missing_docs)]
 //! Implementations of clang's builtin functions
 
-use crate::{generic_err, generic_loc_err};
-
-use super::*;
+use super::{ExprContext, Translation, utils::vec_expr};
+use crate::c_ast::{CDeclKind, CExprId, CExprKind};
+use crate::diagnostics::{TranslationError, TranslationResult};
+use crate::with_stmts::WithStmts;
+use crate::{ExternCrate, generic_err, generic_loc_err, transform};
+use c2rust_ast_builder::mk;
+use syn::{BinOp, Expr};
 
 /// The argument type for a libc builtin function
 #[derive(Copy, Clone, PartialEq)]

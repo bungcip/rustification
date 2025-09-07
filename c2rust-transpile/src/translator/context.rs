@@ -2,7 +2,13 @@ use indexmap::IndexSet;
 
 use crate::c_ast::CDeclId;
 
-use super::DecayRef;
+use crate::c_ast::CTypeId;
+use crate::driver::DecayRef;
+
+#[derive(Clone)]
+pub struct MacroExpansion {
+    pub ty: CTypeId,
+}
 
 /// Options that impact an expression and all of its subexpressions.
 #[derive(Copy, Clone, Debug)]
@@ -125,7 +131,7 @@ impl ExprContext {
 }
 
 #[derive(Clone, Debug, Default)]
-pub(crate) struct FuncContext {
+pub struct FuncContext {
     /// The name of the function we're currently translating
     pub name: Option<String>,
     /// The name we give to the Rust function argument corresponding

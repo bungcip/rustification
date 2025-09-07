@@ -17,9 +17,13 @@
 
 use crate::c_ast::CLabelId;
 use crate::c_ast::iterators::{DFExpr, SomeId};
-use crate::diagnostics::TranslationResult;
+use crate::driver::Translation;
 use crate::rust_ast::SpanExt;
 use crate::translator::context::ExprContext;
+use crate::{
+    diagnostics::{TranslationError, TranslationResult},
+    generic_err,
+};
 use c2rust_ast_printer::pprust;
 use proc_macro2::Span;
 use std::collections::BTreeSet;
@@ -42,9 +46,8 @@ use serde::ser::{
 };
 use serde_json;
 
-use crate::translator::*;
+use crate::c_ast::*;
 use crate::with_stmts::WithStmts;
-use crate::{c_ast::*, generic_err};
 use c2rust_ast_builder::mk;
 
 mod inc_cleanup;
@@ -56,6 +59,95 @@ pub mod structures;
 use crate::cfg::inc_cleanup::IncCleanup;
 use crate::cfg::loops::*;
 use crate::cfg::multiples::*;
+
+impl<'c> Translation<'c> {
+    /// Convert a Control-Flow Graph (CFG) into a `Vec<Stmt>`.
+    ///
+    /// This function uses the "relooper" algorithm to convert the CFG into
+    /// structured Rust code (i.e., `if`, `loop`, `match` statements).
+    ///
+    /// `name` is the name of the function being converted, used for dumping
+    /// debug information.
+    /// `graph` is the CFG to be converted.
+    /// `store` is a store for the statements and declarations in the CFG.
+    /// `live_in` is the set of variables that are live at the entry to the
+    /// CFG.
+    /// `cut_out_trailing_ret` is true if the trailing `return` statement
+    /// should be omitted from the generated code. This is used for statement
+    /// expressions.
+    pub fn convert_cfg(
+        &self,
+        name: &str,
+        graph: Cfg<Label, StmtOrDecl>,
+        store: DeclStmtStore,
+        live_in: IndexSet<CDeclId>,
+        cut_out_trailing_ret: bool,
+    ) -> TranslationResult<Vec<Stmt>> {
+        if self.tcfg.dump_function_cfgs {
+            graph
+                .dump_dot_graph(
+                    &self.ast_context,
+                    &store,
+                    self.tcfg.dump_cfg_liveness,
+                    self.tcfg.use_c_loop_info,
+                    format!("{}_{}.dot", "cfg", name),
+                )
+                .expect("Failed to write CFG .dot file");
+        }
+        if self.tcfg.json_function_cfgs {
+            graph
+                .dump_json_graph(&store, format!("{}_{}.json", "cfg", name))
+                .expect("Failed to write CFG .json file");
+        }
+
+        let (lifted_stmts, relooped) = relooper::reloop(
+            graph,
+            store,
+            self.tcfg.simplify_structures,
+            self.tcfg.use_c_loop_info,
+            self.tcfg.use_c_multiple_info,
+            live_in,
+        );
+
+        if self.tcfg.dump_structures {
+            eprintln!("Relooped structures:");
+            for s in &relooped {
+                eprintln!("  {s:#?}");
+            }
+        }
+
+        let current_block_ident = self.renamer.borrow_mut().pick_name("current_block");
+        let current_block = mk().ident_expr(&current_block_ident);
+        let mut stmts: Vec<Stmt> = lifted_stmts;
+        if structures::has_multiple(&relooped) {
+            if self.tcfg.fail_on_multiple {
+                panic!("Uses of `current_block' are illegal with `--fail-on-multiple'.");
+            }
+
+            let current_block_ty = if self.tcfg.debug_relooper_labels {
+                mk().ref_lt_ty("static", mk().path_ty(vec!["str"]))
+            } else {
+                mk().path_ty(vec!["u64"])
+            };
+
+            let local = mk().local(
+                mk().mutbl().ident_pat(current_block_ident),
+                Some(current_block_ty),
+                None,
+            );
+            stmts.push(mk().local_stmt(Box::new(local)))
+        }
+
+        stmts.extend(structures::structured_cfg(
+            &relooped,
+            &mut self.comment_store.borrow_mut(),
+            current_block,
+            self.tcfg.debug_relooper_labels,
+            cut_out_trailing_ret,
+        )?);
+        Ok(stmts)
+    }
+}
 
 /// These labels identify basic blocks in a regular CFG.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]

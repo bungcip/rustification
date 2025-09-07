@@ -1,7 +1,7 @@
 use crate::TranslateMacros;
 use crate::diagnostics::Diagnostic;
+use crate::driver::ReplaceMode;
 use crate::get_module_name;
-use crate::translator::ReplaceMode;
 use itertools::Itertools;
 use log::{info, warn};
 use regex::Regex;

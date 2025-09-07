@@ -5,12 +5,14 @@
 use std::collections::HashSet;
 use std::ops::Index;
 
+use super::PADDING_SUFFIX;
 use super::TranslationError;
+use super::context::ExprContext;
 use super::named_references::NamedReference;
 use crate::c_ast::{BinOp, CDeclId, CDeclKind, CExprId, CRecordId, CTypeId};
 use crate::diagnostics::TranslationResult;
+use crate::driver::Translation;
 use crate::generic_err;
-use crate::translator::{ExprContext, PADDING_SUFFIX, Translation};
 use crate::with_stmts::WithStmts;
 use c2rust_ast_builder::mk;
 use c2rust_ast_printer::pprust;

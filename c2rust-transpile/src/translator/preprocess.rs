@@ -1,5 +1,6 @@
-use super::{Translation, prefix_names};
 use crate::c_ast::*;
+use crate::driver::Translation;
+use crate::translator::utils::prefix_names;
 use indexmap::IndexMap;
 
 pub fn preprocess_ast(t: &mut Translation) {
