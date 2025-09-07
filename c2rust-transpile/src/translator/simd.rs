@@ -1,14 +1,14 @@
 #![deny(missing_docs)]
 //! This module provides translation for SIMD operations and expressions.
 
-use super::{utils::transmute_expr, ExprContext, Translation};
+use super::{ExprContext, Translation, utils::transmute_expr};
 use crate::c_ast::{
-    CExprId, CExprKind, CQualTypeId, CTypeId, CTypeKind, CastKind, CDeclKind, IntBase,
+    CDeclKind, CExprId, CExprKind, CQualTypeId, CTypeId, CTypeKind, CastKind, IntBase,
 };
 use crate::diagnostics::{TranslationError, TranslationResult};
+use crate::generic_err;
 use crate::rust_ast::item_store::ItemStore;
 use crate::with_stmts::WithStmts;
-use crate::generic_err;
 use c2rust_ast_builder::mk;
 use syn::Expr;
 

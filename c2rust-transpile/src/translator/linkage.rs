@@ -1,4 +1,4 @@
-use c2rust_ast_builder::{mk, Builder};
+use c2rust_ast_builder::{Builder, mk};
 
 /// Generate link attributes needed to ensure that the generated Rust libraries
 /// have the right symbol values.

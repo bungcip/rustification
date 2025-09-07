@@ -36,7 +36,7 @@ pub use crate::driver::ReplaceMode;
 use std::prelude::v1::Vec;
 
 pub use config::TranspilerConfig;
-pub use driver::{transpile, translate, translate_failure, Translation};
+pub use driver::{Translation, translate, translate_failure, transpile};
 pub use reorganize::reorganize_definitions;
 
 pub type PragmaVec = Vec<(&'static str, Vec<&'static str>)>;

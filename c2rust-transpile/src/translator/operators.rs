@@ -1,14 +1,14 @@
 //! This module provides translations of unary and binary operator expressions.
 
 use super::{
-    utils::{pointer_offset, transmute_expr, unwrap_function_pointer},
     ExprContext, Translation,
+    utils::{pointer_offset, transmute_expr, unwrap_function_pointer},
 };
 use crate::c_ast::{self, CDeclKind, CExprId, CExprKind, CQualTypeId, CTypeId, CTypeKind};
 use crate::diagnostics::{TranslationError, TranslationResult};
 use crate::translator::named_references::NamedReference;
 use crate::with_stmts::WithStmts;
-use crate::{generic_err, transform, ExternCrate};
+use crate::{ExternCrate, generic_err, transform};
 use c2rust_ast_builder::{mk, properties::Mutability};
 use c2rust_ast_exporter::clang_ast::LRValue;
 use std::ops::Index;

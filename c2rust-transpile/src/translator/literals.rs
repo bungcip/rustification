@@ -2,14 +2,14 @@
 //! This code is used to generate literal expressions of various kinds.
 //! These include integer, floating, array, struct, union, enum literals.
 
-use super::{utils::transmute_expr, ExprContext, Translation};
+use super::{ExprContext, Translation, utils::transmute_expr};
 use crate::c_ast::{
     CDeclKind, CExprId, CExprKind, CFieldId, CLiteral, CQualTypeId, CRecordId, CTypeId, CTypeKind,
     CastKind, ConstIntExpr, IntBase,
 };
 use crate::diagnostics::{TranslationError, TranslationResult};
 use crate::with_stmts::WithStmts;
-use crate::{generic_err, ExternCrate};
+use crate::{ExternCrate, generic_err};
 use c2rust_ast_builder::{mk, properties::Mutability};
 use std::iter;
 use std::ops::Index;

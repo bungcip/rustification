@@ -17,10 +17,13 @@
 
 use crate::c_ast::CLabelId;
 use crate::c_ast::iterators::{DFExpr, SomeId};
-use crate::{generic_err, diagnostics::{TranslationResult, TranslationError}};
 use crate::driver::Translation;
-use crate::translator::context::ExprContext;
 use crate::rust_ast::SpanExt;
+use crate::translator::context::ExprContext;
+use crate::{
+    diagnostics::{TranslationError, TranslationResult},
+    generic_err,
+};
 use c2rust_ast_printer::pprust;
 use proc_macro2::Span;
 use std::collections::BTreeSet;
@@ -43,8 +46,8 @@ use serde::ser::{
 };
 use serde_json;
 
+use crate::c_ast::*;
 use crate::with_stmts::WithStmts;
-use crate::{c_ast::*};
 use c2rust_ast_builder::mk;
 
 mod inc_cleanup;

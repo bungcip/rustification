@@ -3,10 +3,10 @@ use std::char;
 use std::collections::HashMap;
 use std::ops::Index;
 use std::path::{self, PathBuf};
- // To override syn::Result from glob import
+// To override syn::Result from glob import
 
-use context::{ExprContext, FuncContext};
 use self::decls::ConvertedDecl;
+use context::{ExprContext, FuncContext};
 
 use indexmap::indexmap;
 use indexmap::{IndexMap, IndexSet};
@@ -29,10 +29,10 @@ use crate::convert_type::TypeConverter;
 use crate::renamer::Renamer;
 use crate::with_stmts::WithStmts;
 use crate::{
-    driver::{translate_failure, Translation},
     ExternCrate, ExternCrateDetails, TranspilerConfig,
+    driver::{Translation, translate_failure},
 };
-use crate::{c_ast::*, generic_err, TranslateMacros};
+use crate::{TranslateMacros, c_ast::*, generic_err};
 use c2rust_ast_exporter::clang_ast::LRValue;
 
 mod assembly;
@@ -42,19 +42,19 @@ mod casts;
 mod comments;
 pub mod context;
 pub(crate) mod declaration_converter;
-pub(crate) mod preprocess;
+pub(crate) mod decls;
 mod exprs;
+mod linkage;
 mod literals;
 mod macros;
 mod named_references;
 mod operators;
 mod pointer_wrappers;
-pub(crate) mod decls;
+pub(crate) mod preprocess;
 mod simd;
+mod statics;
 mod structs;
 mod types;
-mod linkage;
-mod statics;
 mod utils;
 pub(crate) mod variadic;
 
@@ -63,9 +63,6 @@ pub use crate::diagnostics::{TranslationError, TranslationErrorKind};
 
 pub const INNER_SUFFIX: &str = "_Inner";
 pub const PADDING_SUFFIX: &str = "_PADDING";
-
-
-
 
 fn item_ident(i: &Item) -> Option<&Ident> {
     use Item::*;
@@ -246,7 +243,10 @@ pub(crate) fn make_submodule(
 /// Pretty-print the leading pragmas and extern crate declarations
 // Fixing this would require major refactors for marginal benefit.
 #[allow(clippy::vec_box)]
-pub(crate) fn arrange_header(t: &Translation, is_binary: bool) -> (Vec<syn::Attribute>, Vec<Box<Item>>) {
+pub(crate) fn arrange_header(
+    t: &Translation,
+    is_binary: bool,
+) -> (Vec<syn::Attribute>, Vec<Box<Item>>) {
     let mut out_attrs = vec![];
     let mut out_items = vec![];
     if t.tcfg.emit_modules && !is_binary {
@@ -290,7 +290,6 @@ pub(crate) fn arrange_header(t: &Translation, is_binary: bool) -> (Vec<syn::Attr
     }
     (out_attrs, out_items)
 }
-
 
 struct ConvertedVariable {
     pub ty: Box<Type>,
@@ -439,7 +438,6 @@ impl<'c> Translation<'c> {
         mk().mac_expr(mk().call_mac(macro_name, macro_msg))
     }
 
-
     /// Determine if we're able to convert this const macro expansion.
     fn can_convert_const_macro_expansion(&self, expr_id: CExprId) -> TranslationResult<()> {
         match self.tcfg.translate_const_macros {
@@ -531,7 +529,6 @@ impl<'c> Translation<'c> {
         // TODO: Validate that all replacements are equivalent and pick the most
         // common type to minimize casts.
     }
-
 
     fn convert_function_body(
         &self,

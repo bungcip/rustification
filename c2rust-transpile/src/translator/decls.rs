@@ -1,19 +1,19 @@
 use super::{
+    ConvertedVariable, ExprContext, PADDING_SUFFIX,
     context::MacroExpansion,
     linkage::mk_linkage,
     utils::{add_src_loc_attr, clean_path, foreign_item_attrs, item_attrs, stmts_block},
-    ConvertedVariable, ExprContext, PADDING_SUFFIX,
 };
+use crate::c_ast::iterators::SomeId;
 use crate::c_ast::{
     self, CDecl, CDeclId, CDeclKind, CQualTypeId, CStmtId, CStmtKind, CTypeId, CTypeKind,
     ConstIntExpr, FileId,
 };
-use crate::c_ast::iterators::SomeId;
 use crate::diagnostics::{TranslationError, TranslationResult};
 use crate::driver::Translation;
 use crate::rust_ast::set_span::SetSpan;
-use crate::rust_ast::{pos_to_span, SpanExt};
-use crate::{cfg, generic_err, ExternCrate, ReplaceMode};
+use crate::rust_ast::{SpanExt, pos_to_span};
+use crate::{ExternCrate, ReplaceMode, cfg, generic_err};
 use c2rust_ast_builder::{mk, properties::*};
 use indexmap::IndexSet;
 use log::{info, trace, warn};

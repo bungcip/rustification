@@ -6,37 +6,38 @@ use std::process;
 use log::warn;
 
 use crate::build_files::{CrateConfig, create_dir_all_or_panic, emit_build_files, get_build_dir};
-use crate::generic_err;
 use crate::c_ast::ConversionContext;
 use crate::c_ast::Printer;
 use crate::compile_cmds::get_compile_commands;
 use crate::diagnostics;
+use crate::generic_err;
 use crate::reorganize::reorganize_definitions;
+use crate::rust_ast::SpanExt;
+use crate::rust_ast::set_span::SetSpan;
 use crate::{
-    c_ast::*, translator::*, with_stmts::WithStmts, CrateSet, PragmaSet, PragmaVec, RustChannel, TranspilerConfig,
+    CrateSet, PragmaSet, PragmaVec, RustChannel, TranspilerConfig, c_ast::*, translator::*,
+    with_stmts::WithStmts,
 };
 use c2rust_ast_builder::mk;
 use c2rust_ast_exporter as ast_exporter;
 use c2rust_ast_printer::pprust;
 use indexmap::{IndexMap, IndexSet};
-use log::{error};
+use log::error;
 use proc_macro2::Span;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Index;
-use syn::{self, BinOp, Item, ReturnType, Expr, Stmt, Ident, Type, spanned::Spanned};
-use crate::rust_ast::set_span::SetSpan;
-use crate::rust_ast::SpanExt;
+use syn::{self, BinOp, Expr, Ident, Item, ReturnType, Stmt, Type, spanned::Spanned};
 
 use crate::c_ast::iterators::SomeId;
 use crate::convert_type::TypeConverter;
 use crate::diagnostics::TranslationResult;
+use crate::get_module_name;
 use crate::renamer::Renamer;
 use crate::rust_ast::comment_store::CommentStore;
 use crate::rust_ast::item_store::ItemStore;
 use crate::translator::context::{ExprContext, FuncContext, MacroExpansion};
 use crate::translator::{declaration_converter, preprocess};
-use crate::get_module_name;
 use c2rust_ast_builder::properties::Mutability;
 
 type TranspileResult = Result<(PathBuf, String, PragmaVec, CrateSet, RustChannel), ()>;
@@ -314,7 +315,6 @@ pub enum ReplaceMode {
     Extern,
 }
 
-
 pub struct Translation<'c> {
     // Translation environment
     pub ast_context: TypedAstContext,
@@ -450,8 +450,7 @@ pub fn translate(
         // generate struct for wrapping pointer for static variable
         if *t.need_pointer_wrapper.borrow() {
             let mut_decls_items = t.generate_global_pointer_wrapper_struct(Mutability::Mutable);
-            let const_decls_items =
-                t.generate_global_pointer_wrapper_struct(Mutability::Immutable);
+            let const_decls_items = t.generate_global_pointer_wrapper_struct(Mutability::Immutable);
             let store = &mut t.items.borrow_mut()[&t.main_file];
 
             store.add_item(mut_decls_items.0);
@@ -855,8 +854,7 @@ fn transpile_single(
     }
 
     // Perform the translation
-    let (translated_string, pragmas, crates, channel) =
-        translate(typed_context, tcfg, input_path);
+    let (translated_string, pragmas, crates, channel) = translate(typed_context, tcfg, input_path);
 
     Ok((output_path, translated_string, pragmas, crates, channel))
 }

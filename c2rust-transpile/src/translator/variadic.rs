@@ -1,9 +1,9 @@
-use super::{utils::transmute_expr, ExprContext, Translation};
+use super::{ExprContext, Translation, utils::transmute_expr};
+use crate::c_ast::iterators::{DFExpr, SomeId};
 use crate::c_ast::{
     CDeclId, CDeclKind, CExprId, CExprKind, CQualTypeId, CStmtId, CTypeKind, CastKind,
     TypedAstContext,
 };
-use crate::c_ast::iterators::{DFExpr, SomeId};
 use crate::diagnostics::{TranslationError, TranslationResult};
 use crate::generic_err;
 use crate::with_stmts::WithStmts;

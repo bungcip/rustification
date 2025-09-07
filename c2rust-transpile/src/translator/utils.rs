@@ -6,15 +6,15 @@ use indexmap::IndexMap;
 use syn::{BinOp, Block, Expr, ExprBlock, Stmt, Type};
 
 use crate::c_ast::CDeclKind;
-use crate::transform;
-use crate::driver::Translation;
 use crate::c_ast::SrcLoc;
+use crate::driver::Translation;
+use crate::transform;
+use proc_macro2::TokenStream;
 use syn::{
     AttrStyle, ForeignItem, ForeignItemFn, ForeignItemMacro, ForeignItemStatic, ForeignItemType,
     Item, ItemConst, ItemEnum, ItemExternCrate, ItemFn, ItemForeignMod, ItemImpl, ItemMacro,
     ItemMod, ItemStatic, ItemStruct, ItemTrait, ItemTraitAlias, ItemType, ItemUnion, ItemUse,
 };
-use proc_macro2::TokenStream;
 
 /// Pointer offset that casts its argument to isize.
 ///
@@ -47,11 +47,7 @@ pub fn pointer_offset(
     }
 
     let res = mk().method_call_expr(ptr, "offset", vec![offset]);
-    if deref {
-        mk().deref_expr(res)
-    } else {
-        res
-    }
+    if deref { mk().deref_expr(res) } else { res }
 }
 
 /// Given an expression with type `Option<fn(...)->...>`, unwrap the `Option`
@@ -81,10 +77,7 @@ pub fn transmute_expr(source_ty: Box<Type>, target_ty: Box<Type>, expr: Box<Expr
     if type_args.is_empty() {
         path.push(mk().path_segment("transmute"));
     } else {
-        path.push(mk().path_segment_with_args(
-            "transmute",
-            mk().angle_bracketed_args(type_args),
-        ));
+        path.push(mk().path_segment_with_args("transmute", mk().angle_bracketed_args(type_args)));
     }
 
     mk().call_expr(mk().abs_path_expr(path), vec![expr])
@@ -154,9 +147,7 @@ pub fn stmts_block(mut stmts: Vec<Stmt>) -> Block {
         None => {}
         Some(Stmt::Expr(
             Expr::Block(ExprBlock {
-                block,
-                label: None,
-                ..
+                block, label: None, ..
             }),
             _semi,
         )) if stmts.is_empty() => return block,

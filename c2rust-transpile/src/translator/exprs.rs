@@ -9,20 +9,19 @@ use syn::*;
 use syn::{BinOp, UnOp}; // To override c_ast::{BinOp,UnOp} from glob import
 
 use crate::diagnostics::TranslationResult;
+use crate::driver::DecayRef;
 use crate::transform;
 use crate::translator::named_references::NamedReference;
-use crate::driver::DecayRef;
 use crate::{
     c_ast::{CDeclKind, CExprKind, CTypeKind, UnTypeOp},
-    generic_err,
-    generic_loc_err,
+    generic_err, generic_loc_err,
     with_stmts::WithStmts,
 };
 
+use crate::ExternCrate;
 use crate::c_ast;
 use crate::c_ast::*;
 use crate::translator::utils;
-use crate::ExternCrate;
 
 use super::{ExprContext, Translation};
 
@@ -225,7 +224,7 @@ impl<'c> Translation<'c> {
                         if let Some(cur_file) = *self.cur_file.borrow() {
                             self.import_type(qual_ty.ctype, cur_file);
                         }
-                            val = utils::transmute_expr(actual_ty, ty, val);
+                        val = utils::transmute_expr(actual_ty, ty, val);
                         set_unsafe = true;
                     } else {
                         let decl_kind = &self.ast_context[decl_id].kind;

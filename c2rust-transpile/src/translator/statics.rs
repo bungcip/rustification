@@ -1,11 +1,9 @@
 use c2rust_ast_builder::mk;
 use syn::{Expr, Item, ReturnType};
 
-use crate::c_ast::{
-    CDeclKind, CExprId, CExprKind, CQualTypeId, CTypeKind, CastKind,
-};
-use crate::c_ast::iterators::SomeId;
 use crate::c_ast::iterators::DFExpr;
+use crate::c_ast::iterators::SomeId;
+use crate::c_ast::{CDeclKind, CExprId, CExprKind, CQualTypeId, CTypeKind, CastKind};
 use crate::diagnostics::TranslationResult;
 use crate::driver::Translation;
 use c2rust_ast_exporter::clang_ast::LRValue;
