@@ -1,3 +1,8 @@
+//! The main library for `c2rust-transpile`.
+//!
+//! This library provides the main entry point for the transpiler, and it
+//! re-exports a number of items from other modules.
+
 #![allow(clippy::too_many_arguments)]
 
 mod config;
@@ -37,12 +42,16 @@ pub use reorganize::reorganize_definitions;
 type PragmaVec = Vec<(&'static str, Vec<&'static str>)>;
 type PragmaSet = indexmap::IndexSet<(&'static str, &'static str)>;
 type CrateSet = indexmap::IndexSet<ExternCrate>;
+/// The Rust channel to use for the transpiled code.
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum RustChannel {
+    /// The stable Rust channel.
     Stable,
+    /// The nightly Rust channel.
     Nightly,
 }
 
+/// How to translate macros.
 #[derive(Default, Debug)]
 pub enum TranslateMacros {
     /// Don't translate any macros.
@@ -59,29 +68,43 @@ pub enum TranslateMacros {
     Experimental,
 }
 
-/// maximum nightly version that c2rust-transpile can compile without compile error or segfault.
-/// unfornately, the resulting transpiled code cannot be compiled on recent nighlty due various reason
+/// The maximum nightly version that c2rust-transpile can compile without
+/// a compile error or segfault. Unfortunately, the resulting transpiled code
+/// cannot be compiled on recent nightly due to various reasons.
 pub const MAX_NIGHTLY_VERSION: &str = "2025-04-19";
 
+/// An extern crate that may be required by the transpiled code.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ExternCrate {
+    /// The `c2rust-bitfields` crate.
     C2RustBitfields,
+    /// The `c2rust-asm-casts` crate.
     C2RustAsmCasts,
+    /// The `f128` crate.
     F128,
+    /// The `num-traits` crate.
     NumTraits,
+    /// The `memoffset` crate.
     Memoffset,
+    /// The `libc` crate.
     Libc,
 }
 
+/// Details about an extern crate.
 #[derive(Serialize)]
 pub struct ExternCrateDetails {
+    /// The name of the crate.
     pub name: &'static str,
+    /// The identifier of the crate.
     pub ident: String,
+    /// Whether the crate should be imported with `#[macro_use]`.
     pub macro_use: bool,
+    /// The version of the crate.
     pub version: &'static str,
 }
 
 impl ExternCrateDetails {
+    /// Creates a new `ExternCrateDetails`.
     pub fn new(name: &'static str, version: &'static str, macro_use: bool) -> Self {
         Self {
             name,
@@ -128,6 +151,14 @@ fn str_to_ident_checked(filename: &Option<String>, check_reserved: bool) -> Opti
     })
 }
 
+/// Get the module name for a given file path.
+///
+/// # Arguments
+///
+/// * `file` - The path to the file.
+/// * `check_reserved` - Whether to check for reserved keywords.
+/// * `keep_extension` - Whether to keep the file extension.
+/// * `full_path` - Whether to return the full path.
 pub fn get_module_name(
     file: &Path,
     check_reserved: bool,
@@ -153,6 +184,16 @@ pub fn get_module_name(
     file.to_str().map(String::from)
 }
 
+/// Create a temporary `compile_commands.json` file.
+///
+/// # Arguments
+///
+/// * `sources` - A list of source files to include in the compilation database.
+///
+/// # Returns
+///
+/// A tuple containing the temporary directory and the path to the
+/// `compile_commands.json` file.
 pub fn create_temp_compile_commands(sources: &[PathBuf]) -> (TempDir, PathBuf) {
     // If we generate the same path here on every run, then we can't run
     // multiple transpiles in parallel, so we need a unique path. But clang

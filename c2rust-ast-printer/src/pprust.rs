@@ -1,22 +1,30 @@
 #[cfg(test)]
 mod tests;
 
+/// A byte position.
 #[derive(PartialEq, Eq, Debug, PartialOrd, Ord, Copy, Clone)]
 pub struct BytePos(pub u32);
 
 pub mod comments {
+    //! A module for handling comments.
     #[derive(Clone)]
     pub struct Comment {
+        /// The lines of the comment.
         pub lines: Vec<String>,
+        /// The byte position of the comment.
         pub pos: super::BytePos,
     }
 }
 
+/// The header of a macro invocation.
 pub enum MacHeader<'a> {
+    /// A path to the macro.
     Path(&'a syn::Path),
+    /// A keyword macro.
     Keyword(&'static str),
 }
 
+/// A collection of comments.
 pub struct Comments {
     //cm: &'a SourceMap,
     comments: Vec<comments::Comment>,
@@ -24,6 +32,7 @@ pub struct Comments {
 }
 
 impl Comments {
+    /// Creates a new `Comments` collection.
     pub fn new(
         //cm: &'a SourceMap,
         comments: Vec<comments::Comment>,
@@ -49,10 +58,12 @@ impl Comments {
     //     }
     // }
 
+    /// Returns the next comment in the collection.
     pub fn next(&self) -> Option<comments::Comment> {
         self.comments.get(self.current).cloned()
     }
 
+    /// Returns the trailing comment for a given span, if any.
     pub fn trailing_comment(
         &mut self,
         _span: proc_macro2::Span,
@@ -142,11 +153,13 @@ fn ret_expr() -> syn::Expr {
     })
 }
 
+/// Converts an expression to a string.
 pub fn expr_to_string(e: &syn::Expr) -> String {
     let s = to_string(move || minimal_file(syn::Stmt::Expr(e.clone(), None)));
     strip_main_fn(&s).trim_end_matches(';').to_owned()
 }
 
+/// Converts a path to a string.
 pub fn path_to_string(p: &syn::Path) -> String {
     let e = syn::Expr::Path(syn::ExprPath {
         attrs: vec![],
@@ -156,6 +169,7 @@ pub fn path_to_string(p: &syn::Path) -> String {
     expr_to_string(&e)
 }
 
+/// Converts a pattern to a string.
 pub fn pat_to_string(p: &syn::Pat) -> String {
     let ret_expr = Box::new(ret_expr());
     let e = syn::Expr::Let(syn::ExprLet {
@@ -178,11 +192,13 @@ pub fn pat_to_string(p: &syn::Pat) -> String {
         .to_owned()
 }
 
+/// Converts a statement to a string.
 pub fn stmt_to_string(s: &syn::Stmt) -> String {
     let s = to_string(move || minimal_file(s.clone()));
     strip_main_fn(&s).to_owned()
 }
 
+/// Converts a `syn::File` to a string.
 pub fn to_string<F>(f: F) -> String
 where
     F: FnOnce() -> syn::File,

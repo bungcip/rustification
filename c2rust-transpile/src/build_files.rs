@@ -16,10 +16,14 @@ use crate::PragmaSet;
 use crate::get_module_name;
 use crate::{CrateSet, MAX_NIGHTLY_VERSION};
 
+/// What to emit into the build directory.
 #[derive(Debug, Copy, Clone)]
 pub enum BuildDirectoryContents {
+    /// Don't emit any build files.
     Nothing,
+    /// Emit a minimal `Cargo.toml` and `lib.rs`.
     Minimal,
+    /// Emit a full `Cargo.toml` and `lib.rs` with all the dependencies and modules.
     Full,
 }
 
@@ -36,7 +40,7 @@ impl FromStr for BuildDirectoryContents {
     }
 }
 
-/// Create the build directory
+/// Create the build directory.
 pub fn get_build_dir(tcfg: &TranspilerConfig, cc_db: &Path) -> PathBuf {
     let cc_db_dir = cc_db
         .parent() // get directory of `compile_commands.json`
@@ -54,22 +58,37 @@ pub fn get_build_dir(tcfg: &TranspilerConfig, cc_db: &Path) -> PathBuf {
     }
 }
 
+/// Configuration for a crate.
 pub fn create_dir_all_or_panic(path: &Path) {
     fs::create_dir_all(path)
         .unwrap_or_else(|_| panic!("couldn't create build directory: {}", path.display()));
 }
 
 pub struct CrateConfig<'lcmd> {
+    /// The name of the crate.
     pub crate_name: String,
+    /// The modules in the crate.
     pub modules: Vec<PathBuf>,
+    /// The pragmas in the crate.
     pub pragmas: PragmaSet,
+    /// The extern crates required by the crate.
     pub crates: CrateSet,
+    /// The link command for the crate.
     pub link_cmd: &'lcmd LinkCmd,
 }
 
 /// Emit `Cargo.toml` and `lib.rs` for a library or `main.rs` for a binary.
+///
 /// Returns the path to `lib.rs` or `main.rs` (or `None` if the output file
 /// existed already).
+///
+/// # Arguments
+///
+/// * `tcfg` - The transpiler configuration.
+/// * `build_dir` - The build directory.
+/// * `crate_cfg` - The configuration for the crate.
+/// * `workspace_members` - The members of the workspace.
+/// * `use_nightly` - Whether to use the nightly toolchain.
 pub fn emit_build_files(
     tcfg: &TranspilerConfig,
     build_dir: &Path,

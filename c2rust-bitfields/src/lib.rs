@@ -1,17 +1,30 @@
+//! A library for working with bitfields.
+//!
+//! This crate provides a `FieldType` trait that can be implemented for any
+//! type that can be used as a bitfield. It also provides a `BitfieldStruct`
+//! derive macro that can be used to generate getter and setter methods for
+//! bitfields in a struct.
+
 #![cfg_attr(feature = "no_std", no_std)]
 
 pub use c2rust_bitfields_derive::BitfieldStruct;
 
+/// A trait for types that can be used as bitfields.
 pub trait FieldType: Sized {
+    /// Whether the type is signed.
     const IS_SIGNED: bool;
 
+    /// The total number of bits in the type.
     #[cfg(not(feature = "no_std"))]
     const TOTAL_BIT_SIZE: usize = ::std::mem::size_of::<Self>() * 8;
+    /// The total number of bits in the type.
     #[cfg(feature = "no_std")]
     const TOTAL_BIT_SIZE: usize = ::core::mem::size_of::<Self>() * 8;
 
+    /// Gets the value of a single bit.
     fn get_bit(&self, bit: usize) -> bool;
 
+    /// Sets the value of a bitfield.
     fn set_field(&self, field: &mut [u8], bit_range: (usize, usize)) {
         fn zero_bit(byte: &mut u8, n_bit: u64) {
             let bit = 1 << n_bit;
@@ -39,6 +52,7 @@ pub trait FieldType: Sized {
         }
     }
 
+    /// Gets the value of a bitfield.
     fn get_field(field: &[u8], bit_range: (usize, usize)) -> Self;
 }
 

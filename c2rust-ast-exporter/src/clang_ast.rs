@@ -10,25 +10,34 @@ pub use serde_cbor::value::{Value, from_value};
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
+/// Represents whether an expression is an lvalue or an rvalue.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum LRValue {
+    /// The expression is an lvalue.
     LValue,
+    /// The expression is an rvalue.
     RValue,
 }
 
 impl LRValue {
+    /// Returns `true` if the value is an lvalue.
     pub fn is_lvalue(&self) -> bool {
         *self == LRValue::LValue
     }
+    /// Returns `true` if the value is an rvalue.
     pub fn is_rvalue(&self) -> bool {
         *self == LRValue::RValue
     }
 }
 
+/// Represents a source location.
 #[derive(Copy, Debug, Clone, PartialOrd, PartialEq, Ord, Eq)]
 pub struct SrcLoc {
+    /// The ID of the file.
     pub fileid: u64,
+    /// The line number.
     pub line: u64,
+    /// The column number.
     pub column: u64,
 }
 
@@ -43,12 +52,18 @@ impl Display for SrcLoc {
     }
 }
 
+/// Represents a source span.
 #[derive(Copy, Debug, Clone, PartialOrd, PartialEq, Ord, Eq)]
 pub struct SrcSpan {
+    /// The ID of the file.
     pub fileid: u64,
+    /// The beginning line number.
     pub begin_line: u64,
+    /// The beginning column number.
     pub begin_column: u64,
+    /// The ending line number.
     pub end_line: u64,
+    /// The ending column number.
     pub end_column: u64,
 }
 
@@ -97,37 +112,54 @@ impl SrcSpan {
     }
 }
 
+/// Represents a node in the Clang AST.
 #[derive(Debug, Clone)]
 pub struct AstNode {
+    /// The tag of the AST node.
     pub tag: ASTEntryTag,
+    /// The children of the AST node.
     pub children: Vec<Option<u64>>,
+    /// The source location of the AST node.
     pub loc: SrcSpan,
+    /// The type ID of the AST node.
     pub type_id: Option<u64>,
+    /// Whether the expression is an lvalue or an rvalue.
     pub rvalue: LRValue,
 
-    // Stack of macros this node was expanded from, beginning with the initial
-    // macro call and ending with the leaf. This needs to be a stack for nested
-    // macro definitions.
+    /// Stack of macros this node was expanded from, beginning with the initial
+    /// macro call and ending with the leaf. This needs to be a stack for nested
+    /// macro definitions.
     pub macro_expansions: Vec<u64>,
+    /// The text of the macro expansion.
     pub macro_expansion_text: Option<String>,
+    /// Extra data associated with the AST node.
     pub extras: Vec<Value>,
 }
 
+/// Represents a type in the Clang AST.
 #[derive(Debug, Clone)]
 pub struct TypeNode {
+    /// The tag of the type.
     pub tag: TypeTag,
+    /// Extra data associated with the type.
     pub extras: Vec<Value>,
 }
 
+/// Represents a comment in the source code.
 #[derive(Debug, Clone)]
 pub struct CommentNode {
+    /// The source location of the comment.
     pub loc: SrcLoc,
+    /// The text of the comment.
     pub string: String,
 }
 
+/// Represents a source file.
 #[derive(Debug, Clone)]
 pub struct SrcFile {
+    /// The path to the source file.
     pub path: Option<PathBuf>,
+    /// The location where the file was included, if any.
     pub include_loc: Option<SrcLoc>,
 }
 
@@ -139,17 +171,26 @@ impl TypeNode {
     pub const VOLATILE_MASK: u64 = 0b100;
 }
 
+/// Represents the context of a Clang AST.
 #[derive(Debug, Clone)]
 pub struct AstContext {
+    /// The AST nodes in the context.
     pub ast_nodes: HashMap<u64, AstNode>,
+    /// The type nodes in the context.
     pub type_nodes: HashMap<u64, TypeNode>,
+    /// The top-level AST nodes in the context.
     pub top_nodes: Vec<u64>,
+    /// The comments in the source code.
     pub comments: Vec<CommentNode>,
+    /// The source files in the context.
     pub files: Vec<SrcFile>,
+    /// The kind of `va_list` used in the source code.
     pub va_list_kind: BuiltinVaListKind,
+    /// The target triple.
     pub target: String,
 }
 
+/// A helper function that expects an optional string.
 pub fn expect_opt_str(val: &Value) -> Option<Option<&str>> {
     match *val {
         Value::Null => Some(None),
@@ -158,6 +199,7 @@ pub fn expect_opt_str(val: &Value) -> Option<Option<&str>> {
     }
 }
 
+/// A helper function that expects an optional u64.
 pub fn expect_opt_u64(val: &Value) -> Option<Option<u64>> {
     match *val {
         Value::Null => Some(None),
@@ -178,6 +220,7 @@ fn import_va_list_kind(tag: u64) -> BuiltinVaListKind {
     unsafe { std::mem::transmute::<u32, BuiltinVaListKind>(tag as u32) }
 }
 
+/// Process the CBOR representation of the Clang AST into an `AstContext`.
 pub fn process(items: Value) -> error::Result<AstContext> {
     let mut asts: HashMap<u64, AstNode> = HashMap::new();
     let mut types: HashMap<u64, TypeNode> = HashMap::new();

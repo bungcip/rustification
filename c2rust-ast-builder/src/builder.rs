@@ -8,17 +8,27 @@ use std::iter::FromIterator;
 use syn::{__private::ToTokens, punctuated::Punctuated, *};
 
 pub mod properties {
+    //! This module contains enums that represent various properties of AST nodes,
+    //! such as mutability, unsafety, and constness. These enums are used by the
+    //! `Builder` to construct AST nodes with the correct properties.
+
     use proc_macro2::Span;
     use syn::{PointerMutability, StaticMutability, Token};
 
+    /// A trait for converting a property enum into a `Token`.
     pub trait ToToken {
+        /// The type of the token that this property converts to.
         type Token;
+        /// Converts the property into a `Token`.
         fn to_token(&self) -> Option<Self::Token>;
     }
 
+    /// Represents the mutability of a variable or pointer.
     #[derive(Debug, Copy, Clone, PartialEq)]
     pub enum Mutability {
+        /// The variable or pointer is mutable.
         Mutable,
+        /// The variable or pointer is immutable.
         Immutable,
     }
 
@@ -33,6 +43,7 @@ pub mod properties {
     }
 
     impl Mutability {
+        /// Converts the `Mutability` enum into a `StaticMutability`.
         pub fn to_static_mutability(&self, span: Span) -> StaticMutability {
             match self {
                 Mutability::Mutable => StaticMutability::Mut(Token![mut](span)),
@@ -40,6 +51,7 @@ pub mod properties {
             }
         }
 
+        /// Converts the `Mutability` enum into a `PointerMutability`.
         pub fn to_pointer_mutability(&self, span: Span) -> PointerMutability {
             match self {
                 Mutability::Mutable => PointerMutability::Mut(Token![mut](span)),
@@ -48,11 +60,15 @@ pub mod properties {
         }
     }
 
+    /// Represents the unsafety of a function or block.
     #[derive(Debug, Clone)]
     pub enum Unsafety {
+        /// The function or block is safe.
         Normal,
+        /// The function or block is unsafe.
         Unsafe,
     }
+
     impl ToToken for Unsafety {
         type Token = Token![unsafe];
         fn to_token(&self) -> Option<Self::Token> {
@@ -63,11 +79,15 @@ pub mod properties {
         }
     }
 
+    /// Represents the constness of a function or variable.
     #[derive(Debug, Clone)]
     pub enum Constness {
+        /// The function or variable is const.
         Const,
+        /// The function or variable is not const.
         NotConst,
     }
+
     impl ToToken for Constness {
         type Token = Token![const];
         fn to_token(&self) -> Option<Self::Token> {
@@ -78,11 +98,15 @@ pub mod properties {
         }
     }
 
+    /// Represents the movability of a variable.
     #[derive(Debug, Clone)]
     pub enum Movability {
+        /// The variable is movable.
         Movable,
+        /// The variable is immovable (i.e., `static`).
         Immovable,
     }
+
     impl ToToken for Movability {
         type Token = Token![static];
         fn to_token(&self) -> Option<Self::Token> {
@@ -93,11 +117,15 @@ pub mod properties {
         }
     }
 
+    /// Represents whether a function is async.
     #[derive(Debug, Clone)]
     pub enum IsAsync {
+        /// The function is async.
         Async,
+        /// The function is not async.
         NotAsync,
     }
+
     impl ToToken for IsAsync {
         type Token = Token![async];
         fn to_token(&self) -> Option<Self::Token> {
@@ -108,11 +136,15 @@ pub mod properties {
         }
     }
 
+    /// Represents the defaultness of an impl.
     #[derive(Debug, Clone)]
     pub enum Defaultness {
+        /// The impl is final.
         Final,
+        /// The impl is a default impl.
         Default,
     }
+
     impl ToToken for Defaultness {
         type Token = Token![default];
         fn to_token(&self) -> Option<Self::Token> {
@@ -161,7 +193,12 @@ fn punct_box<T, P: Default>(x: Vec<Box<T>>) -> Punctuated<T, P> {
     Punctuated::from_iter(x.into_iter().map(|x| *x))
 }
 
+/// A trait for converting a value into an AST node.
+///
+/// This trait is used by the `Builder` to convert values into AST nodes.
+/// For example, `&str` can be converted into an `Ident` or a `Path`.
 pub trait Make<T> {
+    /// Converts the value into an AST node.
     fn make(self, mk: &Builder) -> T;
 }
 
@@ -462,11 +499,14 @@ impl Make<TypeParamBound> for &str {
     }
 }
 
+/// A builder for creating Rust AST nodes.
+///
+/// The builder holds a set of "modifiers", such as visibility and mutability.
+/// Functions for building AST nodes don't take arguments of these types, but
+/// instead use any applicable modifiers from the builder to set the node's
+/// visibility, mutability, etc.
 #[derive(Clone, Debug)]
 pub struct Builder {
-    // The builder holds a set of "modifiers", such as visibility and mutability.  Functions for
-    // building AST nodes don't take arguments of these types, but instead use any applicable
-    // modifiers from the builder to set the node's visibility, mutability, etc.
     vis: Visibility,
     mutbl: Mutability,
     generics: Generics,
@@ -493,64 +533,77 @@ impl Default for Builder {
 }
 
 impl Builder {
+    /// Creates a new `Builder` with default values.
     pub fn new() -> Builder {
         Builder::default()
     }
 
     // Modifier updates.
 
+    /// Sets the visibility of the next node to be built.
     pub fn vis<V: Make<Visibility>>(self, vis: V) -> Self {
         let vis = vis.make(&self);
         Builder { vis, ..self }
     }
 
+    /// Sets the visibility of the next node to be built to public.
     pub fn pub_(self) -> Self {
         let pub_token = Token![pub](self.span);
         self.vis(Visibility::Public(pub_token))
     }
 
+    /// Sets the mutability of the next node to be built.
     pub fn set_mutbl(self, mutbl: Mutability) -> Self {
         let mutbl = mutbl.make(&self);
         Builder { mutbl, ..self }
     }
 
+    /// Sets the mutability of the next node to be built to mutable.
     pub fn mutbl(self) -> Self {
         self.set_mutbl(Mutability::Mutable)
     }
 
+    /// Sets the unsafety of the next node to be built.
     pub fn unsafety<U: Make<Unsafety>>(self, unsafety: U) -> Self {
         let unsafety = unsafety.make(&self);
         Builder { unsafety, ..self }
     }
 
+    /// Sets the unsafety of the next node to be built to unsafe.
     pub fn unsafe_(self) -> Self {
         self.unsafety(Unsafety::Unsafe)
     }
 
+    /// Sets the constness of the next node to be built.
     pub fn constness<C: Make<Constness>>(self, constness: C) -> Self {
         let constness = constness.make(&self);
         Builder { constness, ..self }
     }
 
+    /// Sets the constness of the next node to be built to const.
     pub fn const_(self) -> Self {
         self.constness(Constness::Const)
     }
 
+    /// Sets the extern ABI of the next node to be built.
     pub fn extern_<A: Make<Extern>>(self, ext: A) -> Self {
         let ext = ext.make(&self);
         Builder { ext, ..self }
     }
 
+    /// Sets the span of the next node to be built.
     pub fn span<S: Make<Span>>(self, span: S) -> Self {
         let span = span.make(&self);
         Builder { span, ..self }
     }
 
+    /// Adds a generic parameter to the builder.
     pub fn generic_over(mut self, param: GenericParam) -> Self {
         self.generics.params.push(param);
         self
     }
 
+    /// Adds a where clause to the builder.
     pub fn where_clause(mut self, predicates: Vec<WherePredicate>) -> Self {
         self.generics.where_clause = Some(WhereClause {
             where_token: Token![where](self.span),
@@ -559,6 +612,7 @@ impl Builder {
         self
     }
 
+    /// Creates a where predicate.
     pub fn where_predicate<TPB>(self, ty: Box<Type>, bounds: Vec<TPB>) -> WherePredicate
     where
         TPB: Make<TypeParamBound>,
@@ -574,6 +628,7 @@ impl Builder {
         })
     }
 
+    /// Adds an attribute to the builder.
     fn prepared_attr(self, meta: Meta) -> Self {
         let attr = mk().attribute(AttrStyle::Outer, meta);
         let mut attrs = self.attrs;
@@ -581,6 +636,7 @@ impl Builder {
         Builder { attrs, ..self }
     }
 
+    /// Adds a string attribute to the builder.
     pub fn str_attr<K, V>(self, key: K, value: V) -> Self
     where
         K: Make<Path>,
@@ -590,6 +646,7 @@ impl Builder {
         self.prepared_attr(meta)
     }
 
+    /// Adds a single-word attribute to the builder.
     pub fn single_attr<K>(self, key: K) -> Self
     where
         K: Make<Path>,
@@ -598,6 +655,7 @@ impl Builder {
         self.prepared_attr(meta)
     }
 
+    /// Adds a call-style attribute to the builder.
     pub fn call_attr<K, V>(self, func: K, arguments: V) -> Self
     where
         K: Make<Path>,
@@ -609,6 +667,7 @@ impl Builder {
 
     // Path segments with parameters
 
+    /// Creates a path segment with arguments.
     pub fn path_segment_with_args<I, P>(self, identifier: I, args: P) -> PathSegment
     where
         I: Make<Ident>,
@@ -622,6 +681,7 @@ impl Builder {
         }
     }
 
+    /// Creates angle-bracketed arguments.
     pub fn angle_bracketed_args<A>(self, args: Vec<A>) -> AngleBracketedGenericArguments
     where
         A: Make<GenericArgument>,
@@ -637,6 +697,7 @@ impl Builder {
 
     // Simple nodes
 
+    /// Creates an identifier.
     pub fn ident<I>(self, name: I) -> Ident
     where
         I: Make<Ident>,
@@ -644,6 +705,7 @@ impl Builder {
         name.make(&self)
     }
 
+    /// Creates a path segment.
     pub fn path_segment<S>(self, seg: S) -> PathSegment
     where
         S: Make<PathSegment>,
@@ -651,6 +713,7 @@ impl Builder {
         seg.make(&self)
     }
 
+    /// Creates a path.
     pub fn path<Pa>(self, path: Pa) -> Path
     where
         Pa: Make<Path>,
@@ -658,6 +721,7 @@ impl Builder {
         path.make(&self)
     }
 
+    /// Creates an absolute path.
     pub fn abs_path<Pa>(self, path: Pa) -> Path
     where
         Pa: Make<Path>,
@@ -671,6 +735,7 @@ impl Builder {
     // These are sorted in the same order as the corresponding ExprKind variants, with additional
     // variant-specific details following each variant.
 
+    /// Creates an array expression.
     pub fn array_expr(self, args: Vec<Box<Expr>>) -> Box<Expr> {
         let args = args.into_iter().map(|a| *a).collect();
         Box::new(Expr::Array(ExprArray {
@@ -680,6 +745,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a function call expression.
     pub fn call_expr(self, func: Box<Expr>, args: Vec<Box<Expr>>) -> Box<Expr> {
         let args = args.into_iter().map(|a| *a).collect();
         Box::new(parenthesize_if_necessary(Expr::Call(ExprCall {
@@ -690,6 +756,7 @@ impl Builder {
         })))
     }
 
+    /// Creates a method call expression.
     pub fn method_call_expr<S>(self, expr: Box<Expr>, seg: S, args: Vec<Box<Expr>>) -> Box<Expr>
     where
         S: Make<PathSegment>,
@@ -722,6 +789,7 @@ impl Builder {
         )))
     }
 
+    /// Creates a tuple expression.
     pub fn tuple_expr(self, exprs: Vec<Box<Expr>>) -> Box<Expr> {
         Box::new(Expr::Tuple(ExprTuple {
             attrs: self.attrs,
@@ -730,6 +798,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a binary expression.
     pub fn binary_expr(self, op: BinOp, mut lhs: Box<Expr>, rhs: Box<Expr>) -> Box<Expr> {
         match op {
             BinOp::Lt(_) | BinOp::Shl(_) if has_rightmost_cast(&lhs) => lhs = mk().paren_expr(lhs),
@@ -744,6 +813,7 @@ impl Builder {
         })))
     }
 
+    /// Creates a unary expression.
     pub fn unary_expr(self, op: UnOp, a: Box<Expr>) -> Box<Expr> {
         let op = op.make(&self);
         // FIXME: set span for op
@@ -754,18 +824,22 @@ impl Builder {
         })))
     }
 
+    /// Creates a negation expression.
     pub fn neg_expr(self, a: Box<Expr>) -> Box<Expr> {
         self.unary_expr(UnOp::Neg(Default::default()), a)
     }
 
+    /// Creates a dereference expression.
     pub fn deref_expr(self, a: Box<Expr>) -> Box<Expr> {
         self.unary_expr(UnOp::Deref(Default::default()), a)
     }
 
+    /// Creates a logical NOT expression.
     pub fn not_expr(self, a: Box<Expr>) -> Box<Expr> {
         self.unary_expr(UnOp::Not(Default::default()), a)
     }
 
+    /// Creates a literal expression.
     pub fn lit_expr<L>(self, lit: L) -> Box<Expr>
     where
         L: Make<Lit>,
@@ -778,6 +852,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a cast expression.
     pub fn cast_expr(self, e: Box<Expr>, t: Box<Type>) -> Box<Expr> {
         Box::new(parenthesize_if_necessary(Expr::Cast(ExprCast {
             attrs: self.attrs,
@@ -787,10 +862,12 @@ impl Builder {
         })))
     }
 
+    /// Creates an unsafe block expression.
     pub fn unsafe_block_expr(self, unsafe_blk: ExprUnsafe) -> Box<Expr> {
         Box::new(Expr::Unsafe(unsafe_blk))
     }
 
+    /// Creates a block expression.
     pub fn block_expr(self, block: Block) -> Box<Expr> {
         Box::new(Expr::Block(ExprBlock {
             attrs: self.attrs,
@@ -799,6 +876,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a labelled block expression.
     pub fn labelled_block_expr<L>(self, block: Block, lbl: L) -> Box<Expr>
     where
         L: Make<Label>,
@@ -811,6 +889,7 @@ impl Builder {
         }))
     }
 
+    /// Creates an assignment expression.
     pub fn assign_expr(self, lhs: Box<Expr>, rhs: Box<Expr>) -> Box<Expr> {
         Box::new(Expr::Assign(ExprAssign {
             attrs: self.attrs,
@@ -820,6 +899,7 @@ impl Builder {
         }))
     }
 
+    /// Creates an assignment expression with an operator.
     pub fn assign_op_expr(self, op: BinOp, lhs: Box<Expr>, rhs: Box<Expr>) -> Box<Expr> {
         Box::new(Expr::Binary(ExprBinary {
             attrs: self.attrs,
@@ -829,6 +909,7 @@ impl Builder {
         }))
     }
 
+    /// Creates an index expression.
     pub fn index_expr(self, lhs: Box<Expr>, rhs: Box<Expr>) -> Box<Expr> {
         Box::new(parenthesize_if_necessary(Expr::Index(ExprIndex {
             attrs: self.attrs,
@@ -838,6 +919,7 @@ impl Builder {
         })))
     }
 
+    /// Creates an absolute path expression.
     pub fn abs_path_expr<Pa>(self, path: Pa) -> Box<Expr>
     where
         Pa: Make<Path>,
@@ -846,6 +928,7 @@ impl Builder {
         self.path_expr(path)
     }
 
+    /// Creates a path expression.
     pub fn path_expr<Pa>(self, path: Pa) -> Box<Expr>
     where
         Pa: Make<Path>,
@@ -853,6 +936,7 @@ impl Builder {
         self.qpath_expr(None, path)
     }
 
+    /// Creates a qualified path expression.
     pub fn qpath_expr<Pa>(self, qself: Option<QSelf>, path: Pa) -> Box<Expr>
     where
         Pa: Make<Path>,
@@ -865,7 +949,7 @@ impl Builder {
         }))
     }
 
-    /// An array literal constructed from one repeated element.
+    /// Creates an array literal constructed from one repeated element.
     /// `[expr; n]`
     pub fn repeat_expr(self, expr: Box<Expr>, n: Box<Expr>) -> Box<Expr> {
         Box::new(Expr::Repeat(ExprRepeat {
@@ -877,6 +961,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a parenthesized expression.
     pub fn paren_expr(self, e: Box<Expr>) -> Box<Expr> {
         Box::new(Expr::Paren(ExprParen {
             attrs: self.attrs,
@@ -885,7 +970,8 @@ impl Builder {
         }))
     }
 
-    // Special case of path_expr
+    /// Creates an identifier expression.
+    /// This is a special case of a path expression.
     pub fn ident_expr<I>(self, name: I) -> Box<Expr>
     where
         I: Make<Ident>,
@@ -893,6 +979,7 @@ impl Builder {
         self.path_expr(vec![name])
     }
 
+    /// Creates an address-of expression.
     pub fn addr_of_expr(self, e: Box<Expr>) -> Box<Expr> {
         Box::new(parenthesize_if_necessary(Expr::Reference(ExprReference {
             attrs: self.attrs,
@@ -902,6 +989,7 @@ impl Builder {
         })))
     }
 
+    /// Creates a raw address-of expression.
     pub fn raw_addr_expr(self, e: Box<Expr>) -> Box<Expr> {
         Box::new(parenthesize_if_necessary(Expr::RawAddr(ExprRawAddr {
             attrs: self.attrs,
@@ -912,6 +1000,7 @@ impl Builder {
         })))
     }
 
+    /// Creates a macro expression.
     pub fn mac_expr(self, mac: Macro) -> Box<Expr> {
         Box::new(Expr::Macro(ExprMacro {
             attrs: self.attrs,
@@ -919,6 +1008,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a struct expression.
     pub fn struct_expr<Pa>(self, path: Pa, fields: Vec<FieldValue>) -> Box<Expr>
     where
         Pa: Make<Path>,
@@ -935,6 +1025,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a field expression.
     pub fn field_expr<F>(self, val: Box<Expr>, field: F) -> Box<Expr>
     where
         F: Make<Ident>,
@@ -948,6 +1039,7 @@ impl Builder {
         })))
     }
 
+    /// Creates an anonymous field expression.
     pub fn anon_field_expr(self, val: Box<Expr>, field: u32) -> Box<Expr> {
         Box::new(parenthesize_if_necessary(Expr::Field(ExprField {
             attrs: self.attrs,
@@ -960,6 +1052,7 @@ impl Builder {
         })))
     }
 
+    /// Creates a struct field.
     pub fn field<I>(self, ident: I, expr: Box<Expr>) -> FieldValue
     where
         I: Make<Ident>,
@@ -973,6 +1066,7 @@ impl Builder {
         }
     }
 
+    /// Creates a match expression.
     pub fn match_expr(self, cond: Box<Expr>, arms: Vec<Arm>) -> Box<Expr> {
         let arms = arms.into_iter().collect();
         Box::new(Expr::Match(ExprMatch {
@@ -984,6 +1078,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a match arm.
     pub fn arm(self, pat: Pat, guard: Option<Box<Expr>>, body: Box<Expr>) -> Arm {
         let guard = guard.map(|g| (Token![if](self.span), g));
         Arm {
@@ -998,6 +1093,7 @@ impl Builder {
 
     // Literals
 
+    /// Creates an integer literal with a suffix.
     pub fn int_lit_with_suffix<S>(self, s: S, ty: &str) -> Lit
     where
         S: Make<String>,
@@ -1006,6 +1102,7 @@ impl Builder {
         Lit::Int(LitInt::new(&format!("{s}{ty}"), self.span))
     }
 
+    /// Creates an integer literal.
     pub fn int_lit<S>(self, s: S) -> Lit
     where
         S: Make<String>,
@@ -1013,14 +1110,17 @@ impl Builder {
         self.int_lit_with_suffix(s, "")
     }
 
+    /// Creates a float literal with a suffix.
     pub fn float_lit_with_suffix(self, s: &str, ty: &str) -> Lit {
         Lit::Float(LitFloat::new(&format!("{s}{ty}"), self.span))
     }
 
+    /// Creates a float literal.
     pub fn float_lit(self, s: &str) -> Lit {
         Lit::Float(LitFloat::new(s, self.span))
     }
 
+    /// Creates a boolean literal.
     pub fn bool_lit(self, b: bool) -> Lit {
         Lit::Bool(LitBool {
             value: b,
@@ -1028,10 +1128,12 @@ impl Builder {
         })
     }
 
+    /// Creates a string literal.
     pub fn str_lit(self, s: &str) -> Lit {
         Lit::Str(LitStr::new(s, self.span))
     }
 
+    /// Creates an if-then-else expression.
     pub fn ifte_expr(
         self,
         cond: Box<Expr>,
@@ -1064,6 +1166,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a while loop expression.
     pub fn while_expr<I>(self, cond: Box<Expr>, body: Block, label: Option<I>) -> Box<Expr>
     where
         I: Make<Ident>,
@@ -1085,6 +1188,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a loop expression.
     pub fn loop_expr<I>(self, body: Block, label: Option<I>) -> Box<Expr>
     where
         I: Make<Ident>,
@@ -1105,6 +1209,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a for loop expression.
     pub fn for_expr<I>(self, pat: Pat, expr: Box<Expr>, body: Block, label: Option<I>) -> Box<Expr>
     where
         I: Make<Ident>,
@@ -1130,6 +1235,7 @@ impl Builder {
 
     // Patterns
 
+    /// Creates an identifier pattern.
     pub fn ident_pat<I>(self, name: I) -> Pat
     where
         I: Make<Ident>,
@@ -1144,6 +1250,7 @@ impl Builder {
         })
     }
 
+    /// Creates a tuple pattern.
     pub fn tuple_pat(self, pats: Vec<Pat>) -> Pat {
         Pat::Tuple(PatTuple {
             attrs: self.attrs,
@@ -1152,6 +1259,7 @@ impl Builder {
         })
     }
 
+    /// Creates a qualified path pattern.
     pub fn qpath_pat<Pa>(self, qself: Option<QSelf>, path: Pa) -> Box<Pat>
     where
         Pa: Make<Path>,
@@ -1164,6 +1272,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a wildcard pattern.
     pub fn wild_pat(self) -> Pat {
         Pat::Wild(PatWild {
             attrs: self.attrs,
@@ -1171,6 +1280,7 @@ impl Builder {
         })
     }
 
+    /// Creates a literal pattern.
     pub fn lit_pat(self, lit: Lit) -> Pat {
         Pat::Lit(PatLit {
             attrs: self.attrs,
@@ -1178,6 +1288,7 @@ impl Builder {
         })
     }
 
+    /// Creates a path pattern.
     pub fn path_pat(self, path: Path, qself: Option<QSelf>) -> Pat {
         Pat::Path(PatPath {
             attrs: self.attrs,
@@ -1186,6 +1297,7 @@ impl Builder {
         })
     }
 
+    /// Creates a macro pattern.
     pub fn mac_pat(self, mac: Macro) -> Pat {
         Pat::Macro(PatMacro {
             attrs: self.attrs,
@@ -1193,6 +1305,7 @@ impl Builder {
         })
     }
 
+    /// Creates an identifier reference pattern.
     pub fn ident_ref_pat<I>(self, name: I) -> Pat
     where
         I: Make<Ident>,
@@ -1207,6 +1320,7 @@ impl Builder {
         })
     }
 
+    /// Creates an or-pattern.
     pub fn or_pat(self, pats: Vec<Pat>) -> Pat {
         Pat::Or(PatOr {
             attrs: self.attrs,
@@ -1217,6 +1331,7 @@ impl Builder {
 
     // Types
 
+    /// Creates a bare function type.
     pub fn barefn_ty(self, decl: BareFnTyParts) -> Box<Type> {
         let (inputs, variadic, output) = decl;
         let abi = self.get_abi_opt();
@@ -1235,6 +1350,7 @@ impl Builder {
         Box::new(Type::BareFn(barefn))
     }
 
+    /// Creates an array type.
     pub fn array_ty(self, ty: Box<Type>, len: Box<Expr>) -> Box<Type> {
         Box::new(Type::Array(TypeArray {
             bracket_token: token::Bracket(self.span),
@@ -1244,6 +1360,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a slice type.
     pub fn slice_ty(self, ty: Box<Type>) -> Box<Type> {
         Box::new(Type::Slice(TypeSlice {
             elem: ty,
@@ -1251,6 +1368,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a pointer type.
     pub fn ptr_ty(self, ty: Box<Type>) -> Box<Type> {
         let const_token = if self.mutbl.to_token().is_none() {
             Some(Token![const](self.span))
@@ -1265,6 +1383,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a reference type.
     pub fn ref_ty(self, ty: Box<Type>) -> Box<Type> {
         Box::new(Type::Reference(TypeReference {
             lifetime: None,
@@ -1274,6 +1393,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a reference type with a lifetime.
     pub fn ref_lt_ty<L>(self, lt: L, ty: Box<Type>) -> Box<Type>
     where
         L: Make<Lifetime>,
@@ -1287,12 +1407,14 @@ impl Builder {
         }))
     }
 
+    /// Creates the never type `!`.
     pub fn never_ty(self) -> Box<Type> {
         Box::new(Type::Never(TypeNever {
             bang_token: Token![!](self.span),
         }))
     }
 
+    /// Creates a tuple type.
     pub fn tuple_ty(self, elem_tys: Vec<Box<Type>>) -> Box<Type> {
         let elem_tys = elem_tys.into_iter().map(|ty| *ty).collect();
         Box::new(Type::Tuple(TypeTuple {
@@ -1301,6 +1423,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a path type.
     pub fn path_ty<Pa>(self, path: Pa) -> Box<Type>
     where
         Pa: Make<Path>,
@@ -1308,6 +1431,7 @@ impl Builder {
         self.qpath_ty(None, path)
     }
 
+    /// Creates a qualified path type.
     pub fn qpath_ty<Pa>(self, qself: Option<QSelf>, path: Pa) -> Box<Type>
     where
         Pa: Make<Path>,
@@ -1316,6 +1440,7 @@ impl Builder {
         Box::new(Type::Path(TypePath { qself, path }))
     }
 
+    /// Creates an identifier type.
     pub fn ident_ty<I>(self, name: I) -> Box<Type>
     where
         I: Make<Ident>,
@@ -1323,36 +1448,43 @@ impl Builder {
         self.path_ty(vec![name])
     }
 
+    /// Creates an inferred type `_`.
     pub fn infer_ty(self) -> Box<Type> {
         Box::new(Type::Infer(TypeInfer {
             underscore_token: Token![_](self.span),
         }))
     }
 
+    /// Creates a macro type.
     pub fn mac_ty(self, mac: Macro) -> Box<Type> {
         Box::new(Type::Macro(TypeMacro { mac }))
     }
 
     // Stmts
 
+    /// Creates a local variable declaration statement.
     pub fn local_stmt(self, local: Box<Local>) -> Stmt {
         Stmt::Local(*local)
     }
 
+    /// Creates an expression statement.
     pub fn expr_stmt(self, expr: Box<Expr>) -> Stmt {
         Stmt::Expr(*expr, None)
     }
 
+    /// Creates an expression statement with a semicolon.
     pub fn semi_stmt(self, expr: Box<Expr>) -> Stmt {
         Stmt::Expr(*expr, Some(Token![;](self.span)))
     }
 
+    /// Creates an item statement.
     pub fn item_stmt(self, item: Box<Item>) -> Stmt {
         Stmt::Item(*item)
     }
 
     // Items
 
+    /// Creates a static item.
     pub fn static_item<I>(self, name: I, ty: Box<Type>, init: Box<Expr>) -> Box<Item>
     where
         I: Make<Ident>,
@@ -1372,6 +1504,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a const item.
     pub fn const_item<I>(self, name: I, ty: Box<Type>, init: Box<Expr>) -> Box<Item>
     where
         I: Make<Ident>,
@@ -1391,6 +1524,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a function item.
     pub fn fn_item<S>(self, sig: S, block: Block) -> Box<Item>
     where
         S: Make<Signature>,
@@ -1404,6 +1538,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a variadic argument.
     pub fn variadic_arg(self, name: Option<String>) -> Variadic {
         let pat = if let Some(name) = name {
             let pat = Box::new(mk().ident_pat(name));
@@ -1420,6 +1555,7 @@ impl Builder {
         }
     }
 
+    /// Creates a bare variadic argument.
     pub fn bare_variadic_arg(self) -> BareVariadic {
         BareVariadic {
             attrs: self.attrs,
@@ -1429,6 +1565,7 @@ impl Builder {
         }
     }
 
+    /// Creates a function declaration.
     pub fn fn_decl<I>(
         self,
         name: I,
@@ -1443,6 +1580,7 @@ impl Builder {
         Box::new((name, inputs, variadic, output))
     }
 
+    /// Creates a struct item.
     pub fn struct_item<I>(self, name: I, fields: Vec<Field>, is_tuple: bool) -> Box<Item>
     where
         I: Make<Ident>,
@@ -1470,6 +1608,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a union item.
     pub fn union_item<I>(self, name: I, fields: Vec<Field>) -> Box<Item>
     where
         I: Make<Ident>,
@@ -1489,6 +1628,7 @@ impl Builder {
         }))
     }
 
+    /// Creates an enum item.
     pub fn enum_item<I>(self, name: I, fields: Vec<Variant>) -> Box<Item>
     where
         I: Make<Ident>,
@@ -1505,6 +1645,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a type alias item.
     pub fn type_item<I>(self, name: I, ty: Box<Type>) -> Box<Item>
     where
         I: Make<Ident>,
@@ -1522,6 +1663,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a module item.
     pub fn mod_item<I>(self, name: I, items: Option<Vec<Item>>) -> Box<Item>
     where
         I: Make<Ident>,
@@ -1539,10 +1681,12 @@ impl Builder {
         }))
     }
 
+    /// Creates a module.
     pub fn mod_(self, items: Vec<Box<Item>>) -> Vec<Item> {
         items.into_iter().map(|i| *i).collect()
     }
 
+    /// Creates a macro invocation item.
     pub fn mac_item(self, mac: Macro) -> Box<Item> {
         Box::new(Item::Macro(ItemMacro {
             attrs: self.attrs,
@@ -1552,6 +1696,7 @@ impl Builder {
         }))
     }
 
+    /// Creates an enum variant.
     pub fn variant<I>(self, name: I, fields: Fields) -> Variant
     where
         I: Make<Ident>,
@@ -1565,6 +1710,7 @@ impl Builder {
         }
     }
 
+    /// Creates a unit enum variant.
     pub fn unit_variant<I>(self, name: I, disc: Option<Box<Expr>>) -> Variant
     where
         I: Make<Ident>,
@@ -1578,6 +1724,7 @@ impl Builder {
         }
     }
 
+    /// Creates an impl item.
     pub fn impl_item(self, ty: Box<Type>, items: Vec<ImplItem>) -> Box<Item> {
         Box::new(Item::Impl(ItemImpl {
             attrs: self.attrs,
@@ -1592,6 +1739,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a trait impl item.
     pub fn impl_trait_item<P>(self, ty: Box<Type>, traits_: P, items: Vec<ImplItem>) -> Box<Item>
     where
         P: Make<Path>,
@@ -1612,6 +1760,7 @@ impl Builder {
         }))
     }
 
+    /// Creates an extern crate item.
     pub fn extern_crate_item<I>(self, name: I, rename: Option<I>) -> Box<Item>
     where
         I: Make<Ident>,
@@ -1629,6 +1778,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a use item.
     pub fn use_item(self, tree: UseTree) -> Box<Item> {
         Box::new(Item::Use(ItemUse {
             attrs: self.attrs,
@@ -1640,7 +1790,7 @@ impl Builder {
         }))
     }
 
-    // `use <path>;` item
+    /// Creates a simple use item, e.g., `use a::b::c;` or `use a::b::c as d;`.
     pub fn use_simple_item<Pa, I>(self, path: Pa, rename: Option<I>) -> Box<Item>
     where
         Pa: Make<Path>,
@@ -1681,6 +1831,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a `use` item with a list of imports, e.g., `use a::b::{c, d};`.
     pub fn use_multiple_item<Pa, I, It>(self, path: Pa, inner: It) -> Box<Item>
     where
         Pa: Make<Path>,
@@ -1713,6 +1864,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a glob `use` item, e.g., `use a::b::*;`.
     pub fn use_glob_item<Pa>(self, path: Pa) -> Box<Item>
     where
         Pa: Make<Path>,
@@ -1735,6 +1887,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a foreign module.
     pub fn foreign_items(self, items: Vec<ForeignItem>) -> Box<Item> {
         let abi = self.get_abi();
 
@@ -1747,6 +1900,7 @@ impl Builder {
         }))
     }
 
+    /// Gets the ABI for the current builder state.
     pub fn get_abi(&self) -> Abi {
         Abi {
             extern_token: Token![extern](self.span),
@@ -1757,6 +1911,7 @@ impl Builder {
         }
     }
 
+    /// Gets the ABI for the current builder state, if one is specified.
     pub fn get_abi_opt(&self) -> Option<Abi> {
         let name: Option<LitStr> = match self.ext {
             Extern::None => return None,
@@ -1771,6 +1926,7 @@ impl Builder {
 
     // Impl Items
 
+    /// Creates a macro invocation impl item.
     pub fn mac_impl_item(self, mac: Macro) -> ImplItem {
         ImplItem::Macro(ImplItemMacro {
             attrs: self.attrs,
@@ -1781,6 +1937,7 @@ impl Builder {
 
     // Trait Items
 
+    /// Creates a macro invocation trait item.
     pub fn mac_trait_item(self, mac: Macro) -> TraitItem {
         TraitItem::Macro(TraitItemMacro {
             attrs: self.attrs,
@@ -1791,6 +1948,7 @@ impl Builder {
 
     // Foreign Items
 
+    /// Creates a foreign function item.
     /// [`ForeignItem`] is large (472 bytes), so [`Box`] it.
     pub fn fn_foreign_item(self, decl: Box<FnDecl>) -> Box<ForeignItem> {
         let sig = Signature {
@@ -1807,6 +1965,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a foreign static item.
     /// [`ForeignItem`] is large (472 bytes), so [`Box`] it.
     pub fn static_foreign_item<I>(self, name: I, ty: Box<Type>) -> Box<ForeignItem>
     where
@@ -1825,6 +1984,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a foreign type item.
     /// [`ForeignItem`] is large (472 bytes), so [`Box`] it.
     pub fn ty_foreign_item<I>(self, name: I) -> Box<ForeignItem>
     where
@@ -1841,6 +2001,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a foreign macro invocation item.
     pub fn mac_foreign_item(self, mac: Macro) -> ForeignItem {
         ForeignItem::Macro(ForeignItemMacro {
             attrs: self.attrs,
@@ -1851,6 +2012,7 @@ impl Builder {
 
     // struct fields
 
+    /// Creates a struct field.
     pub fn struct_field<I>(self, ident: I, ty: Box<Type>) -> Field
     where
         I: Make<Ident>,
@@ -1866,6 +2028,7 @@ impl Builder {
         }
     }
 
+    /// Creates an unnamed struct field.
     pub fn struct_unamed_field(self, ty: Box<Type>) -> Field {
         Field {
             ident: None,
@@ -1877,6 +2040,7 @@ impl Builder {
         }
     }
 
+    /// Creates an enum field.
     pub fn enum_field(self, ty: Box<Type>) -> Field {
         Field {
             ident: None,
@@ -1890,6 +2054,7 @@ impl Builder {
 
     // Misc nodes
 
+    /// Creates an unsafe block.
     pub fn unsafe_block(self, stmts: Vec<Stmt>) -> ExprUnsafe {
         let blk = Block {
             stmts,
@@ -1902,6 +2067,7 @@ impl Builder {
         }
     }
 
+    /// Creates a block.
     pub fn block(self, stmts: Vec<Stmt>) -> Block {
         Block {
             stmts,
@@ -1909,6 +2075,7 @@ impl Builder {
         }
     }
 
+    /// Creates a label.
     pub fn label<L>(self, lbl: L) -> Label
     where
         L: Make<Label>,
@@ -1916,6 +2083,7 @@ impl Builder {
         lbl.make(&self)
     }
 
+    /// Creates a break expression with a value.
     pub fn break_expr_value<L>(self, label: Option<L>, value: Option<Box<Expr>>) -> Box<Expr>
     where
         L: Make<Label>,
@@ -1929,6 +2097,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a bare function argument.
     pub fn bare_arg<I>(self, ty: Box<Type>, name: Option<I>) -> BareFnArg
     where
         I: Make<Box<Ident>>,
@@ -1941,6 +2110,7 @@ impl Builder {
         }
     }
 
+    /// Creates a function argument.
     pub fn arg(self, ty: Box<Type>, pat: Pat) -> FnArg {
         FnArg::Typed(PatType {
             attrs: Vec::new(),
@@ -1950,6 +2120,7 @@ impl Builder {
         })
     }
 
+    /// Creates a type parameter.
     pub fn ty_param<I>(self, ident: I, bounds: Vec<TypeParamBound>) -> GenericParam
     where
         I: Make<Ident>,
@@ -1969,10 +2140,12 @@ impl Builder {
         })
     }
 
+    /// Creates a type.
     pub fn ty<T>(self, kind: Type) -> Type {
         kind
     }
 
+    /// Creates a lifetime parameter.
     pub fn lt_param<L>(self, lifetime: L) -> GenericParam
     where
         L: Make<Lifetime>,
@@ -1986,10 +2159,12 @@ impl Builder {
         })
     }
 
+    /// Creates a lifetime.
     pub fn lifetime<L: Make<Lifetime>>(self, lt: L) -> Lifetime {
         lt.make(&self)
     }
 
+    /// Creates an attribute.
     pub fn attribute(self, style: AttrStyle, meta: Meta) -> Attribute {
         Attribute {
             style,
@@ -1999,6 +2174,7 @@ impl Builder {
         }
     }
 
+    /// Creates a meta path.
     pub fn meta_path<Pa>(self, path: Pa) -> Meta
     where
         Pa: Make<Path>,
@@ -2007,10 +2183,13 @@ impl Builder {
         Meta::Path(path)
     }
 
-    /// makes a meta item with the given path and some arguments
+    /// Creates a meta item with the given path and some arguments.
+    ///
     /// # Examples
     ///
-    /// mk().meta_list("derive", vec!["Clone", "Copy"]) // ->  `derive(Clone, Copy)`
+    /// ```
+    /// // mk().meta_list("derive", vec!["Clone", "Copy"]) // ->  `derive(Clone, Copy)`
+    /// ```
     pub fn meta_list<I, N>(self, path: I, args: N) -> Meta
     where
         I: Make<Path>,
@@ -2025,6 +2204,7 @@ impl Builder {
         })
     }
 
+    /// Creates a meta name-value item.
     pub fn meta_namevalue<K, V>(self, key: K, value: V) -> Meta
     where
         K: Make<Path>,
@@ -2044,6 +2224,7 @@ impl Builder {
         })
     }
 
+    /// Creates a macro invocation.
     pub fn mac<Pa, Ts>(self, func: Pa, arguments: Ts, delim: MacroDelimiter) -> Macro
     where
         Pa: Make<Path>,
@@ -2059,13 +2240,17 @@ impl Builder {
         }
     }
 
-    /// makes a macro call using paren as delimiter with the given path and some arguments
+    /// Creates a macro call using parentheses as a delimiter with the given path and some arguments.
+    ///
     /// # Examples
-    /// mk().call_mac(
-    ///     "println",
-    ///     vec![TokenTree::Literal(proc_macro2::Literal::string("Hello, world!"))]
-    /// )
-    /// ->  `println!("Hello, world!")`
+    ///
+    /// ```
+    /// // mk().call_mac(
+    /// //     "println",
+    // //     vec![TokenTree::Literal(proc_macro2::Literal::string("Hello, world!"))]
+    /// // )
+    /// // ->  `println!("Hello, world!")`
+    /// ```
     pub fn call_mac<Pa, Tt>(self, func: Pa, arguments: Vec<Tt>) -> Macro
     where
         Pa: Make<Path>,
@@ -2079,6 +2264,7 @@ impl Builder {
         mk().mac(func, tokens, MacroDelimiter::Paren(Default::default()))
     }
 
+    /// Creates a macro call with no arguments.
     pub fn call0_mac<Pa>(self, path: Pa) -> Macro
     where
         Pa: Make<Path>,
@@ -2087,7 +2273,7 @@ impl Builder {
         mk().call_mac(path, args)
     }
 
-    /// Create a local variable
+    /// Creates a local variable declaration.
     pub fn local(self, pat: Pat, ty: Option<Box<Type>>, init: Option<Box<Expr>>) -> Local {
         let init = init.map(|x| LocalInit {
             eq_token: Token![=](self.span),
@@ -2113,6 +2299,7 @@ impl Builder {
         }
     }
 
+    /// Creates a return expression.
     pub fn return_expr(self, val: Option<Box<Expr>>) -> Box<Expr> {
         Box::new(Expr::Return(ExprReturn {
             attrs: self.attrs,
@@ -2121,6 +2308,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a continue expression.
     pub fn continue_expr<I>(self, label: Option<I>) -> Box<Expr>
     where
         I: Make<Ident>,
@@ -2137,6 +2325,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a break expression.
     pub fn break_expr<I>(self, label: Option<I>) -> Box<Expr>
     where
         I: Make<Ident>,
@@ -2154,6 +2343,7 @@ impl Builder {
         }))
     }
 
+    /// Creates a closure expression.
     pub fn closure_expr(
         self,
         capture: CaptureBy,
@@ -2188,10 +2378,12 @@ impl Builder {
         }))
     }
 
+    /// Creates a punctuation token tree.
     pub fn punct_tt(self, ch: char, spacing: Spacing) -> TokenTree {
         TokenTree::Punct(Punct::new(ch, spacing))
     }
 
+    /// Creates an identifier token tree.
     pub fn ident_tt<I>(self, name: I) -> TokenTree
     where
         I: Make<Ident>,
@@ -2200,6 +2392,7 @@ impl Builder {
         TokenTree::Ident(ident)
     }
 
+    /// Creates a literal token tree.
     pub fn lit_tt<L>(self, lit: L) -> TokenTree
     where
         L: Make<Literal>,
@@ -2208,6 +2401,7 @@ impl Builder {
         TokenTree::Literal(lit)
     }
 
+    /// Creates a group token tree.
     pub fn group_tt<Ts>(self, delim: Delimiter, stream: Ts) -> TokenTree
     where
         Ts: Make<TokenStream>,
@@ -2217,6 +2411,7 @@ impl Builder {
     }
 }
 
+/// Creates a new `Builder` with default values.
 pub fn mk() -> Builder {
     Builder::new()
 }
