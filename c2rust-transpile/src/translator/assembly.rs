@@ -633,7 +633,7 @@ impl<'c> Translation<'c> {
     /// directly) the resulting translated assembly statements will be unlikely to work
     /// without further manual translation. The translator will properly translate
     /// the arguments to the assembly statement, however.
-    pub fn convert_asm(
+    pub(crate) fn convert_asm(
         &self,
         ctx: ExprContext,
         span: Span,

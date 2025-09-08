@@ -41,7 +41,7 @@ impl<'c> Translation<'c> {
         Some(ordering)
     }
 
-    pub fn convert_atomic(
+    pub(crate) fn convert_atomic(
         &self,
         ctx: ExprContext,
         name: &str,

@@ -27,7 +27,7 @@ use syn::{
 /// which is used for array indexing.
 /// `neg` indicates whether the offset should be negative.
 /// `deref` indicates whether the resulting pointer should be dereferenced.
-pub fn pointer_offset(
+pub(crate) fn pointer_offset(
     ptr: Box<Expr>,
     offset: Box<Expr>,
     multiply_by: Option<Box<Expr>>,
@@ -54,7 +54,7 @@ pub fn pointer_offset(
 /// and return the function pointer. This is used when a C function pointer
 /// is translated to an `Option` in Rust, and we need to call it.
 /// The `expect` method will panic if the `Option` is `None`.
-pub fn unwrap_function_pointer(ptr: Box<Expr>) -> Box<Expr> {
+pub(crate) fn unwrap_function_pointer(ptr: Box<Expr>) -> Box<Expr> {
     let err_msg = mk().lit_expr("non-null function pointer");
     mk().method_call_expr(ptr, "expect", vec![err_msg])
 }
@@ -67,7 +67,11 @@ pub fn unwrap_function_pointer(ptr: Box<Expr>) -> Box<Expr> {
 /// If the source and target types are both `Type::Infer`, then no type
 /// arguments are generated for the `transmute` call, and the compiler is
 /// expected to infer them.
-pub fn transmute_expr(source_ty: Box<Type>, target_ty: Box<Type>, expr: Box<Expr>) -> Box<Expr> {
+pub(crate) fn transmute_expr(
+    source_ty: Box<Type>,
+    target_ty: Box<Type>,
+    expr: Box<Expr>,
+) -> Box<Expr> {
     let type_args = match (&*source_ty, &*target_ty) {
         (Type::Infer(_), Type::Infer(_)) => Vec::new(),
         _ => vec![source_ty, target_ty],
@@ -83,7 +87,7 @@ pub fn transmute_expr(source_ty: Box<Type>, target_ty: Box<Type>, expr: Box<Expr
     mk().call_expr(mk().abs_path_expr(path), vec![expr])
 }
 
-pub fn vec_expr(val: Box<Expr>, count: Box<Expr>) -> Box<Expr> {
+pub(crate) fn vec_expr(val: Box<Expr>, count: Box<Expr>) -> Box<Expr> {
     let from_elem = mk().abs_path_expr(vec!["std", "vec", "from_elem"]);
     mk().call_expr(from_elem, vec![val, count])
 }
@@ -142,7 +146,7 @@ pub(crate) fn item_attrs(item: &mut Item) -> Option<&mut Vec<syn::Attribute>> {
     })
 }
 
-pub fn stmts_block(mut stmts: Vec<Stmt>) -> Block {
+pub(crate) fn stmts_block(mut stmts: Vec<Stmt>) -> Block {
     match stmts.pop() {
         None => {}
         Some(Stmt::Expr(
@@ -162,7 +166,7 @@ pub fn stmts_block(mut stmts: Vec<Stmt>) -> Block {
 }
 
 // This should only be used for tests
-pub fn prefix_names(translation: &mut Translation, prefix: &str) {
+pub(crate) fn prefix_names(translation: &mut Translation, prefix: &str) {
     for (&decl_id, ref mut decl) in translation.ast_context.iter_mut_decls() {
         match decl.kind {
             CDeclKind::Function {

@@ -35,17 +35,7 @@ macro_rules! match_or {
 }
 
 impl<'c> Translation<'c> {
-    /// Returns true iff `va_start`, `va_end`, or `va_copy` may be called on `decl_id`.
-    pub fn is_va_decl(&self, decl_id: CDeclId) -> bool {
-        let fn_ctx = self.function_context.borrow();
-        if let Some(ref decls) = fn_ctx.va_list_decl_ids {
-            decls.contains(&decl_id)
-        } else {
-            false
-        }
-    }
-
-    pub fn match_vastart(&self, expr: CExprId) -> Option<CDeclId> {
+    pub(crate) fn match_vastart(&self, expr: CExprId) -> Option<CDeclId> {
         // struct-based va_list (e.g. x86_64)
         fn match_vastart_struct(ast_context: &TypedAstContext, expr: CExprId) -> Option<CDeclId> {
             match_or! { [ast_context[expr].kind]
@@ -100,11 +90,15 @@ impl<'c> Translation<'c> {
             .or_else(|| match_vastart_struct_pointer_member(&self.ast_context, expr))
     }
 
-    pub fn match_vaend(&self, expr: CExprId) -> Option<CDeclId> {
+    pub(crate) fn match_vaend(&self, expr: CExprId) -> Option<CDeclId> {
         self.match_vastart(expr)
     }
 
-    pub fn match_vacopy(&self, dst_expr: CExprId, src_expr: CExprId) -> Option<(CDeclId, CDeclId)> {
+    pub(crate) fn match_vacopy(
+        &self,
+        dst_expr: CExprId,
+        src_expr: CExprId,
+    ) -> Option<(CDeclId, CDeclId)> {
         let dst_id = self.match_vastart(dst_expr);
         let src_id = self.match_vastart(src_expr);
         if let (Some(did), Some(sid)) = (dst_id, src_id) {
@@ -113,7 +107,7 @@ impl<'c> Translation<'c> {
         None
     }
 
-    pub fn match_vapart(&self, expr: CExprId) -> Option<VaPart> {
+    pub(crate) fn match_vapart(&self, expr: CExprId) -> Option<VaPart> {
         match_or! { [self.ast_context[expr].kind]
         CExprKind::Call(_, func, ref args) => (func, args) }
         match_or! { [self.ast_context[func].kind]
@@ -149,7 +143,7 @@ impl<'c> Translation<'c> {
         }
     }
 
-    pub fn convert_vaarg(
+    pub(crate) fn convert_vaarg(
         &self,
         ctx: ExprContext,
         ty: CQualTypeId,
@@ -243,7 +237,7 @@ impl<'c> Translation<'c> {
     /// Rust function argument that corresponds to the ellipsis in the original C function, and iii)
     /// building a list of variable declarations to be translated into `VaListImpl`s. Returns the
     /// name of the `VaList` function argument for convenience.
-    pub fn register_va_decls(&self, body: CStmtId) -> String {
+    pub(crate) fn register_va_decls(&self, body: CStmtId) -> String {
         self.use_feature("c_variadic");
 
         let va_list_arg_name = self.renamer.borrow_mut().pick_name("args");

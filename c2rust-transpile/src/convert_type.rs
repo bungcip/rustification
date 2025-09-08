@@ -426,7 +426,7 @@ impl TypeConverter {
 
     /// Add the given parameters to a K&R function pointer type,
     /// returning a full signature or `None` if the function isn't K&R.
-    pub fn knr_function_type_with_parameters(
+    pub(crate) fn knr_function_type_with_parameters(
         &mut self,
         ctxt: &TypedAstContext,
         ctype: CTypeId,

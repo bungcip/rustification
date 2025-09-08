@@ -3,7 +3,7 @@ use crate::driver::Translation;
 use crate::translator::utils::prefix_names;
 use indexmap::IndexMap;
 
-pub fn preprocess_ast(t: &mut Translation) {
+pub(crate) fn preprocess_ast(t: &mut Translation) {
     // Sort the top-level declarations by file and source location so that we
     // preserve the ordering of all declarations in each file.
     t.ast_context.sort_top_decls();

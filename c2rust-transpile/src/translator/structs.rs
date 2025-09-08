@@ -280,7 +280,7 @@ impl<'a> Translation<'a> {
     ///     _pad: [u8; 2],
     /// }
     /// ```
-    pub fn convert_struct_fields(
+    pub(crate) fn convert_struct_fields(
         &self,
         struct_id: CRecordId,
         field_ids: &[CDeclId],
@@ -388,7 +388,7 @@ impl<'a> Translation<'a> {
     /// }
     /// # ;
     /// ```
-    pub fn convert_struct_literal(
+    pub(crate) fn convert_struct_literal(
         &self,
         ctx: ExprContext,
         struct_id: CRecordId,
@@ -571,7 +571,7 @@ impl<'a> Translation<'a> {
 
     /// This method handles zero-initializing bitfield structs including bitfields
     /// & padding fields
-    pub fn convert_struct_zero_initializer(
+    pub(crate) fn convert_struct_zero_initializer(
         &self,
         name: String,
         struct_id: CRecordId,
@@ -653,7 +653,7 @@ impl<'a> Translation<'a> {
     /// B) bf.set_a(bf.a() + 1);
     ///
     /// Note that B) requires NLL to be valid rust
-    pub fn convert_bitfield_assignment_op_with_rhs(
+    pub(crate) fn convert_bitfield_assignment_op_with_rhs(
         &self,
         ctx: ExprContext,
         op: BinOp,

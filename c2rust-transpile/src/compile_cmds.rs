@@ -170,7 +170,7 @@ fn filter_duplicate_cmds(v: Vec<Rc<CompileCmd>>) -> Vec<Rc<CompileCmd>> {
 
 /// Read `compile_commands` file, optionally ignore any entries not matching
 /// `filter`, and filter out any .S files since they're likely assembly files.
-pub fn get_compile_commands(
+pub(crate) fn get_compile_commands(
     compile_commands: &Path,
     filter: &Option<Regex>,
 ) -> Result<Vec<LinkCmd>, Error> {

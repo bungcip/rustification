@@ -89,7 +89,7 @@ impl<'c> Translation<'c> {
     /// Given the name of a typedef check if its one of the SIMD types.
     /// This function returns `true` when the name of the type is one that
     /// it knows how to implement and no further translation should be done.
-    pub fn import_simd_typedef(&self, name: &str) -> TranslationResult<bool> {
+    pub(crate) fn import_simd_typedef(&self, name: &str) -> TranslationResult<bool> {
         Ok(match name {
             // Public API SIMD typedefs:
             "__m128i" | "__m128" | "__m128d" | "__m64" | "__m256" | "__m256d" | "__m256i" => {
@@ -150,7 +150,7 @@ impl<'c> Translation<'c> {
 
     /// Determine if a particular function name is an SIMD primitive. If so an appropriate
     /// use statement is generated, `true` is returned, and no further processing will need to be done.
-    pub fn import_simd_function(&self, name: &str) -> TranslationResult<bool> {
+    pub(crate) fn import_simd_function(&self, name: &str) -> TranslationResult<bool> {
         if name.starts_with("_mm") {
             // REVIEW: This will do a linear lookup against all SIMD fns. Could use a lazy static hashset
             if MISSING_SIMD_FUNCTIONS.contains(&name) {
@@ -202,7 +202,7 @@ impl<'c> Translation<'c> {
 
     /// Generate a call to a rust SIMD function based on a builtin function. Clang 6 only supports one of these
     /// but clang 7 converts a bunch more from "super builtins"
-    pub fn convert_simd_builtin(
+    pub(crate) fn convert_simd_builtin(
         &self,
         ctx: ExprContext,
         fn_name: &str,
@@ -236,7 +236,7 @@ impl<'c> Translation<'c> {
 
     /// Generate a zero value to be used for initialization of a given vector type. The type
     /// is specified with the underlying element type and the number of elements in the vector.
-    pub fn implicit_vector_default(
+    pub(crate) fn implicit_vector_default(
         &self,
         ctype: CTypeId,
         len: usize,
@@ -287,7 +287,7 @@ impl<'c> Translation<'c> {
     }
 
     /// Translate a list initializer corresponding to a vector type.
-    pub fn vector_list_initializer(
+    pub(crate) fn vector_list_initializer(
         &self,
         ctx: ExprContext,
         ids: &[CExprId],
@@ -349,7 +349,7 @@ impl<'c> Translation<'c> {
     /// Because clang implements some shuffle operations as macros around intrinsic
     /// shuffle functions, this translation works to find the high-level shuffle
     /// call corresponding to the low-level one found in the C AST.
-    pub fn convert_shuffle_vector(
+    pub(crate) fn convert_shuffle_vector(
         &self,
         ctx: ExprContext,
         child_expr_ids: &[CExprId],
@@ -541,7 +541,7 @@ impl<'c> Translation<'c> {
 
     /// Determine whether or not the expr in question is a SIMD call value being casted,
     /// as the builtin definition will add a superfluous cast for our purposes
-    pub fn casting_simd_builtin_call(
+    pub(crate) fn casting_simd_builtin_call(
         &self,
         expr_id: CExprId,
         is_explicit: bool,

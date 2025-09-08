@@ -36,7 +36,7 @@ fn convert_decl_and_insert(t: &mut Translation, ctx: ExprContext, decl_id: CDecl
     }
 }
 
-pub fn convert_declarations(t: &mut Translation, ctx: ExprContext) {
+pub(crate) fn convert_declarations(t: &mut Translation, ctx: ExprContext) {
     // Export all types
     let decl_ids: Vec<CDeclId> = t.ast_context.iter_decls().map(|(id, _)| *id).collect();
     for decl_id in decl_ids {

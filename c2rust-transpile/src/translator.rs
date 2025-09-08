@@ -1416,33 +1416,31 @@ impl<'c> Translation<'c> {
             // One simplification we can make at the cost of inspecting `val` more closely: if `val`
             // is already in the form `(x <op> y) as <ty>` where `<op>` is a Rust operator
             // that returns a boolean, we can simple output `x <op> y` or `!(x <op> y)`.
-            if let Expr::Cast(ExprCast { expr: ref arg, .. }) = *transform::unparen(&val) {
-                #[allow(clippy::collapsible_match)]
-                if let Expr::Binary(ExprBinary { op, .. }) = *transform::unparen(arg) {
-                    match op {
-                        BinOp::Or(_)
+            if let Expr::Cast(ExprCast { expr: ref arg, .. }) = *transform::unparen(&val)
+                && let Expr::Binary(ExprBinary { op, .. }) = *transform::unparen(arg)
+                && matches!(
+                    op,
+                    BinOp::Or(_)
                         | BinOp::And(_)
                         | BinOp::Eq(_)
                         | BinOp::Ne(_)
                         | BinOp::Lt(_)
                         | BinOp::Le(_)
                         | BinOp::Gt(_)
-                        | BinOp::Ge(_) => {
-                            if target {
-                                // If target == true, just return the argument
-                                return Box::new(transform::unparen(arg).clone());
-                            } else {
-                                // If target == false, return !arg
-                                return mk().not_expr(Box::new(transform::unparen(arg).clone()));
-                            }
-                        }
-                        _ => {}
-                    }
+                        | BinOp::Ge(_)
+                )
+            {
+                if target {
+                    // If target == true, just return the argument
+                    return Box::new(transform::unparen(arg).clone());
+                } else {
+                    // If target == false, return !arg
+                    return mk().not_expr(Box::new(transform::unparen(arg).clone()));
                 }
             }
 
             let val = if ty.is_enum() {
-                mk().cast_expr(val, mk().path_ty(vec!["u64"]))
+                mk().cast_expr(val, mk().path_ty("u64"))
             } else {
                 val
             };
