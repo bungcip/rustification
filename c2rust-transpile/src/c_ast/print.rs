@@ -709,7 +709,7 @@ impl<W: Write> Printer<W> {
             }
 
             Enum(enum_id) => {
-        let decl = &enum_id.get_node(context).kind;
+                let decl = &enum_id.get_node(context).kind;
                 match decl {
                     CDeclKind::Enum { name: Some(n), .. } => {
                         self.writer.write_fmt(format_args!(" {n}"))?
