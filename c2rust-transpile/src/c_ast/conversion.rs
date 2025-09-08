@@ -1,5 +1,8 @@
 use crate::diagnostics::diag;
-use crate::{c_ast::*, clang_err};
+use crate::{
+    c_ast::{get_node::GetNode, *},
+    clang_err,
+};
 use c2rust_ast_exporter::clang_ast::*;
 use serde_bytes::ByteBuf;
 use std::collections::HashMap;
@@ -927,11 +930,7 @@ impl ConversionContext {
                 let ty = self.visit_qualified_type(ty_id);
 
                 // make sure ty is Pointer or Flexible Array Member
-                let cty = self
-                    .typed_context
-                    .c_types
-                    .get(&ty.ctype)
-                    .expect("missing CountAttributed type node");
+                let cty = ty.ctype.get_node(&self.typed_context);
                 match &cty.kind {
                     CTypeKind::IncompleteArray(_) | CTypeKind::Pointer(_) => {}
                     other => panic!(
