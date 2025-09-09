@@ -34,7 +34,6 @@ use std::hash::Hasher;
 use std::io;
 use std::io::Write;
 use std::ops::Deref;
-use std::ops::Index;
 use syn::Lit;
 use syn::{Expr, Pat, Stmt, spanned::Spanned};
 
@@ -49,6 +48,8 @@ use serde_json;
 use crate::c_ast::*;
 use crate::with_stmts::WithStmts;
 use c2rust_ast_builder::mk;
+
+use crate::c_ast::get_node::GetNode;
 
 mod inc_cleanup;
 pub mod loops;
@@ -663,7 +664,7 @@ impl Cfg<Label, StmtOrDecl> {
             .iter()
             .flat_map(|&stmt_id| DFExpr::new(&translator.ast_context, stmt_id.into()))
             .flat_map(SomeId::stmt)
-            .flat_map(|x| match translator.ast_context[x].kind {
+            .flat_map(|x| match x.get_node(&translator.ast_context).kind {
                 CStmtKind::Goto(target) => Some((target, x)),
                 _ => None,
             })
@@ -1497,9 +1498,8 @@ impl CfgBuilder {
             .get_span(SomeId::Stmt(stmt_id))
             .unwrap_or_else(Span::call_site);
 
-        let out_wip: TranslationResult<Option<WipBlock>> = match translator
-            .ast_context
-            .index(stmt_id)
+        let out_wip: TranslationResult<Option<WipBlock>> = match stmt_id
+            .get_node(&translator.ast_context)
             .kind
         {
             CStmtKind::Empty => Ok(Some(wip)),
@@ -1827,7 +1827,7 @@ impl CfgBuilder {
             CStmtKind::Attributed { substatement, .. } => {
                 // Note: we only support the fallthrough attribute for which no action is
                 // required.
-                match translator.ast_context.index(substatement).kind {
+                match substatement.get_node(&translator.ast_context).kind {
                     CStmtKind::Empty => Ok(Some(wip)),
                     _ => panic!("Expected empty attributed statement"),
                 }
@@ -2305,7 +2305,7 @@ impl Cfg<Label, StmtOrDecl> {
                     "\\ldefined: {{{}}}",
                     bb.defined
                         .iter()
-                        .filter_map(|decl| ctx.index(*decl).kind.get_name())
+                        .filter_map(|decl| decl.get_node(ctx).kind.get_name())
                         .cloned()
                         .collect::<Vec<_>>()
                         .join(", "),
@@ -2319,7 +2319,7 @@ impl Cfg<Label, StmtOrDecl> {
                     "\\llive in: {{{}}}",
                     bb.live
                         .iter()
-                        .filter_map(|decl| ctx.index(*decl).kind.get_name())
+                        .filter_map(|decl| decl.get_node(ctx).kind.get_name())
                         .cloned()
                         .collect::<Vec<_>>()
                         .join(", "),

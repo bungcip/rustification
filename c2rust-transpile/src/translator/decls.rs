@@ -4,6 +4,7 @@ use super::{
     linkage::mk_linkage,
     utils::{add_src_loc_attr, clean_path, foreign_item_attrs, item_attrs, stmts_block},
 };
+use crate::c_ast::get_node::GetNode;
 use crate::c_ast::iterators::SomeId;
 use crate::c_ast::{
     self, CDecl, CDeclId, CDeclKind, CQualTypeId, CStmtId, CStmtKind, CTypeId, CTypeKind,
@@ -18,7 +19,6 @@ use c2rust_ast_builder::{mk, properties::*};
 use indexmap::IndexSet;
 use log::{info, trace, warn};
 use proc_macro2::Span;
-use std::ops::Index;
 use syn::{self, BinOp, FnArg, ForeignItem, Item, ReturnType};
 
 /// Declarations can be converted into a normal item, or into a foreign item.
@@ -83,7 +83,7 @@ impl<'c> Translation<'c> {
 
                 // Check if the last field might be a flexible array member
                 if let Some(last_id) = fields.last() {
-                    let field_decl = &self.ast_context[*last_id];
+                    let field_decl = &last_id.get_node(&self.ast_context);
                     if let CDeclKind::Field { typ, .. } = field_decl.kind
                         && self.ast_context.maybe_flexible_array(typ.ctype)
                     {
@@ -98,13 +98,13 @@ impl<'c> Translation<'c> {
                 for &x in fields {
                     if let CDeclKind::Field {
                         ref name, ref typ, ..
-                    } = self.ast_context.index(x).kind
+                    } = x.get_node(&self.ast_context).kind
                     {
                         self.type_converter
                             .borrow_mut()
                             .declare_field_name(decl_id, x, name);
 
-                        if self.ast_context.index(typ.ctype).kind.is_pointer() {
+                        if typ.ctype.get_node(&self.ast_context).kind.is_pointer() {
                             has_pointers = true;
                         }
                     }
@@ -123,7 +123,7 @@ impl<'c> Translation<'c> {
                 let has_bitfields =
                     fields
                         .iter()
-                        .any(|field_id| match self.ast_context.index(*field_id).kind {
+                        .any(|field_id| match field_id.get_node(&self.ast_context).kind {
                             CDeclKind::Field { bitfield_width, .. } => bitfield_width.is_some(),
                             _ => unreachable!("Found non-field in record field list"),
                         });
@@ -251,7 +251,7 @@ impl<'c> Translation<'c> {
 
                 let mut field_syns = vec![];
                 for &x in fields {
-                    let field_decl = self.ast_context.index(x);
+                    let field_decl = x.get_node(&self.ast_context);
                     match field_decl.kind {
                         CDeclKind::Field { ref name, typ, .. } => {
                             let name = self
@@ -378,7 +378,7 @@ impl<'c> Translation<'c> {
                 let mut args: Vec<(CDeclId, String, CQualTypeId)> = vec![];
                 for param_id in parameters {
                     if let CDeclKind::Variable { ref ident, typ, .. } =
-                        self.ast_context.index(*param_id).kind
+                        param_id.get_node(&self.ast_context).kind
                     {
                         args.push((*param_id, ident.clone(), typ))
                     } else {
@@ -624,7 +624,8 @@ impl<'c> Translation<'c> {
 
                 trace!(
                     "Expanding macro {:?}: {:?}",
-                    decl_id, self.ast_context[decl_id]
+                    decl_id,
+                    decl_id.get_node(&self.ast_context)
                 );
 
                 let maybe_replacement = self.recreate_const_macro_from_expansions(
@@ -684,7 +685,7 @@ impl<'c> Translation<'c> {
                 let field_ids = fields.as_ref().map(|vec| vec.as_slice()).unwrap_or(&[]);
 
                 for field_id in field_ids.iter() {
-                    match self.ast_context[*field_id].kind {
+                    match field_id.get_node(&self.ast_context).kind {
                         CDeclKind::Field { typ, .. } => self.import_type(typ.ctype, decl_file_id),
                         _ => unreachable!("Found something in a struct other than a field"),
                     }
@@ -735,7 +736,7 @@ impl<'c> Translation<'c> {
     pub(crate) fn import_type(&self, ctype: CTypeId, decl_file_id: FileId) {
         use self::CTypeKind::*;
 
-        let type_kind = &self.ast_context[ctype].kind;
+        let type_kind = &ctype.get_node(&self.ast_context).kind;
         match type_kind {
             // libc can be accessed from anywhere as of Rust 2019 by full path
             Void | Char | SChar | UChar | Short | UShort | Int | UInt | Long | ULong | LongLong
@@ -777,7 +778,7 @@ impl<'c> Translation<'c> {
             }
             Function(CQualTypeId { ctype, .. }, params, ..) => {
                 // Return Type
-                let type_kind = &self.ast_context[*ctype].kind;
+                let type_kind = &ctype.get_node(&self.ast_context).kind;
 
                 // Rust doesn't use void for return type, so skip
                 if *type_kind != Void {
@@ -835,7 +836,7 @@ impl<'c> Translation<'c> {
     }
 
     pub(crate) fn add_import(&self, decl_file_id: FileId, decl_id: CDeclId, ident_name: &str) {
-        let decl = &self.ast_context[decl_id];
+        let decl = &decl_id.get_node(&self.ast_context);
         let import_file_id = self.ast_context.file_id(decl);
 
         // If the definition lives in the same header, there is no need to import it
@@ -937,7 +938,7 @@ impl<'c> Translation<'c> {
                 None => mk().never_ty(),
             };
             let is_void_ret = return_type
-                .map(|qty| self.ast_context[qty.ctype].kind == CTypeKind::Void)
+                .map(|qty| qty.ctype.get_node(&self.ast_context).kind == CTypeKind::Void)
                 .unwrap_or(false);
 
             // If a return type is void, we should instead omit the unit type return,
@@ -957,7 +958,7 @@ impl<'c> Translation<'c> {
                     Some(return_type) => {
                         let ret_type_id: CTypeId =
                             self.ast_context.resolve_type_id(return_type.ctype);
-                        if let CTypeKind::Void = self.ast_context.index(ret_type_id).kind {
+                        if let CTypeKind::Void = ret_type_id.get_node(&self.ast_context).kind {
                             cfg::ImplicitReturnType::Void
                         } else if is_main {
                             cfg::ImplicitReturnType::Main
@@ -973,7 +974,7 @@ impl<'c> Translation<'c> {
                     body_stmts.append(&mut self.compute_variable_array_sizes(ctx, typ.ctype)?);
                 }
 
-                let body_ids = match self.ast_context.index(body).kind {
+                let body_ids = match body.get_node(&self.ast_context).kind {
                     CStmtKind::Compound(ref stmts) => stmts,
                     _ => panic!("function body expects to be a compound statement"),
                 };

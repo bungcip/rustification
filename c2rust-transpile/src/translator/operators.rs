@@ -4,6 +4,7 @@ use super::{
     ExprContext, Translation,
     utils::{pointer_offset, transmute_expr, unwrap_function_pointer},
 };
+use crate::c_ast::get_node::GetNode;
 use crate::c_ast::{self, CDeclKind, CExprId, CExprKind, CQualTypeId, CTypeId, CTypeKind};
 use crate::diagnostics::{TranslationError, TranslationResult};
 use crate::translator::named_references::NamedReference;
@@ -340,7 +341,7 @@ impl<'c> Translation<'c> {
 
         let bitfield_id = match initial_lhs {
             CExprKind::Member(_, _, decl_id, _, _) => {
-                let kind = &self.ast_context[*decl_id].kind;
+                let kind = &decl_id.get_node(&self.ast_context).kind;
 
                 if let CDeclKind::Field {
                     bitfield_width: Some(_),

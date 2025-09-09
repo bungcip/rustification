@@ -3,12 +3,12 @@
 //! requires the use of the c2rust-bitfields crate.
 
 use std::collections::HashSet;
-use std::ops::Index;
 
 use super::PADDING_SUFFIX;
 use super::TranslationError;
 use super::context::ExprContext;
 use super::named_references::NamedReference;
+use crate::c_ast::get_node::GetNode;
 use crate::c_ast::{BinOp, CDeclId, CDeclKind, CExprId, CRecordId, CTypeId};
 use crate::diagnostics::TranslationResult;
 use crate::driver::Translation;
@@ -86,7 +86,7 @@ impl<'a> Translation<'a> {
                 platform_bit_offset,
                 platform_type_bitwidth,
                 ..
-            } = self.ast_context.index(*field_id).kind
+            } = field_id.get_node(&self.ast_context).kind
             {
                 let field_name = self
                     .type_converter
@@ -396,7 +396,8 @@ impl<'a> Translation<'a> {
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
         let name = self.resolve_decl_inner_name(struct_id);
 
-        let (field_decl_ids, platform_byte_size) = match self.ast_context.index(struct_id).kind {
+        let (field_decl_ids, platform_byte_size) = match struct_id.get_node(&self.ast_context).kind
+        {
             CDeclKind::Struct {
                 fields: Some(ref fields),
                 platform_byte_size,
@@ -461,7 +462,7 @@ impl<'a> Translation<'a> {
         // we shouldn't need to explicitly handle it ourselves
         let is_packed = self.ast_context.is_packed_struct_decl(struct_id);
         let field_info_iter = field_decl_ids.iter().filter_map(|field_id| {
-            match self.ast_context.index(*field_id).kind {
+            match field_id.get_node(&self.ast_context).kind {
                 CDeclKind::Field {
                     bitfield_width: Some(0),
                     ..

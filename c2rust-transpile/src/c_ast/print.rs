@@ -642,7 +642,8 @@ impl<W: Write> Printer<W> {
             }
 
             &NonCanonicalDecl { canonical_decl } => {
-                let name = context[canonical_decl]
+                let name = canonical_decl
+                    .get_node(context)
                     .kind
                     .get_name()
                     .map(|s| s.as_str())

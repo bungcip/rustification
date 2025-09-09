@@ -2,6 +2,7 @@
 //! This module provides translation for SIMD operations and expressions.
 
 use super::{ExprContext, Translation, utils::transmute_expr};
+use crate::c_ast::get_node::GetNode;
 use crate::c_ast::{
     CDeclKind, CExprId, CExprKind, CQualTypeId, CTypeId, CTypeKind, CastKind, IntBase,
 };
@@ -244,7 +245,7 @@ impl<'c> Translation<'c> {
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
         // NOTE: This is only for x86/_64, and so support for other architectures
         // might need some sort of disambiguation to be exported
-        let (fn_name, bytes) = match (&self.ast_context[ctype].kind, len) {
+        let (fn_name, bytes) = match (&ctype.get_node(&self.ast_context).kind, len) {
             (Float, 4) => ("_mm_setzero_ps", 16),
             (Float, 8) => ("_mm256_setzero_ps", 32),
             (Double, 2) => ("_mm_setzero_pd", 16),
@@ -303,7 +304,7 @@ impl<'c> Translation<'c> {
 
                 transmute_expr(mk().infer_ty(), mk().infer_ty(), tuple)
             } else {
-                let fn_call_name = match (&self.ast_context[ctype].kind, len) {
+                let fn_call_name = match (&ctype.get_node(&self.ast_context).kind, len) {
                     (Float, 4) => "_mm_setr_ps",
                     (Float, 8) => "_mm256_setr_ps",
                     (Double, 2) => "_mm_setr_pd",
@@ -480,7 +481,7 @@ impl<'c> Translation<'c> {
 
                 match &self.ast_context.resolve_type(ctype).kind {
                     CTypeKind::Vector(CQualTypeId { ctype, .. }, len) => {
-                        (&self.ast_context[*ctype].kind, expr_id, *len)
+                        (&ctype.get_node(&self.ast_context).kind, expr_id, *len)
                     }
                     _ => unreachable!("Found type other than vector"),
                 }
@@ -490,7 +491,7 @@ impl<'c> Translation<'c> {
             ImplicitCast(CQualTypeId { ctype, .. }, expr_id, _, _, _) => {
                 match &self.ast_context.resolve_type(ctype).kind {
                     CTypeKind::Vector(CQualTypeId { ctype, .. }, len) => {
-                        (&self.ast_context[*ctype].kind, expr_id, *len)
+                        (&ctype.get_node(&self.ast_context).kind, expr_id, *len)
                     }
                     _ => unreachable!("Found type other than vector"),
                 }
@@ -558,7 +559,7 @@ impl<'c> Translation<'c> {
                     let expr = &self.ast_context[*expr_id].kind;
 
                     if let CExprKind::DeclRef(_, decl_id, _) = expr {
-                        let decl = &self.ast_context[*decl_id].kind;
+                        let decl = &decl_id.get_node(&self.ast_context).kind;
 
                         if let CDeclKind::Function { name, .. } = decl {
                             return name.starts_with("__builtin_ia32_");

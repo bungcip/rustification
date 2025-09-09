@@ -4,6 +4,7 @@
 
 use super::*;
 use crate::transform;
+use std::ops::Index;
 
 /// Check if something is a valid Rust lvalue. Inspired by `librustc::ty::expr_is_lval`.
 fn is_lvalue(e: &Expr) -> bool {

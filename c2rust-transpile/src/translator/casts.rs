@@ -7,6 +7,7 @@ use std::ops::Index;
 use log::warn;
 use syn::*; // To override c_ast::{BinOp,UnOp} from glob import
 
+use crate::c_ast::get_node::GetNode;
 use crate::diagnostics::TranslationResult;
 use crate::{
     c_ast::{CDeclKind, CTypeKind},
@@ -297,7 +298,9 @@ impl<'c> Translation<'c> {
 
                     let fn_path = mk().path_expr(vec!["f128", "f128", "new"]);
                     Ok(val.map(|val| mk().call_expr(fn_path, vec![val])))
-                } else if let CTypeKind::LongDouble = self.ast_context[source_ty_ctype_id].kind {
+                } else if let CTypeKind::LongDouble =
+                    source_ty_ctype_id.get_node(&self.ast_context).kind
+                {
                     self.f128_cast_to(val, target_ty_ctype)
                 } else if let &CTypeKind::Enum(enum_decl_id) = target_ty_ctype {
                     // Casts targeting `enum` types...
@@ -471,7 +474,7 @@ impl<'c> Translation<'c> {
         target_ty: Box<Type>, // target type of cast
     ) -> WithStmts<Box<Expr>> {
         // Extract the IDs of the `EnumConstant` decls underlying the enum.
-        let variants = match self.ast_context.index(enum_decl).kind {
+        let variants = match enum_decl.get_node(&self.ast_context).kind {
             CDeclKind::Enum { ref variants, .. } => variants,
             _ => panic!("{enum_decl:?} does not point to an `enum` declaration"),
         };

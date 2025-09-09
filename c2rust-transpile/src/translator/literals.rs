@@ -3,6 +3,7 @@
 //! These include integer, floating, array, struct, union, enum literals.
 
 use super::{ExprContext, Translation, utils::transmute_expr};
+use crate::c_ast::get_node::GetNode;
 use crate::c_ast::{
     CDeclKind, CExprId, CExprKind, CFieldId, CLiteral, CQualTypeId, CRecordId, CTypeId, CTypeKind,
     CastKind, ConstIntExpr, IntBase,
@@ -41,7 +42,7 @@ impl<'c> Translation<'c> {
             _ => panic!("{enum_type_id:?} does not point to an `enum` type"),
         };
 
-        let (variants, underlying_type_id) = match self.ast_context[def_id].kind {
+        let (variants, underlying_type_id) = match def_id.get_node(&self.ast_context).kind {
             CDeclKind::Enum {
                 ref variants,
                 integral_type,
@@ -51,7 +52,7 @@ impl<'c> Translation<'c> {
         };
 
         for &variant_id in variants {
-            match self.ast_context[variant_id].kind {
+            match variant_id.get_node(&self.ast_context).kind {
                 CDeclKind::EnumConstant { value: v, .. } => {
                     if v == ConstIntExpr::I(value) || v == ConstIntExpr::U(value as u64) {
                         let name = self.renamer.borrow().get(&variant_id).unwrap();
@@ -346,14 +347,14 @@ impl<'c> Translation<'c> {
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
         let union_field_id = opt_union_field_id.expect("union field ID");
 
-        match self.ast_context.index(union_id).kind {
+        match union_id.get_node(&self.ast_context).kind {
             CDeclKind::Union { .. } => {
                 let union_name = self
                     .type_converter
                     .borrow()
                     .resolve_decl_name(union_id)
                     .unwrap();
-                match self.ast_context.index(union_field_id).kind {
+                match union_field_id.get_node(&self.ast_context).kind {
                     CDeclKind::Field { typ: field_ty, .. } => {
                         let val = if ids.is_empty() {
                             self.implicit_default_expr(

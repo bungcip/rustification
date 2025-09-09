@@ -15,6 +15,7 @@ author = "- The C2Rust Project Developers <c2rust@immunant.com>
 version,
 about = "Translate C code to equivalent Rust code",
 long_about = None)]
+/// Main command-line arguments struct.
 struct Args {
     /// Adds a prefix to all function names. Generally only useful for testing.
     #[clap(long)]
@@ -183,6 +184,7 @@ pub enum TranslateMacros {
 }
 
 impl From<TranslateMacros> for c2rust_transpile::TranslateMacros {
+    /// Converts `TranslateMacros` to `c2rust_transpile::TranslateMacros`.
     fn from(this: TranslateMacros) -> Self {
         match this {
             TranslateMacros::None => c2rust_transpile::TranslateMacros::None,
@@ -192,13 +194,20 @@ impl From<TranslateMacros> for c2rust_transpile::TranslateMacros {
     }
 }
 
+/// How to handle violated invariants or invalid code.
 #[derive(Debug, PartialEq, Eq, ValueEnum, Clone)]
 #[clap(rename_all = "snake_case")]
 enum InvalidCodes {
+    /// Panic on violated invariants or invalid code.
     Panic,
+    /// Emit a `compile_error!` on violated invariants or invalid code.
     CompileError,
 }
 
+/// Main entry point for the `c2rust` binary.
+///
+/// This function parses command-line arguments, configures the transpiler,
+/// and runs the transpilation process.
 fn main() {
     let args = Args::parse();
 

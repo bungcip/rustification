@@ -208,14 +208,17 @@ pub fn expect_opt_u64(val: &Value) -> Option<Option<u64>> {
     }
 }
 
+/// A helper function that converts a u64 to an `ASTEntryTag`.
 fn import_ast_tag(tag: u64) -> ASTEntryTag {
     unsafe { std::mem::transmute::<u32, ASTEntryTag>(tag as u32) }
 }
 
+/// A helper function that converts a u64 to a `TypeTag`.
 fn import_type_tag(tag: u64) -> TypeTag {
     unsafe { std::mem::transmute::<u32, TypeTag>(tag as u32) }
 }
 
+/// A helper function that converts a u64 to a `BuiltinVaListKind`.
 fn import_va_list_kind(tag: u64) -> BuiltinVaListKind {
     unsafe { std::mem::transmute::<u32, BuiltinVaListKind>(tag as u32) }
 }

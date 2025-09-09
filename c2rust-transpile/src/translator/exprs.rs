@@ -20,6 +20,7 @@ use crate::{
 
 use crate::ExternCrate;
 use crate::c_ast;
+use crate::c_ast::get_node::GetNode;
 use crate::c_ast::*;
 use crate::translator::utils;
 
@@ -227,7 +228,7 @@ impl<'c> Translation<'c> {
                         val = utils::transmute_expr(actual_ty, ty, val);
                         set_unsafe = true;
                     } else {
-                        let decl_kind = &self.ast_context[decl_id].kind;
+                        let decl_kind = &decl_id.get_node(&self.ast_context).kind;
                         let kind_with_declared_args =
                             self.ast_context.fn_decl_ty_with_declared_args(decl_kind);
 
@@ -285,8 +286,8 @@ impl<'c> Translation<'c> {
 
                     // Struct Type
                     let decl_id = {
-                        let kind = match self.ast_context[qty.ctype].kind {
-                            CTypeKind::Elaborated(ty_id) => &self.ast_context[ty_id].kind,
+                        let kind = match qty.ctype.get_node(&self.ast_context).kind {
+                            CTypeKind::Elaborated(ty_id) => &ty_id.get_node(&self.ast_context).kind,
                             ref kind => kind,
                         };
 
@@ -807,7 +808,7 @@ impl<'c> Translation<'c> {
                         .borrow()
                         .resolve_field_name(None, decl)
                         .unwrap();
-                    let is_bitfield = match &self.ast_context[decl].kind {
+                    let is_bitfield = match &decl.get_node(&self.ast_context).kind {
                         CDeclKind::Field { bitfield_width, .. } => bitfield_width.is_some(),
                         _ => unreachable!("Found a member which is not a field"),
                     };
@@ -914,7 +915,7 @@ impl<'c> Translation<'c> {
         inside_init_list_aop: bool,
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
         let resolved_ty_id = self.ast_context.resolve_type_id(ty_id);
-        let resolved_ty = &self.ast_context.index(resolved_ty_id).kind;
+        let resolved_ty = &resolved_ty_id.get_node(&self.ast_context).kind;
 
         if self.ast_context.is_va_list(resolved_ty_id) {
             // generate MaybeUninit::uninit().assume_init()
@@ -929,7 +930,7 @@ impl<'c> Translation<'c> {
         } else if resolved_ty.is_integral_type() {
             Ok(WithStmts::new_val(mk().lit_expr(0)))
         } else if resolved_ty.is_floating_type() {
-            match self.ast_context[ty_id].kind {
+            match ty_id.get_node(&self.ast_context).kind {
                 CTypeKind::LongDouble => Ok(WithStmts::new_val(
                     mk().path_expr(vec!["f128", "f128", "ZERO"]),
                 )),
@@ -1055,7 +1056,7 @@ impl<'c> Translation<'c> {
                 // expected type down to the translation of our argument expressions.
                 let lhs_resolved_ty = self.ast_context.resolve_type(lhs_type_id.ctype);
                 let rhs_resolved_ty = self.ast_context.resolve_type(rhs_type_id.ctype);
-                let expr_ty_kind = &self.ast_context.index(expr_type_id.ctype).kind;
+                let expr_ty_kind = &expr_type_id.ctype.get_node(&self.ast_context).kind;
                 // Addition and subtraction can accept one pointer argument for .offset(), in which
                 // case we don't want to homogenize arg types.
                 if !lhs_resolved_ty.kind.is_pointer()

@@ -1,4 +1,5 @@
 use super::Translation;
+use crate::c_ast::get_node::GetNode;
 use crate::c_ast::iterators::{NodeVisitor, SomeId, immediate_children_all_types};
 use crate::c_ast::{CDeclId, CDeclKind, CommentContext, SrcLoc, TypedAstContext};
 use crate::rust_ast::comment_store::CommentStore;
@@ -90,7 +91,7 @@ impl<'c> NodeVisitor for CommentLocator<'c> {
                 .comment_context
                 .get_comments_before(loc.begin(), self.ast_context);
             if let SomeId::Decl(decl_id) = id {
-                let decl_kind = &self.ast_context[decl_id].kind;
+                let decl_kind = &decl_id.get_node(&self.ast_context).kind;
                 if let CDeclKind::NonCanonicalDecl { canonical_decl } = decl_kind {
                     // Attach non-canonical decl comments to their canonical
                     // declaration
@@ -114,7 +115,7 @@ impl<'c> NodeVisitor for CommentLocator<'c> {
         // Don't traverse into macro object replacement expressions, as they are
         // in other places.
         if let SomeId::Decl(id) = id
-            && let CDeclKind::MacroObject { .. } = self.ast_context[id].kind
+            && let CDeclKind::MacroObject { .. } = id.get_node(&self.ast_context).kind
         {
             return false;
         }

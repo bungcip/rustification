@@ -1,4 +1,5 @@
 use super::{ExprContext, Translation, utils::transmute_expr};
+use crate::c_ast::get_node::GetNode;
 use crate::c_ast::iterators::{DFExpr, SomeId};
 use crate::c_ast::{
     CDeclId, CDeclKind, CExprId, CExprKind, CQualTypeId, CStmtId, CTypeKind, CastKind,
@@ -114,7 +115,7 @@ impl<'c> Translation<'c> {
         CExprKind::ImplicitCast(_, fexp, CastKind::BuiltinFnToFnPtr, _, _) => fexp }
         match_or! { [self.ast_context[fexp].kind]
         CExprKind::DeclRef(_, decl_id, _) => decl_id }
-        match_or! { [self.ast_context[decl_id].kind]
+        match_or! { [decl_id.get_node(&self.ast_context).kind]
         CDeclKind::Function { ref name, .. } => name }
         match name as &str {
             "__builtin_va_start" => {
