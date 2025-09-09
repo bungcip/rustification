@@ -19,6 +19,8 @@ use crate::rust_ast::comment_store::CommentStore;
 use crate::rust_ast::item_store::ItemStore;
 use crate::rust_ast::pos_to_span;
 use crate::transform;
+use crate::translator::statics::static_initializer_is_uncompilable;
+use crate::translator::types::check_type_is_constant_aop;
 use c2rust_ast_builder::{mk, properties::*};
 
 use crate::c_ast;
@@ -48,7 +50,7 @@ mod literals;
 mod macros;
 mod named_references;
 mod operators;
-mod pointer_wrappers;
+pub(crate) mod pointer_wrappers;
 pub(crate) mod preprocess;
 mod simd;
 mod statics;
@@ -605,7 +607,7 @@ impl<'c> Translation<'c> {
             typ,
             ..
         } = decl_id.get_node(&self.ast_context).kind
-            && self.static_initializer_is_uncompilable(initializer, typ)
+            && static_initializer_is_uncompilable(&self.ast_context, initializer, typ)
         {
             let ident2 = self
                 .renamer
@@ -904,7 +906,7 @@ impl<'c> Translation<'c> {
 
             CTypeKind::ConstantArray(_, size) if ctx.is_static => {
                 // for other array of pointer, we use PointerMut or PointerConst to wrap it
-                if let Some(cqt) = self.check_type_is_constant_aop(typ.ctype) {
+                if let Some(cqt) = check_type_is_constant_aop(&self.ast_context, typ.ctype) {
                     let mutbl = if cqt.qualifiers.is_const {
                         Mutability::Immutable
                     } else {

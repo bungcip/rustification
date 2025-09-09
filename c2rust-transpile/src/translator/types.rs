@@ -4,6 +4,20 @@ use crate::c_ast::*;
 use crate::diagnostics::TranslationResult;
 use syn::*; // To override c_ast::{BinOp,UnOp} from glob import
 
+// check if the type is a constant array of pointer (i.e. unsigned char *const[])
+pub(crate) fn check_type_is_constant_aop(
+    ast_context: &TypedAstContext,
+    type_id: CTypeId,
+) -> Option<CQualTypeId> {
+    let type_kind = &ast_context.resolve_type(type_id).kind;
+    if let CTypeKind::ConstantArray(ctype, _) = type_kind
+        && let CTypeKind::Pointer(cqt) = &ast_context.resolve_type(*ctype).kind
+    {
+        return Some(*cqt);
+    }
+    None
+}
+
 impl<'c> Translation<'c> {
     pub(crate) fn convert_type(&self, type_id: CTypeId) -> TranslationResult<Box<Type>> {
         if let Some(cur_file) = *self.cur_file.borrow() {
@@ -12,18 +26,6 @@ impl<'c> Translation<'c> {
         self.type_converter
             .borrow_mut()
             .convert(&self.ast_context, type_id)
-    }
-
-    // check if the type is a constant array of pointer (i.e. unsigned char *const[])
-    pub(crate) fn check_type_is_constant_aop(&self, type_id: CTypeId) -> Option<CQualTypeId> {
-        let type_kind = &self.ast_context.resolve_type(type_id).kind;
-        if let CTypeKind::ConstantArray(ctype, _) = type_kind {
-            let type_kind = &self.ast_context.resolve_type(*ctype).kind;
-            if let CTypeKind::Pointer(cqt) = type_kind {
-                return Some(*cqt);
-            }
-        }
-        None
     }
 
     // display ctype name in nice format for debugging

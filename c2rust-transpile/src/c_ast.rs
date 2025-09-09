@@ -295,7 +295,6 @@ impl TypedAstContext {
 
     /// Gets the source location for a given ID.
     pub fn get_src_loc(&self, id: SomeId) -> Option<SrcSpan> {
-        use crate::c_ast::get_node::GetNode;
         use SomeId::*;
         match id {
             Stmt(id) => id.get_node(self).loc,
@@ -340,15 +339,13 @@ impl TypedAstContext {
     /// bodies. These forward declarations are suitable for use as
     /// the targets of pointers.
     pub fn is_forward_declared_type(&self, typ: CTypeId) -> bool {
-        use crate::c_ast::get_node::GetNode;
-        use CDeclKind::*;
         || -> Option<()> {
             let decl_id = self.resolve_type(typ).kind.as_underlying_decl()?;
             matches!(
                 decl_id.get_node(self).kind,
-                Struct { fields: None, .. }
-                    | Union { fields: None, .. }
-                    | Enum {
+                CDeclKind::Struct { fields: None, .. }
+                    | CDeclKind::Union { fields: None, .. }
+                    | CDeclKind::Enum {
                         integral_type: None,
                         ..
                     }
@@ -361,7 +358,6 @@ impl TypedAstContext {
     /// Follow a chain of typedefs and return true iff the last typedef is named
     /// `__builtin_va_list` thus naming the type clang uses to represent `va_list`s.
     pub fn is_builtin_va_list(&self, typ: CTypeId) -> bool {
-        use crate::c_ast::get_node::GetNode;
         match typ.get_node(self).kind {
             CTypeKind::Typedef(decl) => match &decl.get_node(self).kind {
                 CDeclKind::Typedef {
@@ -478,7 +474,6 @@ impl TypedAstContext {
     /// Resolve true expression type, iterating through any casts and variable
     /// references.
     pub fn resolve_expr_type_id(&self, expr_id: CExprId) -> Option<(CExprId, CTypeId)> {
-        use crate::c_ast::get_node::GetNode;
         let expr = &self.index(expr_id).kind;
         let mut ty = expr.get_type();
         use CExprKind::*;
@@ -515,10 +510,10 @@ impl TypedAstContext {
 
     /// Resolves a type ID, iterating through any typedefs.
     pub fn resolve_type_id(&self, typ: CTypeId) -> CTypeId {
-        use crate::c_ast::get_node::GetNode;
         use CTypeKind::*;
         let ty = match typ.get_node(self).kind {
             Attributed(ty, _) => ty.ctype,
+            CountAttributed(ty, ..) => ty.ctype,
             Elaborated(ty) => ty,
             Decayed(ty) => ty,
             TypeOf(ty) => ty,
@@ -534,14 +529,12 @@ impl TypedAstContext {
 
     /// Resolves a type, iterating through any typedefs.
     pub fn resolve_type(&self, typ: CTypeId) -> &CType {
-        use crate::c_ast::get_node::GetNode;
         let resolved_typ_id = self.resolve_type_id(typ);
         resolved_typ_id.get_node(self)
     }
 
     /// Checks if a variable has static storage.
     pub fn is_static_variable(&self, expr: CExprId) -> bool {
-        use crate::c_ast::get_node::GetNode;
         match self.index(expr).kind {
             CExprKind::DeclRef(_, decl_id, _) => {
                 if let CDeclKind::Variable {
@@ -572,7 +565,6 @@ impl TypedAstContext {
     /// Extract decl of referenced function.
     /// Looks for ImplicitCast(FunctionToPointerDecay, DeclRef(function_decl)).
     pub fn fn_declref_decl(&self, func_expr: CExprId) -> Option<&CDeclKind> {
-        use crate::c_ast::get_node::GetNode;
         use CastKind::FunctionToPointerDecay;
         if let CExprKind::ImplicitCast(_, fexp, FunctionToPointerDecay, _, _) = self[func_expr].kind
             && let CExprKind::DeclRef(_ty, decl_id, _rv) = &self[fexp].kind
@@ -589,7 +581,6 @@ impl TypedAstContext {
     /// Returns `None` if one of the parameters is not a `CDeclKind::Variable`, e.g. if it was not a
     /// function parameter but actually some other kind of declaration.
     pub fn tys_of_params(&self, parameters: &[CDeclId]) -> Option<Vec<CQualTypeId>> {
-        use crate::c_ast::get_node::GetNode;
         parameters
             .iter()
             .map(|p| match (*p).get_node(self).kind {
@@ -605,7 +596,6 @@ impl TypedAstContext {
     ///
     /// The passed CDeclId must refer to a function declaration.
     pub fn fn_decl_ty_with_declared_args(&self, func_decl: &CDeclKind) -> CTypeKind {
-        use crate::c_ast::get_node::GetNode;
         if let CDeclKind::Function {
             typ, parameters, ..
         } = func_decl
@@ -692,7 +682,6 @@ impl TypedAstContext {
             None => return false,
             Some(t) => t,
         };
-        use crate::c_ast::get_node::GetNode;
         let pointed_id = match type_id.get_node(self).kind {
             CTypeKind::Pointer(pointer_qualtype) => pointer_qualtype.ctype,
             _ => return false,
@@ -927,16 +916,10 @@ impl TypedAstContext {
                 if let SomeId::Expr(e) = id {
                     let new_ty = match e.get_node(self.ast_context).kind {
                         CExprKind::Conditional(_ty, _cond, lhs, rhs) => {
-                            let lhs_type_id = lhs
-                                .get_node(&self.ast_context)
-                                .kind
-                                .get_qual_type()
-                                .unwrap();
-                            let rhs_type_id = rhs
-                                .get_node(&self.ast_context)
-                                .kind
-                                .get_qual_type()
-                                .unwrap();
+                            let lhs_type_id =
+                                lhs.get_node(self.ast_context).kind.get_qual_type().unwrap();
+                            let rhs_type_id =
+                                rhs.get_node(self.ast_context).kind.get_qual_type().unwrap();
 
                             let lhs_resolved_ty = self.ast_context.resolve_type(lhs_type_id.ctype);
                             let rhs_resolved_ty = self.ast_context.resolve_type(rhs_type_id.ctype);
@@ -950,12 +933,9 @@ impl TypedAstContext {
                             }
                         }
                         CExprKind::Binary(_ty, op, lhs, rhs, _, _) => {
-                            let rhs_type_id = rhs
-                                .get_node(&self.ast_context)
-                                .kind
-                                .get_qual_type()
-                                .unwrap();
-                            let lhs_kind = &lhs.get_node(&self.ast_context).kind;
+                            let rhs_type_id =
+                                rhs.get_node(self.ast_context).kind.get_qual_type().unwrap();
+                            let lhs_kind = &lhs.get_node(self.ast_context).kind;
                             let lhs_type_id = lhs_kind.get_qual_type().unwrap();
 
                             let lhs_resolved_ty = self.ast_context.resolve_type(lhs_type_id.ctype);
@@ -978,10 +958,10 @@ impl TypedAstContext {
                         }
                         CExprKind::Unary(_ty, op, e, _idk) => op.expected_result_type(
                             self.ast_context,
-                            e.get_node(&self.ast_context).kind.get_qual_type().unwrap(),
+                            e.get_node(self.ast_context).kind.get_qual_type().unwrap(),
                         ),
                         CExprKind::Paren(_ty, e) => {
-                            e.get_node(&self.ast_context).kind.get_qual_type()
+                            e.get_node(self.ast_context).kind.get_qual_type()
                         }
                         _ => return,
                     };
@@ -1005,7 +985,6 @@ impl TypedAstContext {
     /// Sort the top-level declarations in the AST.
     pub fn sort_top_decls(&mut self) {
         // Group and sort declarations by file and by position
-        use crate::c_ast::get_node::GetNode;
         let mut decls_top = mem::take(&mut self.c_decls_top);
         decls_top.sort_unstable_by(|a, b| {
             let a = a.get_node(self);
@@ -1023,7 +1002,6 @@ impl TypedAstContext {
 
     /// Checks if a struct declaration has a manual alignment attribute.
     pub fn has_inner_struct_decl(&self, decl_id: CDeclId) -> bool {
-        use crate::c_ast::get_node::GetNode;
         matches!(
             decl_id.get_node(self).kind,
             CDeclKind::Struct {
@@ -1035,7 +1013,6 @@ impl TypedAstContext {
 
     /// Checks if a struct declaration is packed.
     pub fn is_packed_struct_decl(&self, decl_id: CDeclId) -> bool {
-        use crate::c_ast::get_node::GetNode;
         use CDeclKind::*;
         matches!(
             decl_id.get_node(self).kind,
@@ -1051,7 +1028,6 @@ impl TypedAstContext {
 
     /// Checks if a struct type is aligned.
     pub fn is_aligned_struct_type(&self, typ: CTypeId) -> bool {
-        use crate::c_ast::get_node::GetNode;
         if let Some(decl_id) = self.resolve_type(typ).kind.as_underlying_decl()
             && let CDeclKind::Struct {
                 manual_alignment: Some(_),

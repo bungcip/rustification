@@ -5,6 +5,7 @@ use super::{ExprContext, Translation, utils::vec_expr};
 use crate::c_ast::get_node::GetNode;
 use crate::c_ast::{CDeclKind, CExprId, CExprKind};
 use crate::diagnostics::{TranslationError, TranslationResult};
+use crate::translator::variadic::{match_vacopy, match_vaend, match_vastart};
 use crate::with_stmts::WithStmts;
 use crate::{ExternCrate, generic_err, generic_loc_err, transform};
 use c2rust_ast_builder::mk;
@@ -311,7 +312,7 @@ impl<'c> Translation<'c> {
             "__builtin_va_start" => {
                 if ctx.is_unused()
                     && args.len() == 2
-                    && let Some(va_id) = self.match_vastart(args[0])
+                    && let Some(va_id) = match_vastart(&self.ast_context, args[0])
                     && self.ast_context.get_decl(&va_id).is_some()
                 {
                     let dst = self.convert_expr(ctx.expect_valistimpl().used(), args[0], None)?;
@@ -332,7 +333,8 @@ impl<'c> Translation<'c> {
             "__builtin_va_copy" => {
                 if ctx.is_unused()
                     && args.len() == 2
-                    && let Some((_dst_va_id, _src_va_id)) = self.match_vacopy(args[0], args[1])
+                    && let Some((_dst_va_id, _src_va_id)) =
+                        match_vacopy(&self.ast_context, args[0], args[1])
                 {
                     let dst = self.convert_expr(ctx.expect_valistimpl().used(), args[0], None)?;
                     let src = self.convert_expr(ctx.expect_valistimpl().used(), args[1], None)?;
@@ -351,7 +353,7 @@ impl<'c> Translation<'c> {
             "__builtin_va_end" => {
                 if ctx.is_unused()
                     && args.len() == 1
-                    && let Some(_va_id) = self.match_vaend(args[0])
+                    && let Some(_va_id) = match_vaend(&self.ast_context, args[0])
                 {
                     // nothing to do since `VaListImpl`s get `Drop`'ed.
                     return Ok(WithStmts::new_val(self.panic("va_end stub")));

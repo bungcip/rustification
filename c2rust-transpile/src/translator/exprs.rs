@@ -1,4 +1,5 @@
 use crate::translator::TranslationError;
+use crate::translator::types::check_type_is_constant_aop;
 use c2rust_ast_builder::mk;
 use c2rust_ast_builder::properties::Mutability;
 use std::ops::Index;
@@ -608,7 +609,7 @@ impl<'c> Translation<'c> {
                             ref other => panic!("Unexpected array type {other:?}"),
                         };
 
-                        let is_array_of_pointer = self.check_type_is_constant_aop(t);
+                        let is_array_of_pointer = check_type_is_constant_aop(&self.ast_context, t);
                         let is_static_variable = self.ast_context.is_static_variable(arr);
 
                         let lhs = self.convert_expr(ctx.used(), arr, None)?;

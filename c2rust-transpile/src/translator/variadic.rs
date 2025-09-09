@@ -35,115 +35,114 @@ macro_rules! match_or {
     };
 }
 
+pub(crate) fn match_vastart(ast_context: &TypedAstContext, expr: CExprId) -> Option<CDeclId> {
+    // struct-based va_list (e.g. x86_64)
+    fn match_vastart_struct(ast_context: &TypedAstContext, expr: CExprId) -> Option<CDeclId> {
+        match_or! { [ast_context[expr].kind]
+        CExprKind::ImplicitCast(_, e, _, _, _) => e }
+        match_or! { [ast_context[e].kind]
+        CExprKind::DeclRef(_, va_id, _) => va_id }
+        Some(va_id)
+    }
+
+    // struct-based va_list (e.g. x86_64) where va_list is accessed as a struct member
+    // supporting this pattern is necessary to transpile apache httpd
+    fn match_vastart_struct_member(
+        ast_context: &TypedAstContext,
+        expr: CExprId,
+    ) -> Option<CDeclId> {
+        match_or! { [ast_context[expr].kind]
+        CExprKind::ImplicitCast(_, me, _, _, _) => me }
+        match_or! { [ast_context[me].kind]
+        CExprKind::Member(_, e, _, _, _) => e }
+        match_or! { [ast_context[e].kind]
+        CExprKind::DeclRef(_, va_id, _) => va_id }
+        Some(va_id)
+    }
+
+    // struct-based va_list (e.g. x86_64) where va_list is accessed as a member of a struct pointer
+    // supporting this pattern is necessary to transpile [graphviz](https://gitlab.com/graphviz/graphviz/-/blob/5.0.0/lib/sfio/sftable.c#L321)
+    fn match_vastart_struct_pointer_member(
+        ast_context: &TypedAstContext,
+        expr: CExprId,
+    ) -> Option<CDeclId> {
+        match_or! { [ast_context[expr].kind]
+        CExprKind::ImplicitCast(_, me, _, _, _) => me }
+        match_or! { [ast_context[me].kind]
+        CExprKind::Member(_, ie, _, _, _) => ie }
+        match_or! { [ast_context[ie].kind]
+        CExprKind::ImplicitCast(_, e, _, _, _) => e }
+        match_or! { [ast_context[e].kind]
+        CExprKind::DeclRef(_, va_id, _) => va_id }
+        Some(va_id)
+    }
+
+    // char pointer-based va_list (e.g. x86)
+    fn match_vastart_pointer(ast_context: &TypedAstContext, expr: CExprId) -> Option<CDeclId> {
+        match_or! { [ast_context[expr].kind]
+        CExprKind::DeclRef(_, va_id, _) => va_id }
+        Some(va_id)
+    }
+
+    match_vastart_struct(ast_context, expr)
+        .or_else(|| match_vastart_pointer(ast_context, expr))
+        .or_else(|| match_vastart_struct_member(ast_context, expr))
+        .or_else(|| match_vastart_struct_pointer_member(ast_context, expr))
+}
+
+pub(crate) fn match_vaend(ast_context: &TypedAstContext, expr: CExprId) -> Option<CDeclId> {
+    match_vastart(ast_context, expr)
+}
+
+pub(crate) fn match_vacopy(
+    ast_context: &TypedAstContext,
+    dst_expr: CExprId,
+    src_expr: CExprId,
+) -> Option<(CDeclId, CDeclId)> {
+    let dst_id = match_vastart(ast_context, dst_expr);
+    let src_id = match_vastart(ast_context, src_expr);
+    if let (Some(did), Some(sid)) = (dst_id, src_id) {
+        return Some((did, sid));
+    }
+    None
+}
+
+pub(crate) fn match_vapart(ast_context: &TypedAstContext, expr: CExprId) -> Option<VaPart> {
+    match_or! { [ast_context[expr].kind]
+    CExprKind::Call(_, func, ref args) => (func, args) }
+    match_or! { [ast_context[func].kind]
+    CExprKind::ImplicitCast(_, fexp, CastKind::BuiltinFnToFnPtr, _, _) => fexp }
+    match_or! { [ast_context[fexp].kind]
+    CExprKind::DeclRef(_, decl_id, _) => decl_id }
+    match_or! { [decl_id.get_node(ast_context).kind]
+    CDeclKind::Function { ref name, .. } => name }
+    match name as &str {
+        "__builtin_va_start" => {
+            if args.len() != 2 {
+                return None;
+            }
+            match_vastart(ast_context, args[0]).map(VaPart::Start)
+        }
+
+        "__builtin_va_copy" => {
+            if args.len() != 2 {
+                return None;
+            }
+            match_vacopy(ast_context, args[0], args[1]).map(|(did, sid)| VaPart::Copy(did, sid))
+        }
+
+        "__builtin_va_end" => {
+            if args.len() != 1 {
+                return None;
+            }
+            match_vaend(ast_context, args[0]).map(VaPart::End)
+        }
+
+        _ => None,
+    }
+}
+
 impl<'c> Translation<'c> {
-    pub(crate) fn match_vastart(&self, expr: CExprId) -> Option<CDeclId> {
-        // struct-based va_list (e.g. x86_64)
-        fn match_vastart_struct(ast_context: &TypedAstContext, expr: CExprId) -> Option<CDeclId> {
-            match_or! { [ast_context[expr].kind]
-            CExprKind::ImplicitCast(_, e, _, _, _) => e }
-            match_or! { [ast_context[e].kind]
-            CExprKind::DeclRef(_, va_id, _) => va_id }
-            Some(va_id)
-        }
-
-        // struct-based va_list (e.g. x86_64) where va_list is accessed as a struct member
-        // supporting this pattern is necessary to transpile apache httpd
-        fn match_vastart_struct_member(
-            ast_context: &TypedAstContext,
-            expr: CExprId,
-        ) -> Option<CDeclId> {
-            match_or! { [ast_context[expr].kind]
-            CExprKind::ImplicitCast(_, me, _, _, _) => me }
-            match_or! { [ast_context[me].kind]
-            CExprKind::Member(_, e, _, _, _) => e }
-            match_or! { [ast_context[e].kind]
-            CExprKind::DeclRef(_, va_id, _) => va_id }
-            Some(va_id)
-        }
-
-        // struct-based va_list (e.g. x86_64) where va_list is accessed as a member of a struct pointer
-        // supporting this pattern is necessary to transpile [graphviz](https://gitlab.com/graphviz/graphviz/-/blob/5.0.0/lib/sfio/sftable.c#L321)
-        fn match_vastart_struct_pointer_member(
-            ast_context: &TypedAstContext,
-            expr: CExprId,
-        ) -> Option<CDeclId> {
-            match_or! { [ast_context[expr].kind]
-            CExprKind::ImplicitCast(_, me, _, _, _) => me }
-            match_or! { [ast_context[me].kind]
-            CExprKind::Member(_, ie, _, _, _) => ie }
-            match_or! { [ast_context[ie].kind]
-            CExprKind::ImplicitCast(_, e, _, _, _) => e }
-            match_or! { [ast_context[e].kind]
-            CExprKind::DeclRef(_, va_id, _) => va_id }
-            Some(va_id)
-        }
-
-        // char pointer-based va_list (e.g. x86)
-        fn match_vastart_pointer(ast_context: &TypedAstContext, expr: CExprId) -> Option<CDeclId> {
-            match_or! { [ast_context[expr].kind]
-            CExprKind::DeclRef(_, va_id, _) => va_id }
-            Some(va_id)
-        }
-
-        match_vastart_struct(&self.ast_context, expr)
-            .or_else(|| match_vastart_pointer(&self.ast_context, expr))
-            .or_else(|| match_vastart_struct_member(&self.ast_context, expr))
-            .or_else(|| match_vastart_struct_pointer_member(&self.ast_context, expr))
-    }
-
-    pub(crate) fn match_vaend(&self, expr: CExprId) -> Option<CDeclId> {
-        self.match_vastart(expr)
-    }
-
-    pub(crate) fn match_vacopy(
-        &self,
-        dst_expr: CExprId,
-        src_expr: CExprId,
-    ) -> Option<(CDeclId, CDeclId)> {
-        let dst_id = self.match_vastart(dst_expr);
-        let src_id = self.match_vastart(src_expr);
-        if let (Some(did), Some(sid)) = (dst_id, src_id) {
-            return Some((did, sid));
-        }
-        None
-    }
-
-    pub(crate) fn match_vapart(&self, expr: CExprId) -> Option<VaPart> {
-        match_or! { [self.ast_context[expr].kind]
-        CExprKind::Call(_, func, ref args) => (func, args) }
-        match_or! { [self.ast_context[func].kind]
-        CExprKind::ImplicitCast(_, fexp, CastKind::BuiltinFnToFnPtr, _, _) => fexp }
-        match_or! { [self.ast_context[fexp].kind]
-        CExprKind::DeclRef(_, decl_id, _) => decl_id }
-        match_or! { [decl_id.get_node(&self.ast_context).kind]
-        CDeclKind::Function { ref name, .. } => name }
-        match name as &str {
-            "__builtin_va_start" => {
-                if args.len() != 2 {
-                    return None;
-                }
-                self.match_vastart(args[0]).map(VaPart::Start)
-            }
-
-            "__builtin_va_copy" => {
-                if args.len() != 2 {
-                    return None;
-                }
-                self.match_vacopy(args[0], args[1])
-                    .map(|(did, sid)| VaPart::Copy(did, sid))
-            }
-
-            "__builtin_va_end" => {
-                if args.len() != 1 {
-                    return None;
-                }
-                self.match_vaend(args[0]).map(VaPart::End)
-            }
-
-            _ => None,
-        }
-    }
-
     pub(crate) fn convert_vaarg(
         &self,
         ctx: ExprContext,
@@ -248,7 +247,7 @@ impl<'c> Translation<'c> {
 
         for s in DFExpr::new(&self.ast_context, body.into()) {
             if let SomeId::Expr(e) = s
-                && let Some(part) = self.match_vapart(e)
+                && let Some(part) = match_vapart(&self.ast_context, e)
             {
                 let id = match part {
                     VaPart::Start(va_id) | VaPart::End(va_id) => va_id,

@@ -14,6 +14,7 @@ use crate::generic_err;
 use crate::reorganize::reorganize_definitions;
 use crate::rust_ast::SpanExt;
 use crate::rust_ast::set_span::SetSpan;
+use crate::translator::pointer_wrappers::generate_global_pointer_wrapper_struct;
 use crate::{
     CrateSet, PragmaSet, PragmaVec, RustChannel, TranspilerConfig, c_ast::*, translator::*,
     with_stmts::WithStmts,
@@ -449,8 +450,8 @@ pub fn translate(
 
         // generate struct for wrapping pointer for static variable
         if *t.need_pointer_wrapper.borrow() {
-            let mut_decls_items = t.generate_global_pointer_wrapper_struct(Mutability::Mutable);
-            let const_decls_items = t.generate_global_pointer_wrapper_struct(Mutability::Immutable);
+            let mut_decls_items = generate_global_pointer_wrapper_struct(Mutability::Mutable);
+            let const_decls_items = generate_global_pointer_wrapper_struct(Mutability::Immutable);
             let store = &mut t.items.borrow_mut()[&t.main_file];
 
             store.add_item(mut_decls_items.0);

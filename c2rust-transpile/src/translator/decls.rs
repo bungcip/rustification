@@ -4,8 +4,6 @@ use super::{
     linkage::mk_linkage,
     utils::{add_src_loc_attr, clean_path, foreign_item_attrs, item_attrs, stmts_block},
 };
-use crate::c_ast::get_node::GetNode;
-use crate::c_ast::iterators::SomeId;
 use crate::c_ast::{
     self, CDecl, CDeclId, CDeclKind, CQualTypeId, CStmtId, CStmtKind, CTypeId, CTypeKind,
     ConstIntExpr, FileId,
@@ -15,6 +13,8 @@ use crate::driver::Translation;
 use crate::rust_ast::set_span::SetSpan;
 use crate::rust_ast::{SpanExt, pos_to_span};
 use crate::{ExternCrate, ReplaceMode, cfg, generic_err};
+use crate::{c_ast::get_node::GetNode, translator::statics::static_initializer_is_uncompilable};
+use crate::{c_ast::iterators::SomeId, translator::statics::static_initializer_is_unsafe};
 use c2rust_ast_builder::{mk, properties::*};
 use indexmap::IndexSet;
 use log::{info, trace, warn};
@@ -326,7 +326,7 @@ impl<'c> Translation<'c> {
                 if let Some(cur_file) = *self.cur_file.borrow() {
                     self.add_import(cur_file, enum_id, &enum_name);
                 }
-                let ty = mk().path_ty(mk().path(vec![enum_name]));
+                let ty = mk().path_ty(vec![enum_name]);
                 let val = match value {
                     ConstIntExpr::I(value) => mk().lit_expr(mk().int_lit(value)),
                     ConstIntExpr::U(value) => mk().lit_expr(mk().int_lit(value)),
@@ -533,50 +533,50 @@ impl<'c> Translation<'c> {
 
                 // Collect problematic static initializers and offload them to sections for the linker
                 // to initialize for us
-                let (ty, init, mutbl) = if self.static_initializer_is_uncompilable(initializer, typ)
-                {
-                    // Note: We don't pass has_static_duration through here. Extracted initializers
-                    // are run outside of the static initializer.
-                    let ConvertedVariable { ty, mutbl: _, init } =
-                        self.convert_variable(ctx.not_static(), initializer, typ)?;
+                let (ty, init, mutbl) =
+                    if static_initializer_is_uncompilable(&self.ast_context, initializer, typ) {
+                        // Note: We don't pass has_static_duration through here. Extracted initializers
+                        // are run outside of the static initializer.
+                        let ConvertedVariable { ty, mutbl: _, init } =
+                            self.convert_variable(ctx.not_static(), initializer, typ)?;
 
-                    let mut init = init?.to_expr();
+                        let mut init = init?.to_expr();
 
-                    let comment = String::from("// Initialized in run_static_initializers");
-                    let comment_pos = if span.is_dummy() {
-                        None
+                        let comment = String::from("// Initialized in run_static_initializers");
+                        let comment_pos = if span.is_dummy() {
+                            None
+                        } else {
+                            Some(span.lo())
+                        };
+                        span = self
+                            .comment_store
+                            .borrow_mut()
+                            .extend_existing_comments(
+                                &[comment],
+                                comment_pos,
+                                //CommentStyle::Isolated,
+                            )
+                            .map(pos_to_span)
+                            .unwrap_or(span);
+
+                        self.add_static_initializer_to_section(new_name, typ, &mut init)?;
+
+                        (ty, init, Mutability::Mutable)
                     } else {
-                        Some(span.lo())
+                        let ConvertedVariable { ty, mutbl, init } =
+                            self.convert_variable(ctx.static_(), initializer, typ)?;
+                        let mut init = init?;
+                        // TODO: Replace this by relying entirely on
+                        // WithStmts.is_unsafe() of the translated variable
+                        if static_initializer_is_unsafe(&self.ast_context, initializer, typ) {
+                            init.set_unsafe()
+                        }
+                        let init = init.to_unsafe_pure_expr().ok_or_else(|| {
+                            generic_err!("Expected no side-effects in static initializer")
+                        })?;
+
+                        (ty, init, mutbl)
                     };
-                    span = self
-                        .comment_store
-                        .borrow_mut()
-                        .extend_existing_comments(
-                            &[comment],
-                            comment_pos,
-                            //CommentStyle::Isolated,
-                        )
-                        .map(pos_to_span)
-                        .unwrap_or(span);
-
-                    self.add_static_initializer_to_section(new_name, typ, &mut init)?;
-
-                    (ty, init, Mutability::Mutable)
-                } else {
-                    let ConvertedVariable { ty, mutbl, init } =
-                        self.convert_variable(ctx.static_(), initializer, typ)?;
-                    let mut init = init?;
-                    // TODO: Replace this by relying entirely on
-                    // WithStmts.is_unsafe() of the translated variable
-                    if self.static_initializer_is_unsafe(initializer, typ) {
-                        init.set_unsafe()
-                    }
-                    let init = init.to_unsafe_pure_expr().ok_or_else(|| {
-                        generic_err!("Expected no side-effects in static initializer")
-                    })?;
-
-                    (ty, init, mutbl)
-                };
 
                 let static_def = if is_externally_visible {
                     mk_linkage(false, new_name, ident).pub_().extern_("C")

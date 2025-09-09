@@ -91,7 +91,7 @@ impl<'c> NodeVisitor for CommentLocator<'c> {
                 .comment_context
                 .get_comments_before(loc.begin(), self.ast_context);
             if let SomeId::Decl(decl_id) = id {
-                let decl_kind = &decl_id.get_node(&self.ast_context).kind;
+                let decl_kind = &decl_id.get_node(self.ast_context).kind;
                 if let CDeclKind::NonCanonicalDecl { canonical_decl } = decl_kind {
                     // Attach non-canonical decl comments to their canonical
                     // declaration
@@ -115,7 +115,7 @@ impl<'c> NodeVisitor for CommentLocator<'c> {
         // Don't traverse into macro object replacement expressions, as they are
         // in other places.
         if let SomeId::Decl(id) = id
-            && let CDeclKind::MacroObject { .. } = id.get_node(&self.ast_context).kind
+            && let CDeclKind::MacroObject { .. } = id.get_node(self.ast_context).kind
         {
             return false;
         }
