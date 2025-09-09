@@ -1,6 +1,7 @@
 use c2rust_ast_builder::mk;
 use syn::{Expr, Item, ReturnType};
 
+use crate::c_ast::get_node::GetNode;
 use crate::c_ast::iterators::DFExpr;
 use crate::c_ast::iterators::SomeId;
 use crate::c_ast::{CDeclKind, CExprId, CExprKind, CQualTypeId, CTypeKind, CastKind};
@@ -79,7 +80,7 @@ impl<'c> Translation<'c> {
 
         // The f128 crate doesn't currently provide a way to const initialize
         // values, except for common mathematical constants
-        if let CTypeKind::LongDouble = self.ast_context[qtype.ctype].kind {
+        if let CTypeKind::LongDouble = qtype.ctype.get_node(&self.ast_context).kind {
             return true;
         }
 
@@ -137,7 +138,7 @@ impl<'c> Translation<'c> {
                     let ty = &self.ast_context.resolve_type(qtype.ctype).kind;
 
                     if let &CTypeKind::Struct(decl_id) = ty {
-                        let decl = &self.ast_context[decl_id].kind;
+                        let decl = &decl_id.get_node(&self.ast_context).kind;
 
                         if let CDeclKind::Struct {
                             fields: Some(fields),
@@ -145,7 +146,7 @@ impl<'c> Translation<'c> {
                         } = decl
                         {
                             for field_id in fields {
-                                let field_decl = &self.ast_context[*field_id].kind;
+                                let field_decl = &field_id.get_node(&self.ast_context).kind;
 
                                 if let CDeclKind::Field {
                                     bitfield_width: Some(_),

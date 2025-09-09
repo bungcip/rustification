@@ -1,10 +1,10 @@
 use crate::c_ast::CDeclId;
+use crate::c_ast::get_node::GetNode;
 use crate::diagnostics::{TranslationError, TranslationResult};
 use crate::renamer::*;
 use crate::{c_ast::*, generic_err};
 use c2rust_ast_builder::{mk, properties::*};
 use std::collections::{HashMap, HashSet};
-use std::ops::Index;
 use syn::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -312,7 +312,7 @@ impl TypeConverter {
             return Ok(ty);
         }
 
-        match ctxt.index(ctype).kind {
+        match ctype.get_node(ctxt).kind {
             CTypeKind::Void => Ok(mk().tuple_ty(vec![])),
             CTypeKind::Bool => Ok(mk().path_ty(mk().path(vec!["bool"]))),
             CTypeKind::Short => Ok(mk().path_ty(mk().path(vec!["ffi", "c_short"]))),
@@ -432,7 +432,7 @@ impl TypeConverter {
         ctype: CTypeId,
         params: &Vec<CParamId>,
     ) -> TranslationResult<Option<Box<Type>>> {
-        match ctxt.index(ctype).kind {
+        match ctype.get_node(ctxt).kind {
             // ANSI/ISO C-style function
             CTypeKind::Function(.., true) => Ok(None),
 
@@ -466,7 +466,7 @@ impl TypeConverter {
             }
             CTypeKind::TypeOf(ty) => self.knr_function_type_with_parameters(ctxt, ty, params),
 
-            CTypeKind::Typedef(decl) => match &ctxt.index(decl).kind {
+            CTypeKind::Typedef(decl) => match &decl.get_node(ctxt).kind {
                 CDeclKind::Typedef { typ, .. } => {
                     self.knr_function_type_with_parameters(ctxt, typ.ctype, params)
                 }

@@ -26,9 +26,9 @@ use log::error;
 use proc_macro2::Span;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ops::Index;
 use syn::{self, BinOp, Expr, Ident, Item, ReturnType, Stmt, Type, spanned::Spanned};
 
+use crate::c_ast::get_node::GetNode;
 use crate::c_ast::iterators::SomeId;
 use crate::convert_type::TypeConverter;
 use crate::diagnostics::TranslationResult;
@@ -48,7 +48,7 @@ impl<'c> Translation<'c> {
             ref parameters,
             typ,
             ..
-        } = self.ast_context.index(main_id).kind
+        } = main_id.get_node(&self.ast_context).kind
         {
             let ret: CTypeKind = match self.ast_context.resolve_type(typ).kind {
                 CTypeKind::Function(ret, _, _, _, _) => {
@@ -127,13 +127,13 @@ impl<'c> Translation<'c> {
                     ],
                 )));
 
-                let argc_ty: Box<Type> = match self.ast_context.index(parameters[0]).kind {
+                let argc_ty: Box<Type> = match parameters[0].get_node(&self.ast_context).kind {
                     CDeclKind::Variable { ref typ, .. } => self.convert_type(typ.ctype),
                     _ => Err(generic_err!(
                         "Cannot find type of 'argc' argument in main function",
                     )),
                 }?;
-                let argv_ty: Box<Type> = match self.ast_context.index(parameters[1]).kind {
+                let argv_ty: Box<Type> = match parameters[1].get_node(&self.ast_context).kind {
                     CDeclKind::Variable { ref typ, .. } => self.convert_type(typ.ctype),
                     _ => Err(generic_err!(
                         "Cannot find type of 'argv' argument in main function",
@@ -218,7 +218,7 @@ impl<'c> Translation<'c> {
                     ],
                 )));
 
-                let envp_ty: Box<Type> = match self.ast_context.index(parameters[2]).kind {
+                let envp_ty: Box<Type> = match parameters[2].get_node(&self.ast_context).kind {
                     CDeclKind::Variable { ref typ, .. } => self.convert_type(typ.ctype),
                     _ => Err(generic_err!(
                         "Cannot find type of 'envp' argument in main function",

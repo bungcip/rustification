@@ -1,6 +1,7 @@
 use super::context::ExprContext;
 use super::decls::ConvertedDecl;
 use super::{Translation, translate_failure};
+use crate::c_ast::get_node::GetNode;
 use crate::c_ast::*;
 
 fn convert_decl_and_insert(t: &mut Translation, ctx: ExprContext, decl_id: CDeclId, decl: &CDecl) {
@@ -41,7 +42,7 @@ pub(crate) fn convert_declarations(t: &mut Translation, ctx: ExprContext) {
     let decl_ids: Vec<CDeclId> = t.ast_context.iter_decls().map(|(id, _)| *id).collect();
     for decl_id in decl_ids {
         let (needs_export, decl) = {
-            let decl = &t.ast_context[decl_id];
+            let decl = decl_id.get_node(&t.ast_context);
             use CDeclKind::*;
             let needs_export = match decl.kind {
                 Struct { .. } => true,
@@ -67,7 +68,7 @@ pub(crate) fn convert_declarations(t: &mut Translation, ctx: ExprContext) {
     let top_ids = t.ast_context.c_decls_top.clone();
     for top_id in top_ids {
         let (needs_export, decl) = {
-            let decl = &t.ast_context[top_id];
+            let decl = top_id.get_node(&t.ast_context);
             use CDeclKind::*;
             let needs_export = match decl.kind {
                 Function { is_implicit, .. } => !is_implicit,

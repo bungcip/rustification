@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::char;
 use std::collections::HashMap;
-use std::ops::Index;
 use std::path::{self, PathBuf};
 // To override syn::Result from glob import
 
@@ -32,7 +31,7 @@ use crate::{
     ExternCrate, ExternCrateDetails, TranspilerConfig,
     driver::{Translation, translate_failure},
 };
-use crate::{TranslateMacros, c_ast::*, generic_err};
+use crate::{TranslateMacros, c_ast::get_node::GetNode, c_ast::*, generic_err};
 use c2rust_ast_exporter::clang_ast::LRValue;
 
 mod assembly;
@@ -559,7 +558,7 @@ impl<'c> Translation<'c> {
                     _ => {}
                 },
                 SomeId::Type(t) => {
-                    if let CTypeKind::TypeOfExpr(_) = self.ast_context[t].kind {
+                    if let CTypeKind::TypeOfExpr(_) = t.get_node(&self.ast_context).kind {
                         iter.prune(1);
                     }
                 }
@@ -605,7 +604,7 @@ impl<'c> Translation<'c> {
             initializer,
             typ,
             ..
-        } = self.ast_context.index(decl_id).kind
+        } = decl_id.get_node(&self.ast_context).kind
             && self.static_initializer_is_uncompilable(initializer, typ)
         {
             let ident2 = self
@@ -641,7 +640,7 @@ impl<'c> Translation<'c> {
             return Ok(cfg::DeclStmtInfo::empty());
         };
 
-        match self.ast_context.index(decl_id).kind {
+        match decl_id.get_node(&self.ast_context).kind {
             CDeclKind::Variable {
                 has_static_duration: false,
                 has_thread_duration: false,
@@ -757,7 +756,7 @@ impl<'c> Translation<'c> {
                 //       When we do, we must make sure to insert into the renamer the first time, and
                 //       then skip subsequent times.
                 use CDeclKind::*;
-                let skip = match decl {
+                let skip = match *decl {
                     Variable { .. } => !inserted,
                     Struct { .. } => true,
                     Union { .. } => true,
@@ -1198,7 +1197,7 @@ impl<'c> Translation<'c> {
             None
         }
 
-        match self.ast_context[compound_stmt_id].kind {
+        match compound_stmt_id.get_node(&self.ast_context).kind {
             CStmtKind::Compound(ref substmt_ids) if !substmt_ids.is_empty() => {
                 let n = substmt_ids.len();
                 let result_id = substmt_ids[n - 1];
@@ -1206,7 +1205,7 @@ impl<'c> Translation<'c> {
                 let name = format!("<stmt-expr_{compound_stmt_id:?}>");
                 let lbl = cfg::Label::FromC(compound_stmt_id, None);
 
-                let mut stmts = match self.ast_context[result_id].kind {
+                let mut stmts = match result_id.get_node(&self.ast_context).kind {
                     CStmtKind::Expr(expr_id) => {
                         let ret = cfg::ImplicitReturnType::StmtExpr(ctx, expr_id, lbl.clone());
                         self.convert_function_body(ctx, &name, &substmt_ids[0..(n - 1)], None, ret)?
@@ -1277,13 +1276,13 @@ impl<'c> Translation<'c> {
             return Ok(init.clone());
         }
 
-        let name_decl_id = match self.ast_context.index(type_id).kind {
+        let name_decl_id = match type_id.get_node(&self.ast_context).kind {
             CTypeKind::Typedef(decl_id) => decl_id,
             _ => decl_id,
         };
 
         // Otherwise, construct the initializer
-        let mut init = match self.ast_context.index(decl_id).kind {
+        let mut init = match decl_id.get_node(&self.ast_context).kind {
             // Zero initialize all of the fields
             CDeclKind::Struct {
                 fields: Some(ref fields),
@@ -1327,7 +1326,7 @@ impl<'c> Translation<'c> {
                     .first()
                     .ok_or_else(|| generic_err!("A union should have a field"))?;
 
-                let field = match self.ast_context.index(field_id).kind {
+                let field = match field_id.get_node(&self.ast_context).kind {
                     CDeclKind::Field { typ, .. } => self
                         .implicit_default_expr(typ.ctype, is_static, false)?
                         .map(|field_init| {

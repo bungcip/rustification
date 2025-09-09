@@ -1,3 +1,4 @@
+use crate::c_ast::get_node::GetNode;
 use crate::c_ast::*;
 use crate::driver::Translation;
 use crate::translator::utils::prefix_names;
@@ -51,7 +52,7 @@ pub(crate) fn preprocess_ast(t: &mut Translation) {
                 .as_underlying_decl()
         {
             use CDeclKind::*;
-            let is_unnamed = match t.ast_context[subdecl_id].kind {
+            let is_unnamed = match subdecl_id.get_node(&t.ast_context).kind {
                 Struct { name: None, .. } | Union { name: None, .. } | Enum { name: None, .. } => {
                     true
                 }

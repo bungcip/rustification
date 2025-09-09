@@ -2,6 +2,7 @@
 //! Implementations of clang's builtin functions
 
 use super::{ExprContext, Translation, utils::vec_expr};
+use crate::c_ast::get_node::GetNode;
 use crate::c_ast::{CDeclKind, CExprId, CExprKind};
 use crate::diagnostics::{TranslationError, TranslationResult};
 use crate::with_stmts::WithStmts;
@@ -58,7 +59,7 @@ impl<'c> Translation<'c> {
             _ => return Err(generic_err!("Expected declref when processing builtin")),
         };
 
-        let builtin_name: &str = match self.ast_context[decl_id].kind {
+        let builtin_name: &str = match decl_id.get_node(&self.ast_context).kind {
             CDeclKind::Function { ref name, .. } => name,
             _ => return Err(generic_err!("Expected function when processing builtin")),
         };

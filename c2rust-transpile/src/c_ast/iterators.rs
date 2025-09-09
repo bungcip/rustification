@@ -1,3 +1,4 @@
+use crate::c_ast::get_node::GetNode;
 use crate::c_ast::*;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
@@ -322,19 +323,19 @@ fn immediate_type_children(kind: &CTypeKind) -> Vec<SomeId> {
 
 fn immediate_children(context: &TypedAstContext, s_or_e: SomeId) -> Vec<SomeId> {
     match s_or_e {
-        SomeId::Stmt(stmt_id) => immediate_stmt_children(&context[stmt_id].kind),
+        SomeId::Stmt(stmt_id) => immediate_stmt_children(&stmt_id.get_node(context).kind),
         SomeId::Expr(expr_id) => immediate_expr_children(&context.c_exprs[&expr_id].kind),
-        SomeId::Decl(decl_id) => immediate_decl_children(&context[decl_id].kind),
-        SomeId::Type(type_id) => immediate_type_children(&context[type_id].kind),
+        SomeId::Decl(decl_id) => immediate_decl_children(&decl_id.get_node(context).kind),
+        SomeId::Type(type_id) => immediate_type_children(&type_id.get_node(context).kind),
     }
 }
 
 pub fn immediate_children_all_types(context: &TypedAstContext, s_or_e: SomeId) -> Vec<SomeId> {
     match s_or_e {
-        SomeId::Stmt(stmt_id) => immediate_stmt_children(&context[stmt_id].kind),
+        SomeId::Stmt(stmt_id) => immediate_stmt_children(&stmt_id.get_node(context).kind),
         SomeId::Expr(expr_id) => immediate_expr_children_all_types(&context.c_exprs[&expr_id].kind),
-        SomeId::Decl(decl_id) => immediate_decl_children(&context[decl_id].kind),
-        SomeId::Type(type_id) => immediate_type_children(&context[type_id].kind),
+        SomeId::Decl(decl_id) => immediate_decl_children(&decl_id.get_node(context).kind),
+        SomeId::Type(type_id) => immediate_type_children(&type_id.get_node(context).kind),
     }
 }
 
