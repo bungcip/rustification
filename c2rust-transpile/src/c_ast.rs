@@ -41,6 +41,7 @@ pub use self::conversion::*;
 pub use self::print::Printer;
 
 mod conversion;
+pub mod get_node;
 pub mod iterators;
 mod print;
 

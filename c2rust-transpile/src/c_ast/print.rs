@@ -1,4 +1,4 @@
-use crate::c_ast::*;
+use crate::c_ast::{get_node::GetNode, *};
 use std::io::{Result, Write};
 
 pub struct Printer<W: Write> {
@@ -73,11 +73,7 @@ impl<W: Write> Printer<W> {
         expr_id: CExprId,
         context: &TypedAstContext,
     ) -> Result<()> {
-        let expr = context
-            .c_exprs
-            .get(&expr_id)
-            .map(|l| &l.kind)
-            .unwrap_or_else(|| panic!("Could not find expression with ID {expr_id:?}"));
+        let expr = &expr_id.get_node(context).kind;
         use CExprKind::*;
         match expr {
             BadExpr => {
@@ -316,11 +312,7 @@ impl<W: Write> Printer<W> {
             self.pad()?;
         }
 
-        let stmt = context
-            .c_stmts
-            .get(&stmt_id)
-            .map(|l| &l.kind)
-            .unwrap_or_else(|| panic!("Could not find statement with ID {stmt_id:?}"));
+        let stmt = &stmt_id.get_node(context).kind;
 
         use CStmtKind::*;
         match stmt {
@@ -494,11 +486,7 @@ impl<W: Write> Printer<W> {
             self.pad()?;
         }
 
-        let decl = context
-            .c_decls
-            .get(&decl_id)
-            .map(|l| &l.kind)
-            .unwrap_or_else(|| panic!("Could not find declaration with ID {decl_id:?}"));
+        let decl = &decl_id.get_node(context).kind;
 
         use CDeclKind::*;
         match decl {
@@ -691,11 +679,7 @@ impl<W: Write> Printer<W> {
         ident: Option<&str>,
         context: &TypedAstContext,
     ) -> Result<()> {
-        let ty = context
-            .c_types
-            .get(&type_id)
-            .map(|l| &l.kind)
-            .unwrap_or_else(|| panic!("Could not find type with ID {type_id:?}"));
+        let ty = &type_id.get_node(context).kind;
         use CTypeKind::*;
         match ty {
             Pointer(qual_ty) => {
@@ -725,11 +709,7 @@ impl<W: Write> Printer<W> {
             }
 
             Enum(enum_id) => {
-                let decl = context
-                    .c_decls
-                    .get(enum_id)
-                    .map(|l| &l.kind)
-                    .unwrap_or_else(|| panic!("Could not find enum decl"));
+                let decl = &enum_id.get_node(context).kind;
                 match decl {
                     CDeclKind::Enum { name: Some(n), .. } => {
                         self.writer.write_fmt(format_args!(" {n}"))?
