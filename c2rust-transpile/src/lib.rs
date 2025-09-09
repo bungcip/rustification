@@ -39,8 +39,11 @@ pub use config::TranspilerConfig;
 pub use driver::{Translation, translate, translate_failure, transpile};
 pub use reorganize::reorganize_definitions;
 
+/// A vector of pragmas.
 pub type PragmaVec = Vec<(&'static str, Vec<&'static str>)>;
+/// A set of pragmas.
 type PragmaSet = indexmap::IndexSet<(&'static str, &'static str)>;
+/// A set of extern crates.
 type CrateSet = indexmap::IndexSet<ExternCrate>;
 /// The Rust channel to use for the transpiled code.
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -74,6 +77,9 @@ pub enum TranslateMacros {
 pub const MAX_NIGHTLY_VERSION: &str = "2025-04-19";
 
 /// An extern crate that may be required by the transpiled code.
+/// This enum is used to keep track of the extern crates that are needed by the
+/// transpiled code. The `c2rust-transpile` crate will then add the necessary
+/// `extern crate` statements to the beginning of the transpiled code.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ExternCrate {
     /// The `c2rust-bitfields` crate.
@@ -91,6 +97,8 @@ pub enum ExternCrate {
 }
 
 /// Details about an extern crate.
+/// This struct is used to store the details of an extern crate, such as its
+/// name, identifier, and version.
 #[derive(Serialize)]
 pub struct ExternCrateDetails {
     /// The name of the crate.
@@ -128,10 +136,12 @@ impl From<ExternCrate> for ExternCrateDetails {
     }
 }
 
+/// Converts a character to a valid identifier character.
 fn char_to_ident(c: char) -> char {
     if c.is_alphanumeric() { c } else { '_' }
 }
 
+/// Converts a string to a valid identifier.
 fn str_to_ident<S: AsRef<str>>(s: S) -> String {
     s.as_ref().chars().map(char_to_ident).collect()
 }

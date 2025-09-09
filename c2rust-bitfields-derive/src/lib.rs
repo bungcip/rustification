@@ -22,12 +22,26 @@ compile_error!("Big endian architectures are not currently supported");
 /// as well as the bitfield's field name.
 #[derive(Debug)]
 struct BFFieldAttr {
+    /// The name of the field in the struct.
     field_name: Ident,
+    /// The name of the bitfield.
     name: String,
+    /// The type of the bitfield.
     ty: String,
+    /// The bits of the bitfield.
     bits: (String, proc_macro2::Span),
 }
 
+/// Parses a `bitfield` attribute.
+///
+/// # Arguments
+///
+/// * `attr` - The attribute to parse.
+/// * `field_ident` - The identifier of the field that the attribute is on.
+///
+/// # Returns
+///
+/// A `Result` containing an `Option` of a `BFFieldAttr` or an `Error`.
 fn parse_bitfield_attr(
     attr: &Attribute,
     field_ident: &Ident,
@@ -91,6 +105,15 @@ fn parse_bitfield_attr(
     }))
 }
 
+/// Filters and parses the `bitfield` attributes on a field.
+///
+/// # Arguments
+///
+/// * `field` - The field to filter and parse the attributes of.
+///
+/// # Returns
+///
+/// A `Vec` of `Result`s containing either a `BFFieldAttr` or an `Error`.
 fn filter_and_parse_fields(field: &Field) -> Vec<Result<BFFieldAttr, Error>> {
     let attrs: Vec<_> = field
         .attrs
@@ -109,6 +132,15 @@ fn filter_and_parse_fields(field: &Field) -> Vec<Result<BFFieldAttr, Error>> {
         .collect()
 }
 
+/// Parses the type path of a bitfield.
+///
+/// # Arguments
+///
+/// * `field` - The bitfield to parse the type path of.
+///
+/// # Returns
+///
+/// The parsed `Path`.
 fn parse_bitfield_ty_path(field: &BFFieldAttr) -> Path {
     let leading_colon = if field.ty.starts_with("::") {
         Some(Token![::]([
