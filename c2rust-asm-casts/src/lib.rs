@@ -1,3 +1,14 @@
+//! This crate provides a generic way to cast between types for inline assembly.
+//!
+//! The main components are the `AsmCast` struct and the `AsmCastTrait` trait.
+//! The `AsmCast` struct is a pseudo-structure that provides the inner type
+//! definition and cast functions for every pair of types used in C2Rust's
+//! implementation of tied inline assembly operands. The `AsmCastTrait` trait
+//! implements the cast functions for the type pair.
+//!
+//! The crate also contains a number of macros to implement the trait for
+//! various type combinations.
+
 #![no_std]
 use core::marker::PhantomData;
 
@@ -37,6 +48,7 @@ pub trait AsmCastTrait<Out, In> {
     fn cast_out(out: &mut Out, _: In, x: Self::Type);
 }
 
+/// Implements `AsmCastTrait` for a given triplet of types.
 macro_rules! impl_triple {
 	{<$($param:ident),*> ($out:ty, $in:ty) => $inner:ty} => {
 		impl<$($param),*> AsmCastTrait<$out, $in> for AsmCast<$out, $in> {
@@ -53,6 +65,7 @@ macro_rules! impl_triple {
 	}
 }
 
+/// Implements `AsmCastTrait` for a given triplet of types, in both directions.
 macro_rules! impl_triple2 {
 	{<$($param:ident),*> ($out:ty, $in:ty) => $inner:ty} => {
         impl_triple!{<$($param),*> ($out, $in) => $inner}
@@ -60,6 +73,7 @@ macro_rules! impl_triple2 {
 	}
 }
 
+/// Implements `AsmCastTrait` for a given type and a list of smaller types.
 macro_rules! impl_pair_higher {
 	{$inner:ty: [$(<$($param:ident),*> $ty1:ty),*]} => {
         impl_triple!{<> ($inner, $inner) => $inner}
@@ -67,6 +81,7 @@ macro_rules! impl_pair_higher {
 	}
 }
 
+/// Implements `AsmCastTrait` for a list of type pairs.
 macro_rules! impl_triple_list {
 	{$inner:ty: [$($ty1:ty: ($(<$($param:ident),*> $ty2:ty),*)),*]} => {
 		$($(impl_triple2!{<$($param),*> ($ty1, $ty2) => $inner})*)*

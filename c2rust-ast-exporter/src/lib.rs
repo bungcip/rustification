@@ -47,6 +47,18 @@ pub fn get_untyped_ast(
     clang_ast::process(items).map_err(|e| Error::new(ErrorKind::InvalidData, format!("{e}")))
 }
 
+/// Get the ASTs of a file and all of its included files as CBOR.
+///
+/// # Arguments
+///
+/// * `file_path` - The path to the file to be parsed.
+/// * `cc_db` - The path to the compilation database.
+/// * `extra_args` - Extra arguments to pass to Clang.
+/// * `debug` - Whether to enable debug output.
+///
+/// # Returns
+///
+/// A `HashMap` mapping file paths to their CBOR-encoded ASTs.
 fn get_ast_cbors(
     file_path: &Path,
     cc_db: &Path,
@@ -81,6 +93,7 @@ fn get_ast_cbors(
     hashmap
 }
 
+/// This module contains the FFI bindings to the C++ code.
 #[allow(non_camel_case_types)]
 #[allow(non_snake_case)]
 #[allow(dead_code)]
@@ -89,6 +102,7 @@ mod ffi {
     include!(concat!(env!("OUT_DIR"), "/cppbindings.rs"));
 }
 
+/// This block contains the FFI declarations for the C++ functions.
 unsafe extern "C" {
     // ExportResult *ast_exporter(int argc, char *argv[]);
     fn ast_exporter(
@@ -102,6 +116,15 @@ unsafe extern "C" {
     fn drop_export_result(ptr: *mut ffi::ExportResult);
 }
 
+/// Marshal the `ExportResult` struct from C++ to a Rust `HashMap`.
+///
+/// # Arguments
+///
+/// * `result` - A reference to the `ExportResult` struct.
+///
+/// # Returns
+///
+/// A `HashMap` mapping file paths to their CBOR-encoded ASTs.
 fn marshal_result(result: &ffi::ExportResult) -> HashMap<String, Vec<u8>> {
     let mut output = HashMap::new();
 

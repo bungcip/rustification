@@ -1,3 +1,17 @@
+/**
+ * @file AstExporter.cpp
+ * @brief Implements the C++ AST exporter.
+ *
+ * This file contains the main logic for the C++ AST exporter. It uses
+ * `libclang` to parse C code and then walks the AST, serializing it to CBOR.
+ * The main entry point is the `process` function, which takes the command-line
+ * arguments and returns a map of file paths to their corresponding
+ * CBOR-encoded ASTs.
+ *
+ * The `TranslateASTVisitor` class is responsible for walking the AST and
+ * serializing it to CBOR. The `TypeEncoder` class is responsible for
+ * serializing Clang types to CBOR.
+ */
 #include <algorithm>
 #include <clang/AST/Type.h>
 #include <cstdlib>
@@ -51,14 +65,22 @@ using clang::QualType;
 using std::string;
 
 namespace {
-// Encode a string object assuming that it is valid UTF-8 encoded text
+/**
+ * @brief Encodes a string as a CBOR text string.
+ * @param encoder The CBOR encoder.
+ * @param str The string to encode.
+ */
 void cbor_encode_string(CborEncoder *encoder, const std::string &str) {
     auto ptr = str.data();
     auto len = str.size();
     cbor_encode_text_string(encoder, ptr, len);
 }
 
-// Encode an array of strings assuming that it is valid UTF-8 encoded text
+/**
+ * @brief Encodes an array of strings as a CBOR array of text strings.
+ * @param encoder The CBOR encoder.
+ * @param strs The array of strings to encode.
+ */
 void cbor_encode_string_array(CborEncoder *encoder,
                               const ArrayRef<std::string> strs) {
     CborEncoder array;
@@ -71,6 +93,11 @@ void cbor_encode_string_array(CborEncoder *encoder,
     cbor_encoder_close_container(encoder, &array);
 }
 
+/**
+ * @brief Gets the real path of a file.
+ * @param path The path to the file.
+ * @return The real path of the file.
+ */
 std::string make_realpath(std::string const &path) {
     if (auto abs_path = realpath(path.c_str(), nullptr)) {
         auto result = std::string(abs_path);
@@ -82,7 +109,12 @@ std::string make_realpath(std::string const &path) {
     }
 }
 
-// Helper to smooth out differences between versions of clang
+/**
+ * @brief Helper to smooth out differences between versions of clang
+ * @param E The expression to evaluate.
+ * @param Ctx The AST context.
+ * @return The integer constant expression, if it exists.
+ */
 #include <optional>
 std::optional<APSInt> getIntegerConstantExpr(const Expr &E,
                                              const ASTContext &Ctx) {
@@ -92,6 +124,12 @@ std::optional<APSInt> getIntegerConstantExpr(const Expr &E,
 
 class TranslateASTVisitor;
 
+/**
+ * @brief A class for encoding Clang types as CBOR.
+ *
+ * This class visits Clang types and encodes them as CBOR. It is used by the
+ * `TranslateASTVisitor` to encode the types of AST nodes.
+ */
 class TypeEncoder final : public TypeVisitor<TypeEncoder> {
     ASTContext *Context;
     CborEncoder *encoder;
@@ -103,14 +141,31 @@ class TypeEncoder final : public TypeVisitor<TypeEncoder> {
 
     std::unordered_set<const clang::Type *> exports;
 
+    /**
+     * @brief Marks a type as exported.
+     * @param ptr The type to mark.
+     * @return `true` if the type was not already marked as exported, `false`
+     * otherwise.
+     */
     bool markExported(const clang::Type *ptr) {
         return exports.emplace(ptr).second;
     }
 
+    /**
+     * @brief Checks if a type has been exported.
+     * @param ptr The type to check.
+     * @return `true` if the type has been exported, `false` otherwise.
+     */
     bool isExported(const clang::Type *ptr) {
         return exports.find(ptr) != exports.end();
     }
 
+    /**
+     * @brief Encodes a type as CBOR.
+     * @param T The type to encode.
+     * @param tag The tag of the type.
+     * @param extra A function that encodes extra data for the type.
+     */
     void encodeType(
         const clang::Type *T, TypeTag tag,
         std::function<void(CborEncoder *)> extra = [](CborEncoder *) {}) {
@@ -152,6 +207,11 @@ class TypeEncoder final : public TypeVisitor<TypeEncoder> {
     }
 
   public:
+    /**
+     * @brief Encodes a qualified type as a CBOR integer.
+     * @param t The qualified type to encode.
+     * @return The encoded qualified type.
+     */
     uintptr_t encodeQualType(QualType t) {
         auto s = t.split();
 
@@ -180,6 +240,10 @@ class TypeEncoder final : public TypeVisitor<TypeEncoder> {
         : Context(Context), encoder(encoder), sugared(sugared),
           astEncoder(ast) {}
 
+    /**
+     * @brief Visits a qualified type.
+     * @param QT The qualified type to visit.
+     */
     void VisitQualType(const QualType &QT) {
         if (!QT.isNull()) {
             auto s = QT.split();
@@ -494,6 +558,12 @@ class TypeEncoder final : public TypeVisitor<TypeEncoder> {
     }
 };
 
+/**
+ * @brief A class for visiting Clang AST nodes and serializing them to CBOR.
+ *
+ * This class is a `RecursiveASTVisitor` that walks the Clang AST and
+ * serializes it to CBOR. It uses a `TypeEncoder` to serialize Clang types.
+ */
 class TranslateASTVisitor final
     : public RecursiveASTVisitor<TranslateASTVisitor> {
 
@@ -517,16 +587,36 @@ class TranslateASTVisitor final
     SmallVector<MacroInfo*, 1> curMacroExpansionStack;
     StringRef curMacroExpansionSource;
 
-    // Returns true when a new entry is added to exportedTags
+    /**
+     * @brief Marks a node for export.
+     * @param ptr The node to mark.
+     * @param tag The tag of the node.
+     * @return `true` if the node was not already marked for export, `false`
+     * otherwise.
+     */
     bool markForExport(void *ptr, ASTEntryTag tag) {
         return exportedTags.emplace(ptr, tag).second;
     }
 
+    /**
+     * @brief Checks if a node has been exported.
+     * @param ptr The node to check.
+     * @param tag The tag of the node.
+     * @return `true` if the node has been exported, `false` otherwise.
+     */
     bool isExported(void *ptr, ASTEntryTag tag) {
         auto search = exportedTags.find(std::make_pair(ptr, tag));
         return search != std::end(exportedTags);
     }
 
+    /**
+     * @brief Evaluates an expression as a constant integer.
+     * @param E The expression to evaluate.
+     * @param constant A reference to an `APSInt` that will be set to the value
+     * of the expression.
+     * @return `true` if the expression could be evaluated as a constant
+     * integer, `false` otherwise.
+     */
     bool evaluateConstantInt(Expr *E, APSInt &constant) {
         auto value = getIntegerConstantExpr(*E, *Context);
 
@@ -541,7 +631,19 @@ class TranslateASTVisitor final
         }
     }
 
-    // Template required because Decl and Stmt don't share a common base class
+    /**
+     * @brief Encodes an AST node as CBOR.
+     * @tparam T The type of the AST node.
+     * @param ast The AST node to encode.
+     * @param tag The tag of the AST node.
+     * @param loc The source range of the AST node.
+     * @param ty The type of the AST node.
+     * @param rvalue Whether the AST node is an rvalue.
+     * @param isVaList Whether the AST node is a `va_list`.
+     * @param encodeMacroExpansions Whether to encode macro expansions.
+     * @param childIds The child IDs of the AST node.
+     * @param extra A function that encodes extra data for the AST node.
+     */
     void encode_entry_raw(void *ast, ASTEntryTag tag, SourceRange loc,
                           const QualType ty, bool rvalue,
                           bool isVaList, bool encodeMacroExpansions,
@@ -608,6 +710,11 @@ class TranslateASTVisitor final
         cbor_encoder_close_container(encoder, &local);
     }
 
+    /**
+     * @brief Encodes a qualified type as CBOR.
+     * @param enc The CBOR encoder.
+     * @param ty The qualified type to encode.
+     */
     void encode_qualtype(CborEncoder *enc, QualType ty) {
         if (ty.getTypePtrOrNull()) {
             cbor_encode_uint(enc, typeEncoder.encodeQualType(ty));
@@ -616,6 +723,13 @@ class TranslateASTVisitor final
         }
     }
 
+    /**
+     * @brief Encodes an expression as CBOR.
+     * @param ast The expression to encode.
+     * @param tag The tag of the expression.
+     * @param childIds The child IDs of the expression.
+     * @param extra A function that encodes extra data for the expression.
+     */
     void encode_entry(
         Expr *ast, ASTEntryTag tag, const std::vector<void *> &childIds,
         std::function<void(CborEncoder *)> extra = [](CborEncoder *) {}) {
@@ -633,6 +747,13 @@ class TranslateASTVisitor final
         typeEncoder.VisitQualType(ty);
     }
 
+    /**
+     * @brief Encodes a statement as CBOR.
+     * @param ast The statement to encode.
+     * @param tag The tag of the statement.
+     * @param childIds The child IDs of the statement.
+     * @param extra A function that encodes extra data for the statement.
+     */
     void encode_entry(
         Stmt *ast, ASTEntryTag tag, const std::vector<void *> &childIds,
         std::function<void(CborEncoder *)> extra = [](CborEncoder *) {}) {
@@ -644,6 +765,14 @@ class TranslateASTVisitor final
                          encodeMacroExpansions, childIds, extra);
     }
 
+    /**
+     * @brief Encodes a declaration as CBOR.
+     * @param ast The declaration to encode.
+     * @param tag The tag of the declaration.
+     * @param childIds The child IDs of the declaration.
+     * @param T The type of the declaration.
+     * @param extra A function that encodes extra data for the declaration.
+     */
     void encode_entry(
         Decl *ast, ASTEntryTag tag, const std::vector<void *> &childIds,
         const QualType T,
@@ -654,9 +783,15 @@ class TranslateASTVisitor final
                          isVaList(ast, T), encodeMacroExpansions, childIds, extra);
     }
 
-    /// Explicitly override the source location of this decl for cases where the
-    /// definition location is not the same as the canonical declaration
-    /// location.
+    /**
+     * @brief Encodes a declaration as CBOR with an explicit source location.
+     * @param ast The declaration to encode.
+     * @param tag The tag of the declaration.
+     * @param loc The source range of the declaration.
+     * @param childIds The child IDs of the declaration.
+     * @param T The type of the declaration.
+     * @param extra A function that encodes extra data for the declaration.
+     */
     void encode_entry(
         Decl *ast, ASTEntryTag tag, SourceRange loc,
         const std::vector<void *> &childIds, const QualType T,
@@ -751,7 +886,10 @@ class TranslateASTVisitor final
     // Override the default behavior of the RecursiveASTVisitor
     bool shouldVisitImplicitCode() const { return true; }
 
-    // Return the filenames as a vector. Indices correspond to file IDs.
+    /**
+     * @brief Gets the list of files visited by the visitor.
+     * @return A vector of pairs of file paths and their include locations.
+     */
     const std::vector<std::pair<string, SourceLocation>> &getFiles() {
         // Iterate file include locations until fix point
         auto &manager = Context->getSourceManager();
@@ -769,6 +907,9 @@ class TranslateASTVisitor final
         return files;
     }
 
+    /**
+     * @brief Encodes all of the visited macros as CBOR.
+     */
     void encodeMacros() {
         // Sort macros by source location
         std::vector<std::pair<MacroInfo *, MacroExpansionInfo>> macro_vec(
@@ -799,6 +940,12 @@ class TranslateASTVisitor final
         }
     }
 
+    /**
+     * @brief Encodes a source position as CBOR.
+     * @param enc The CBOR encoder.
+     * @param loc The source location to encode.
+     * @param isVaList Whether the source location is a `va_list`.
+     */
     void encodeSourcePos(CborEncoder *enc, SourceLocation loc,
                          bool isVaList = false) {
         auto &manager = Context->getSourceManager();
@@ -817,6 +964,12 @@ class TranslateASTVisitor final
         cbor_encode_uint(enc, col);
     }
 
+    /**
+     * @brief Encodes a source span as CBOR.
+     * @param enc The CBOR encoder.
+     * @param loc The source range to encode.
+     * @param isVaList Whether the source range is a `va_list`.
+     */
     void encodeSourceSpan(CborEncoder *enc, SourceRange loc, bool isVaList = false) {
         auto &manager = Context->getSourceManager();
 
@@ -843,6 +996,12 @@ class TranslateASTVisitor final
         cbor_encode_uint(enc, end_col);
     }
 
+    /**
+     * @brief Gets the file ID for a given file.
+     * @param id The ID of the file.
+     * @param isVaList Whether the file is a `va_list`.
+     * @return The file ID.
+     */
     uint64_t getExporterFileId(FileID id, bool isVaList) {
         if (id.isInvalid())
             return 0;
@@ -2507,6 +2666,12 @@ void TypeEncoder::VisitAtomicType(const AtomicType *AT) {
 }
 
 
+/**
+ * @brief A class for consuming Clang ASTs and serializing them to CBOR.
+ *
+ * This class is an `ASTConsumer` that uses a `TranslateASTVisitor` to walk the
+ * Clang AST and serialize it to CBOR.
+ */
 class TranslateConsumer : public clang::ASTConsumer {
     Outputs *outputs;
     const std::string outfile;
@@ -2516,6 +2681,10 @@ class TranslateConsumer : public clang::ASTConsumer {
     explicit TranslateConsumer(Outputs *outputs, llvm::StringRef InFile, Preprocessor &PP)
         : outputs(outputs), outfile(InFile.str()), PP(PP) {}
 
+    /**
+     * @brief Handles the translation unit.
+     * @param Context The AST context.
+     */
     virtual void HandleTranslationUnit(clang::ASTContext &Context) {
 
         CborEncoder encoder;
@@ -2638,12 +2807,24 @@ class TranslateConsumer : public clang::ASTConsumer {
     }
 };
 
+/**
+ * @brief A class for creating `TranslateConsumer`s.
+ *
+ * This class is an `ASTFrontendAction` that creates a `TranslateConsumer` to
+ * consume the Clang AST.
+ */
 class TranslateAction : public clang::ASTFrontendAction {
     Outputs *outputs;
 
   public:
     TranslateAction(Outputs *outputs) : outputs(outputs) {}
 
+    /**
+     * @brief Creates an `ASTConsumer`.
+     * @param Compiler The compiler instance.
+     * @param InFile The input file.
+     * @return A unique pointer to the `ASTConsumer`.
+     */
     virtual std::unique_ptr<clang::ASTConsumer>
     CreateASTConsumer(clang::CompilerInstance &Compiler,
                       llvm::StringRef InFile) {
@@ -2709,18 +2890,32 @@ static std::vector<const char *> augment_argv(int argc, const char *argv[]) {
     return argv_;
 }
 
+/**
+ * @brief A class for creating `TranslateAction`s.
+ *
+ * This class is a `FrontendActionFactory` that creates a `TranslateAction` to
+ * create `TranslateConsumer`s.
+ */
 class MyFrontendActionFactory : public FrontendActionFactory {
     Outputs *outputs;
 
   public:
     MyFrontendActionFactory(Outputs *outputs) : outputs(outputs) {}
 
+    /**
+     * @brief Creates a `FrontendAction`.
+     * @return A unique pointer to the `FrontendAction`.
+     */
     std::unique_ptr<FrontendAction> create() override {
         return std::make_unique<TranslateAction>(outputs);
     }
 };
 
-// Marshal the output map into something easy to manipulate in Rust
+/**
+ * @brief Marshals the output map into an `ExportResult`.
+ * @param outputs The output map.
+ * @return A pointer to the `ExportResult`.
+ */
 ExportResult *make_export_result(const Outputs &outputs) {
     auto result = new ExportResult;
     auto n = outputs.size();
@@ -2784,8 +2979,17 @@ Outputs process(int argc, const char *argv[], int *result) {
     return outputs;
 }
 
-// AST exporter library interface.
+/**
+ * @brief The C interface to the AST exporter.
+ */
 extern "C" {
+/**
+ * @brief Exports the Clang ASTs.
+ * @param argc The number of command-line arguments.
+ * @param argv The command-line arguments.
+ * @param debug Whether to enable debug output.
+ * @return A pointer to the `ExportResult`.
+ */
 ExportResult *ast_exporter(int argc, const char *argv[], int debug) {
 #ifndef NDEBUG
     if (debug) {
@@ -2799,7 +3003,15 @@ ExportResult *ast_exporter(int argc, const char *argv[], int debug) {
     return make_export_result(outputs);
 }
 
+/**
+ * @brief Frees an `ExportResult`.
+ * @param result The `ExportResult` to free.
+ */
 void drop_export_result(ExportResult *result) { delete result; }
 
+/**
+ * @brief Gets the Clang version string.
+ * @return The Clang version string.
+ */
 const char *clang_version() { return "" CLANG_VERSION_STRING; }
 }

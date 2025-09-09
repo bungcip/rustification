@@ -22,9 +22,22 @@ pub trait FieldType: Sized {
     const TOTAL_BIT_SIZE: usize = ::core::mem::size_of::<Self>() * 8;
 
     /// Gets the value of a single bit.
+    ///
+    /// # Arguments
+    ///
+    /// * `bit` - The index of the bit to get.
+    ///
+    /// # Returns
+    ///
+    /// The value of the bit.
     fn get_bit(&self, bit: usize) -> bool;
 
     /// Sets the value of a bitfield.
+    ///
+    /// # Arguments
+    ///
+    /// * `field` - The bitfield to set the value of.
+    /// * `bit_range` - The range of bits to set.
     fn set_field(&self, field: &mut [u8], bit_range: (usize, usize)) {
         fn zero_bit(byte: &mut u8, n_bit: u64) {
             let bit = 1 << n_bit;
@@ -53,6 +66,15 @@ pub trait FieldType: Sized {
     }
 
     /// Gets the value of a bitfield.
+    ///
+    /// # Arguments
+    ///
+    /// * `field` - The bitfield to get the value of.
+    /// * `bit_range` - The range of bits to get.
+    ///
+    /// # Returns
+    ///
+    /// The value of the bitfield.
     fn get_field(field: &[u8], bit_range: (usize, usize)) -> Self;
 }
 

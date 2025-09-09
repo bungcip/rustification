@@ -27,8 +27,10 @@ pub enum MacHeader<'a> {
 /// A collection of comments.
 pub struct Comments {
     //cm: &'a SourceMap,
-    comments: Vec<comments::Comment>,
-    current: usize,
+    /// The comments in the collection.
+    pub comments: Vec<comments::Comment>,
+    /// The index of the current comment.
+    pub current: usize,
 }
 
 impl Comments {
@@ -92,6 +94,7 @@ impl Extend<comments::Comment> for Comments {
     }
 }
 
+/// Strips the `fn main() { ... }` wrapper from a string.
 fn strip_main_fn(s: &str) -> &str {
     s.trim_start()
         .trim_start_matches("fn main()")
@@ -103,6 +106,7 @@ fn strip_main_fn(s: &str) -> &str {
         .trim_end()
 }
 
+/// Creates a `syn::File` containing a `main` function with a single statement.
 fn minimal_file(stmt: syn::Stmt) -> syn::File {
     let item = syn::Item::Fn(main_fn(stmt));
     syn::File {
@@ -112,6 +116,7 @@ fn minimal_file(stmt: syn::Stmt) -> syn::File {
     }
 }
 
+/// Creates a `main` function with a single statement.
 fn main_fn(stmt: syn::Stmt) -> syn::ItemFn {
     let generics = syn::Generics {
         lt_token: None,

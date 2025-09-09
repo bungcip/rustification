@@ -158,18 +158,31 @@ pub mod properties {
 
 use self::properties::*;
 
+/// A tuple representing a function declaration.
+///
+/// The tuple contains the function name, arguments, variadic argument, and return type.
 pub type FnDecl = (Ident, Vec<FnArg>, Option<Variadic>, ReturnType);
+/// A tuple representing the parts of a bare function type.
+///
+/// The tuple contains the arguments, variadic argument, and return type.
 pub type BareFnTyParts = (Vec<BareFnArg>, Option<BareVariadic>, ReturnType);
 
+/// Represents how a variable is captured by a closure.
 pub enum CaptureBy {
+    /// The variable is captured by value.
     Value,
+    /// The variable is captured by reference.
     Ref,
 }
 
+/// Represents the extern ABI of a function.
 #[derive(Debug, Clone)]
 pub enum Extern {
+    /// No extern ABI.
     None,
+    /// Implicit extern ABI.
     Implicit,
+    /// Explicit extern ABI, e.g., `"C"`.
     Explicit(String),
 }
 
