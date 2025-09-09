@@ -102,7 +102,6 @@ mod ffi {
     include!(concat!(env!("OUT_DIR"), "/cppbindings.rs"));
 }
 
-/// This block contains the FFI declarations for the C++ functions.
 unsafe extern "C" {
     // ExportResult *ast_exporter(int argc, char *argv[]);
     fn ast_exporter(

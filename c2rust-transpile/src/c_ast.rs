@@ -925,12 +925,18 @@ impl TypedAstContext {
             }
             fn post(&mut self, id: SomeId) {
                 if let SomeId::Expr(e) = id {
-                    let new_ty = match self.ast_context.c_exprs[&e].kind {
+                    let new_ty = match e.get_node(self.ast_context).kind {
                         CExprKind::Conditional(_ty, _cond, lhs, rhs) => {
-                            let lhs_type_id =
-                                self.ast_context.c_exprs[&lhs].kind.get_qual_type().unwrap();
-                            let rhs_type_id =
-                                self.ast_context.c_exprs[&rhs].kind.get_qual_type().unwrap();
+                            let lhs_type_id = lhs
+                                .get_node(&self.ast_context)
+                                .kind
+                                .get_qual_type()
+                                .unwrap();
+                            let rhs_type_id = rhs
+                                .get_node(&self.ast_context)
+                                .kind
+                                .get_qual_type()
+                                .unwrap();
 
                             let lhs_resolved_ty = self.ast_context.resolve_type(lhs_type_id.ctype);
                             let rhs_resolved_ty = self.ast_context.resolve_type(rhs_type_id.ctype);
@@ -944,9 +950,12 @@ impl TypedAstContext {
                             }
                         }
                         CExprKind::Binary(_ty, op, lhs, rhs, _, _) => {
-                            let rhs_type_id =
-                                self.ast_context.c_exprs[&rhs].kind.get_qual_type().unwrap();
-                            let lhs_kind = &self.ast_context.c_exprs[&lhs].kind;
+                            let rhs_type_id = rhs
+                                .get_node(&self.ast_context)
+                                .kind
+                                .get_qual_type()
+                                .unwrap();
+                            let lhs_kind = &lhs.get_node(&self.ast_context).kind;
                             let lhs_type_id = lhs_kind.get_qual_type().unwrap();
 
                             let lhs_resolved_ty = self.ast_context.resolve_type(lhs_type_id.ctype);
@@ -969,10 +978,10 @@ impl TypedAstContext {
                         }
                         CExprKind::Unary(_ty, op, e, _idk) => op.expected_result_type(
                             self.ast_context,
-                            self.ast_context.c_exprs[&e].kind.get_qual_type().unwrap(),
+                            e.get_node(&self.ast_context).kind.get_qual_type().unwrap(),
                         ),
                         CExprKind::Paren(_ty, e) => {
-                            self.ast_context.c_exprs[&e].kind.get_qual_type()
+                            e.get_node(&self.ast_context).kind.get_qual_type()
                         }
                         _ => return,
                     };

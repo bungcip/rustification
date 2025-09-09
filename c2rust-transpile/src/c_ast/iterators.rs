@@ -324,7 +324,7 @@ fn immediate_type_children(kind: &CTypeKind) -> Vec<SomeId> {
 fn immediate_children(context: &TypedAstContext, s_or_e: SomeId) -> Vec<SomeId> {
     match s_or_e {
         SomeId::Stmt(stmt_id) => immediate_stmt_children(&stmt_id.get_node(context).kind),
-        SomeId::Expr(expr_id) => immediate_expr_children(&context.c_exprs[&expr_id].kind),
+        SomeId::Expr(expr_id) => immediate_expr_children(&expr_id.get_node(context).kind),
         SomeId::Decl(decl_id) => immediate_decl_children(&decl_id.get_node(context).kind),
         SomeId::Type(type_id) => immediate_type_children(&type_id.get_node(context).kind),
     }
@@ -333,7 +333,9 @@ fn immediate_children(context: &TypedAstContext, s_or_e: SomeId) -> Vec<SomeId> 
 pub fn immediate_children_all_types(context: &TypedAstContext, s_or_e: SomeId) -> Vec<SomeId> {
     match s_or_e {
         SomeId::Stmt(stmt_id) => immediate_stmt_children(&stmt_id.get_node(context).kind),
-        SomeId::Expr(expr_id) => immediate_expr_children_all_types(&context.c_exprs[&expr_id].kind),
+        SomeId::Expr(expr_id) => {
+            immediate_expr_children_all_types(&expr_id.get_node(&context).kind)
+        }
         SomeId::Decl(decl_id) => immediate_decl_children(&decl_id.get_node(context).kind),
         SomeId::Type(type_id) => immediate_type_children(&type_id.get_node(context).kind),
     }
