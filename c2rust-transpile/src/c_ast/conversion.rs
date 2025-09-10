@@ -1,8 +1,5 @@
 use crate::diagnostics::diag;
-use crate::{
-    c_ast::{get_node::GetNode, *},
-    clang_err,
-};
+use crate::{c_ast::*, clang_err};
 use c2rust_ast_exporter::clang_ast::*;
 use serde_bytes::ByteBuf;
 use std::collections::HashMap;
@@ -929,14 +926,6 @@ impl ConversionContext {
                     .expect("CountAttributed type child not found");
                 let ty = self.visit_qualified_type(ty_id);
 
-                // make sure ty is Pointer or Flexible Array Member
-                let cty = ty.ctype.get_node(&self.typed_context);
-                match &cty.kind {
-                    CTypeKind::IncompleteArray(_) | CTypeKind::Pointer(_) => {}
-                    other => panic!(
-                        "CountAttributed expect Pointer or Flexible Array Member but got {other}"
-                    ),
-                };
 
                 let kind = from_value::<String>(ty_node.extras[1].clone())
                     .expect("CountAttributed type kind not found");
