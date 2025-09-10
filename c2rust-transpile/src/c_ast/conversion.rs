@@ -926,7 +926,6 @@ impl ConversionContext {
                     .expect("CountAttributed type child not found");
                 let ty = self.visit_qualified_type(ty_id);
 
-
                 let kind = from_value::<String>(ty_node.extras[1].clone())
                     .expect("CountAttributed type kind not found");
                 let kind = match kind.as_str() {
