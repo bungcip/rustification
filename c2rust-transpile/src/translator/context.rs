@@ -139,6 +139,8 @@ pub struct FuncContext {
     pub va_list_arg_name: Option<String>,
     /// The va_list decls that are either `va_start`ed or `va_copy`ed.
     pub va_list_decl_ids: Option<IndexSet<CDeclId>>,
+    /// The name we give to the Rust variable holding all allocations made with `alloca`.
+    pub(crate) alloca_allocations_name: Option<String>,
 }
 
 impl FuncContext {
@@ -147,9 +149,10 @@ impl FuncContext {
     }
 
     pub fn enter_new(&mut self, fn_name: &str) {
-        self.name = Some(fn_name.to_string());
-        self.va_list_arg_name = None;
-        self.va_list_decl_ids = None;
+        *self = Self {
+            name: Some(fn_name.to_string()),
+            ..Default::default()
+        };
     }
 
     // pub fn get_name(&self) -> &str {

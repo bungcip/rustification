@@ -11,7 +11,7 @@ use crate::c_ast::{
 use crate::diagnostics::{TranslationError, TranslationResult};
 use crate::with_stmts::WithStmts;
 use crate::{ExternCrate, generic_err};
-use c2rust_ast_builder::{mk, properties::Mutability};
+use c2rust_ast_builder::mk;
 use std::iter;
 use std::ops::Index;
 use syn::Expr;
@@ -58,7 +58,7 @@ impl<'c> Translation<'c> {
                         let name = self.renamer.borrow().get(&variant_id).unwrap();
 
                         // Import the enum variant if needed
-                        if let Some(cur_file) = *self.cur_file.borrow() {
+                        if let Some(cur_file) = self.cur_file.get() {
                             self.add_import(cur_file, variant_id, &name);
                         }
                         return mk().ident_expr(name);
@@ -154,28 +154,24 @@ impl<'c> Translation<'c> {
                 let mut val = val.to_owned();
 
                 let num_elems = match self.ast_context.resolve_type(ty.ctype).kind {
-                    // Match the literal size to the expected size padding with zeros as needed
-                    CTypeKind::ConstantArray(_elem_ty, size) => size,
-                    // zero terminator
-                    _ => 1,
+                    CTypeKind::ConstantArray(_elem_ty, num_elems) => num_elems,
+                    ref kind => {
+                        panic!("String literal with unknown size: {val:?}, kind = {kind:?}")
+                    }
                 };
+
+                // Match the literal size to the expected size padding with zeros as needed
                 let size = num_elems * (width as usize);
                 val.resize(size, 0);
 
+                // std::mem::transmute::<[u8; size], ctype>(*b"xxxx")
                 let u8_ty = mk().path_ty(vec!["u8"]);
                 let width_lit = mk().lit_expr(mk().int_lit(val.len()));
-                let array_ty = mk().array_ty(u8_ty, width_lit);
-                let source_ty = mk().ref_ty(array_ty);
-                let mutbl = if ty.qualifiers.is_const {
-                    Mutability::Immutable
-                } else {
-                    Mutability::Mutable
-                };
-                let target_ty = mk().set_mutbl(mutbl).ref_ty(self.convert_type(ty.ctype)?);
-                let byte_literal = mk().lit_expr(val);
-                let pointer = transmute_expr(source_ty, target_ty, byte_literal);
-                let array = mk().deref_expr(pointer);
-                Ok(WithStmts::new_unsafe_val(array))
+                Ok(WithStmts::new_unsafe_val(transmute_expr(
+                    mk().array_ty(u8_ty, width_lit),
+                    self.convert_type(ty.ctype)?,
+                    mk().deref_expr(mk().lit_expr(val)),
+                )))
             }
         }
     }

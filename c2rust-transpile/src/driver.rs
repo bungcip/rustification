@@ -25,7 +25,7 @@ use c2rust_ast_printer::pprust;
 use indexmap::{IndexMap, IndexSet};
 use log::error;
 use proc_macro2::Span;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use syn::{self, BinOp, Expr, Ident, Item, ReturnType, Stmt, Type, spanned::Spanned};
 
@@ -354,7 +354,7 @@ pub struct Translation<'c> {
     // While expanding an item, store the current file id that item is
     // expanded from. This is needed in order to note imports in items when
     // encountering DeclRefs.
-    pub cur_file: RefCell<Option<FileId>>,
+    pub cur_file: Cell<Option<FileId>>,
 }
 
 pub fn translate_failure(tcfg: &TranspilerConfig, msg: &str) {
@@ -461,8 +461,6 @@ pub fn translate(
             store.add_item(const_decls_items.1);
         }
 
-        let pragmas = t.get_pragmas();
-        let crates = t.extern_crates.borrow().clone();
         let global_uses = t.global_uses.borrow_mut().clone();
 
         let mut mod_items: Vec<Box<Item>> = Vec::new();
@@ -577,6 +575,14 @@ pub fn translate(
         } else {
             RustChannel::Stable
         };
+
+        let pragmas = t.get_pragmas();
+        let extern_crates = t.extern_crates.borrow();
+        let type_converter = t.type_converter.borrow();
+        let crates = extern_crates
+            .union(type_converter.extern_crates_used())
+            .copied()
+            .collect();
 
         (translation, pragmas, crates, channel)
     }

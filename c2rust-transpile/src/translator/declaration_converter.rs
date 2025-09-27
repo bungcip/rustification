@@ -7,7 +7,7 @@ use crate::c_ast::*;
 fn convert_decl_and_insert(t: &mut Translation, ctx: ExprContext, decl_id: CDeclId, decl: &CDecl) {
     let decl_file_id = t.ast_context.file_id(decl);
     if t.tcfg.reorganize_definitions {
-        *t.cur_file.borrow_mut() = decl_file_id;
+        t.cur_file.set(decl_file_id);
     }
     match t.convert_decl(ctx, decl_id) {
         Err(e) => {
@@ -30,7 +30,7 @@ fn convert_decl_and_insert(t: &mut Translation, ctx: ExprContext, decl_id: CDecl
             ConvertedDecl::NoItem => {}
         },
     }
-    t.cur_file.borrow_mut().take();
+    t.cur_file.take();
 
     if t.tcfg.reorganize_definitions && decl_file_id.is_some_and(|id| id != t.main_file) {
         t.generate_submodule_imports(decl_id, decl_file_id);

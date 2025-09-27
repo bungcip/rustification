@@ -20,7 +20,7 @@ pub(crate) fn check_type_is_constant_aop(
 
 impl<'c> Translation<'c> {
     pub(crate) fn convert_type(&self, type_id: CTypeId) -> TranslationResult<Box<Type>> {
-        if let Some(cur_file) = *self.cur_file.borrow() {
+        if let Some(cur_file) = self.cur_file.get() {
             self.import_type(type_id, cur_file);
         }
         self.type_converter

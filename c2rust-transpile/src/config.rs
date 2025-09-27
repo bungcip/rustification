@@ -1,7 +1,7 @@
-use crate::TranslateMacros;
 use crate::diagnostics::Diagnostic;
 use crate::driver::ReplaceMode;
 use crate::get_module_name;
+use crate::{TranslateMacros, str_to_ident_checked};
 use itertools::Itertools;
 use log::{info, warn};
 use regex::Regex;
@@ -127,7 +127,8 @@ impl TranspilerConfig {
     pub fn crate_name(&self) -> String {
         self.output_dir
             .as_ref()
-            .and_then(|x| x.file_name().map(|x| x.to_string_lossy().into_owned()))
+            .and_then(|dir| dir.file_name())
+            .map(|fname| str_to_ident_checked(fname.to_string_lossy().as_ref(), true))
             .unwrap_or_else(|| "c2rust_out".into())
     }
 }

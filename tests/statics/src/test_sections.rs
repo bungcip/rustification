@@ -44,8 +44,10 @@ pub fn test_sectioned_used_static() {
             .expect("Did not find expected static string in source");
         // The ordering of these attributes is not stable between LLVM versions
         assert!(
-            (lines[pos - 1] == "#[used]" && lines[pos - 2] == r#"#[unsafe(link_section = "barz")]"#)
-                || (lines[pos - 2] == "#[used]" && lines[pos - 1] == r#"#[unsafe(link_section = "barz")]"#)
+            (lines[pos - 1] == "#[used]"
+                && lines[pos - 2] == r#"#[unsafe(link_section = "barz")]"#)
+                || (lines[pos - 2] == "#[used]"
+                    && lines[pos - 1] == r#"#[unsafe(link_section = "barz")]"#)
         );
 
         // This static is pub, but we want to ensure it has attributes applied

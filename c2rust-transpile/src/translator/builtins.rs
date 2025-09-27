@@ -364,16 +364,34 @@ impl<'c> Translation<'c> {
             "__builtin_alloca" => {
                 let count = self.convert_expr(ctx.used(), args[0], None)?;
                 count.and_then(|count| {
-                    let alloca_name = self.renamer.borrow_mut().fresh();
-                    let zero_elem = mk().lit_expr(0);
-                    Ok(WithStmts::new(
-                        vec![mk().local_stmt(Box::new(mk().local(
-                            mk().mutbl().ident_pat(&alloca_name),
-                            None,
-                            Some(vec_expr(zero_elem, transform::cast_int(count, "usize"))),
-                        )))],
-                        mk().method_call_expr(mk().ident_expr(&alloca_name), "as_mut_ptr", vec![]),
-                    ))
+                    // Get `alloca` allocation storage.
+                    let mut fn_ctx = self.function_context.borrow_mut();
+                    let alloca_allocations_name =
+                        &*fn_ctx.alloca_allocations_name.get_or_insert_with(|| {
+                            self.renamer.borrow_mut().pick_name("alloca_allocations")
+                        });
+
+                    // alloca_allocations.push(std::vec::from_elem(0, count));
+                    let init_expr = vec_expr(
+                        mk().lit_expr(mk().int_lit(0)),
+                        transform::cast_int(count, "usize"),
+                    );
+                    let push_stmt = mk().semi_stmt(mk().method_call_expr(
+                        mk().ident_expr(alloca_allocations_name),
+                        "push",
+                        vec![init_expr],
+                    ));
+
+                    // alloca_allocations.last_mut().unwrap().as_mut_ptr()
+                    let last_mut_expr = mk().method_call_expr(
+                        mk().ident_expr(alloca_allocations_name),
+                        "last_mut",
+                        vec![],
+                    );
+                    let unwrap_expr = mk().method_call_expr(last_mut_expr, "unwrap", vec![]);
+                    let as_mut_ptr_expr = mk().method_call_expr(unwrap_expr, "as_mut_ptr", vec![]);
+
+                    Ok(WithStmts::new(vec![push_stmt], as_mut_ptr_expr))
                 })
             }
 
@@ -738,14 +756,13 @@ impl<'c> Translation<'c> {
                     args.len()
                 ))?;
             }
-            // core::ffi doesn't have `size_t`, so we cast to `usize`
-            let size_t = || mk().path_ty(vec!["usize"]);
             let args_casted = args
                 .into_iter()
                 .zip(arg_types)
                 .map(|(arg, &ty)| {
                     if ty == LibcFnArgType::Size {
-                        mk().cast_expr(arg, size_t())
+                        // core::ffi doesn't have `size_t`, so we cast to `usize`
+                        mk().cast_expr(arg, mk().path_ty(vec!["usize"]))
                     } else {
                         arg
                     }

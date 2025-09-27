@@ -60,8 +60,8 @@ impl<'c> Translation<'c> {
             .get(macro_id)
             .ok_or_else(|| generic_err!("Macro name not declared"))?;
 
-        if let Some(cur_file) = self.cur_file.borrow().as_ref() {
-            self.add_import(*cur_file, *macro_id, &rust_name);
+        if let Some(cur_file) = self.cur_file.get() {
+            self.add_import(cur_file, *macro_id, &rust_name);
         }
 
         let val = WithStmts::new_val(mk().path_expr(vec![rust_name]));

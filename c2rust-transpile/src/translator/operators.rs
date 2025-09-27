@@ -49,7 +49,7 @@ impl<'c> Translation<'c> {
         lhs: Box<Expr>,
         rhs: Box<Expr>,
         ctype: CTypeId,
-    ) -> TranslationResult<Box<Expr>> {
+    ) -> TranslationResult<WithStmts<Box<Expr>>> {
         let is_unsigned = self
             .ast_context
             .resolve_type(ctype)
@@ -65,11 +65,12 @@ impl<'c> Translation<'c> {
             _ => "",
         };
 
-        if is_unsigned && !wrapping_method.is_empty() {
-            Ok(mk().method_call_expr(lhs, wrapping_method, vec![rhs]))
+        let expr = if is_unsigned && !wrapping_method.is_empty() {
+            mk().method_call_expr(lhs, wrapping_method, vec![rhs])
         } else {
-            Ok(mk().binary_expr(op.into(), lhs, rhs))
-        }
+            mk().binary_expr(op.into(), lhs, rhs)
+        };
+        Ok(WithStmts::new_val(expr))
     }
 
     fn convert_comparison_operator(
@@ -80,7 +81,7 @@ impl<'c> Translation<'c> {
         lhs: Box<Expr>,
         rhs: Box<Expr>,
         lhs_rhs_ids: Option<(CExprId, CExprId)>,
-    ) -> TranslationResult<Box<Expr>> {
+    ) -> TranslationResult<WithStmts<Box<Expr>>> {
         let expr = match op {
             c_ast::BinOp::EqualEqual | c_ast::BinOp::NotEqual => {
                 if let Some((lhs_expr_id, rhs_expr_id)) = lhs_rhs_ids {
@@ -113,7 +114,7 @@ impl<'c> Translation<'c> {
             _ => mk().binary_expr(op.into(), lhs, rhs),
         };
 
-        Ok(transform::bool_to_int(expr))
+        Ok(WithStmts::new_val(transform::bool_to_int(expr)))
     }
 
     /// Translate a non-assignment binary operator. It is expected that the `lhs` and `rhs`
@@ -128,17 +129,21 @@ impl<'c> Translation<'c> {
         lhs: Box<Expr>,
         rhs: Box<Expr>,
         lhs_rhs_ids: Option<(CExprId, CExprId)>,
-    ) -> TranslationResult<Box<Expr>> {
+    ) -> TranslationResult<WithStmts<Box<Expr>>> {
         match op {
-            c_ast::BinOp::Add => self.convert_addition(lhs_type, rhs_type, lhs, rhs),
-            c_ast::BinOp::Subtract => self.convert_subtraction(ty, lhs_type, rhs_type, lhs, rhs),
+            c_ast::BinOp::Add => return self.convert_addition(lhs_type, rhs_type, lhs, rhs),
+            c_ast::BinOp::Subtract => {
+                return self.convert_subtraction(ty, lhs_type, rhs_type, lhs, rhs);
+            }
 
             c_ast::BinOp::Multiply
             | c_ast::BinOp::Divide
             | c_ast::BinOp::Modulus
             | c_ast::BinOp::BitXor
             | c_ast::BinOp::ShiftRight
-            | c_ast::BinOp::ShiftLeft => self.convert_binary_op_with_wrapping(op, lhs, rhs, ctype),
+            | c_ast::BinOp::ShiftLeft => {
+                return self.convert_binary_op_with_wrapping(op, lhs, rhs, ctype);
+            }
 
             c_ast::BinOp::EqualEqual
             | c_ast::BinOp::NotEqual
@@ -146,11 +151,18 @@ impl<'c> Translation<'c> {
             | c_ast::BinOp::Greater
             | c_ast::BinOp::GreaterEqual
             | c_ast::BinOp::LessEqual => {
-                self.convert_comparison_operator(op, lhs_type, rhs_type, lhs, rhs, lhs_rhs_ids)
+                return self.convert_comparison_operator(
+                    op,
+                    lhs_type,
+                    rhs_type,
+                    lhs,
+                    rhs,
+                    lhs_rhs_ids,
+                );
             }
 
             c_ast::BinOp::BitAnd | c_ast::BinOp::BitOr => {
-                self.convert_binary_op_with_wrapping(op, lhs, rhs, ctype)
+                return self.convert_binary_op_with_wrapping(op, lhs, rhs, ctype);
             }
 
             op => unimplemented!("Translation of binary operator {:?}", op),
@@ -172,7 +184,7 @@ impl<'c> Translation<'c> {
         if self.ast_context.resolve_type_id(compute_lhs_type_id.ctype)
             == self.ast_context.resolve_type_id(lhs_type_id.ctype)
         {
-            Ok(WithStmts::new_val(mk().assign_op_expr(
+            Ok(WithStmts::new_unsafe_val(mk().assign_op_expr(
                 bin_op_kind,
                 write,
                 rhs,
@@ -193,7 +205,7 @@ impl<'c> Translation<'c> {
                 mk().cast_expr(read, lhs_type.clone())
             };
             let ty = self.convert_type(compute_res_type_id.ctype)?;
-            let val = self.convert_binary_operator(
+            let mut val = self.convert_binary_operator(
                 bin_op,
                 ty,
                 compute_res_type_id.ctype,
@@ -211,16 +223,15 @@ impl<'c> Translation<'c> {
                 .is_enum();
             let result_type = self.convert_type(lhs_type_id.ctype)?;
             let val = if is_enum_result {
-                WithStmts::new_unsafe_val(transmute_expr(lhs_type, result_type, val))
+                val.set_unsafe();
+                val.map(|val| transmute_expr(lhs_type, result_type, val))
             } else {
                 // We can't as-cast from a non primitive like f128 back to the result_type
                 if compute_lhs_resolved_ty.kind == CTypeKind::LongDouble {
                     let resolved_lhs_kind = &self.ast_context.resolve_type(lhs_type_id.ctype).kind;
-                    let val = WithStmts::new_val(val);
-
                     self.f128_cast_to(val, resolved_lhs_kind)?
                 } else {
-                    WithStmts::new_val(mk().cast_expr(val, result_type))
+                    val.map(|val| mk().cast_expr(val, result_type))
                 }
             };
             Ok(val.map(|val| mk().assign_expr(write.clone(), val)))
@@ -406,7 +417,7 @@ impl<'c> Translation<'c> {
                     let assign_stmt = match op {
                         // Regular (possibly volatile) assignment
                         Assign if !is_volatile => WithStmts::new_val(mk().assign_expr(write, rhs)),
-                        Assign => WithStmts::new_val(self.volatile_write(
+                        Assign => WithStmts::new_unsafe_val(self.volatile_write(
                             write,
                             initial_lhs_type_id,
                             rhs,
@@ -414,7 +425,6 @@ impl<'c> Translation<'c> {
 
                         // Anything volatile needs to be desugared into explicit reads and writes
                         op if is_volatile || is_unsigned_arith => {
-                            let mut is_unsafe = false;
                             let op = op
                                 .underlying_assignment()
                                 .expect("Cannot convert non-assignment operator");
@@ -436,7 +446,7 @@ impl<'c> Translation<'c> {
                                 let write_type = self.convert_type(expr_type_id.ctype)?;
                                 let lhs = mk().cast_expr(read.clone(), lhs_type.clone());
                                 let ty = self.convert_type(result_type_id.ctype)?;
-                                let val = self.convert_binary_operator(
+                                let mut val = self.convert_binary_operator(
                                     op,
                                     ty,
                                     result_type_id.ctype,
@@ -452,24 +462,24 @@ impl<'c> Translation<'c> {
                                 let is_enum_result = expr_resolved_ty.kind.is_enum();
                                 let expr_type = self.convert_type(expr_type_id.ctype)?;
                                 let val = if is_enum_result {
-                                    is_unsafe = true;
-                                    transmute_expr(lhs_type, expr_type, val)
+                                    val.set_unsafe();
+                                    val.map(|val| transmute_expr(lhs_type, expr_type, val))
                                 } else {
-                                    mk().cast_expr(val, expr_type)
+                                    val.map(|val| mk().cast_expr(val, expr_type))
                                 };
-                                mk().cast_expr(val, write_type)
+                                val.map(|val| mk().cast_expr(val, write_type))
                             };
 
                             let write = if is_volatile {
-                                self.volatile_write(write, initial_lhs_type_id, val)?
+                                val.and_then(|val| {
+                                    TranslationResult::Ok(WithStmts::new_unsafe_val(
+                                        self.volatile_write(write, initial_lhs_type_id, val)?,
+                                    ))
+                                })?
                             } else {
-                                mk().assign_expr(write, val)
+                                val.map(|val| mk().assign_expr(write, val))
                             };
-                            if is_unsafe {
-                                WithStmts::new_unsafe_val(write)
-                            } else {
-                                WithStmts::new_val(write)
-                            }
+                            write
                         }
 
                         // Everything else
@@ -482,7 +492,7 @@ impl<'c> Translation<'c> {
                                 op == AssignSubtract,
                                 false,
                             );
-                            WithStmts::new_val(mk().assign_expr(write, ptr))
+                            WithStmts::new_unsafe_val(mk().assign_expr(write, ptr))
                         }
 
                         _ => {
@@ -531,16 +541,20 @@ impl<'c> Translation<'c> {
         rhs_type_id: CQualTypeId,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
-    ) -> TranslationResult<Box<Expr>> {
+    ) -> TranslationResult<WithStmts<Box<Expr>>> {
         let lhs_type = &self.ast_context.resolve_type(lhs_type_id.ctype).kind;
         let rhs_type = &self.ast_context.resolve_type(rhs_type_id.ctype).kind;
 
         if let &CTypeKind::Pointer(pointee) = lhs_type {
             let mul = self.compute_size_of_expr(pointee.ctype);
-            Ok(pointer_offset(lhs, rhs, mul, false, false))
+            Ok(WithStmts::new_unsafe_val(pointer_offset(
+                lhs, rhs, mul, false, false,
+            )))
         } else if let &CTypeKind::Pointer(pointee) = rhs_type {
             let mul = self.compute_size_of_expr(pointee.ctype);
-            Ok(pointer_offset(rhs, lhs, mul, false, false))
+            Ok(WithStmts::new_unsafe_val(pointer_offset(
+                rhs, lhs, mul, false, false,
+            )))
         } else {
             self.convert_binary_op_with_wrapping(c_ast::BinOp::Add, lhs, rhs, lhs_type_id.ctype)
         }
@@ -553,7 +567,7 @@ impl<'c> Translation<'c> {
         rhs_type_id: CQualTypeId,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
-    ) -> TranslationResult<Box<Expr>> {
+    ) -> TranslationResult<WithStmts<Box<Expr>>> {
         let lhs_type = &self.ast_context.resolve_type(lhs_type_id.ctype).kind;
         let rhs_type = &self.ast_context.resolve_type(rhs_type_id.ctype).kind;
 
@@ -565,10 +579,12 @@ impl<'c> Translation<'c> {
                 offset = mk().binary_expr(BinOp::Div(Default::default()), offset, div);
             }
 
-            Ok(mk().cast_expr(offset, ty))
+            Ok(WithStmts::new_unsafe_val(mk().cast_expr(offset, ty)))
         } else if let &CTypeKind::Pointer(pointee) = lhs_type {
             let mul = self.compute_size_of_expr(pointee.ctype);
-            Ok(pointer_offset(lhs, rhs, mul, true, false))
+            Ok(WithStmts::new_unsafe_val(pointer_offset(
+                lhs, rhs, mul, true, false,
+            )))
         } else {
             self.convert_binary_op_with_wrapping(
                 c_ast::BinOp::Subtract,
@@ -657,6 +673,7 @@ impl<'c> Translation<'c> {
                 )));
 
                 let mut one = self.mk_one(ty);
+                let mut is_unsafe = false; // Track unsafety if we call `pointer::offset`.
 
                 // *p + 1
                 let val = if let &CTypeKind::Pointer(pointee) =
@@ -667,6 +684,7 @@ impl<'c> Translation<'c> {
                     }
 
                     let n = if up { one } else { mk().neg_expr(one) };
+                    is_unsafe = true;
                     mk().method_call_expr(read, "offset", vec![n])
                 } else if self
                     .ast_context
@@ -687,15 +705,20 @@ impl<'c> Translation<'c> {
 
                 // *p = *p + rhs
                 let assign_stmt = if ty.qualifiers.is_volatile {
+                    is_unsafe = true;
                     self.volatile_write(write, ty, val)?
                 } else {
                     mk().assign_expr(write, val)
                 };
 
-                Ok(WithStmts::new(
+                let mut val = WithStmts::new(
                     vec![save_old_val, mk().semi_stmt(assign_stmt)],
                     mk().ident_expr(val_name),
-                ))
+                );
+                if is_unsafe {
+                    val.set_unsafe();
+                }
+                Ok(val)
             },
         )
     }

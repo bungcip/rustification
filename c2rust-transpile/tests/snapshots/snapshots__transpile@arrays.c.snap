@@ -5,7 +5,6 @@ input_file: c2rust-transpile/tests/snapshots/arrays.c
 ---
 #![allow(
     dead_code,
-    mutable_transmutes,
     non_camel_case_types,
     non_snake_case,
     non_upper_case_globals,
@@ -42,7 +41,7 @@ pub struct C2RustUnnamed_2 {
     pub y: ffi::c_int,
 }
 static mut simple: [ffi::c_char; 9] =
-    unsafe { *::core::mem::transmute::<&[u8; 9], &mut [ffi::c_char; 9]>(b"mystring\0") };
+    unsafe { ::core::mem::transmute::<[u8; 9], [ffi::c_char; 9]>(*b"mystring\0") };
 static mut foo: PointerMut<ffi::c_char> = PointerMut(c"mystring".as_ptr() as *mut ffi::c_char);
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn entry() {
@@ -64,8 +63,7 @@ pub unsafe extern "C" fn entry() {
     arr5[0 as ffi::c_int as usize].y += 9 as ffi::c_int;
     let mut arr6: [ffi::c_int; 2] = [1 as ffi::c_int, 2 as ffi::c_int];
     let mut arr7: [ffi::c_int; 0] = [0; 0];
-    let mut abc: [ffi::c_char; 4] =
-        *::core::mem::transmute::<&[u8; 4], &mut [ffi::c_char; 4]>(b"abc\0");
+    let mut abc: [ffi::c_char; 4] = ::core::mem::transmute::<[u8; 4], [ffi::c_char; 4]>(*b"abc\0");
     let mut def: [ffi::c_char; 3] = [
         'd' as i32 as ffi::c_char,
         'e' as i32 as ffi::c_char,
@@ -74,13 +72,12 @@ pub unsafe extern "C" fn entry() {
     let mut part: [ffi::c_char; 2] = [1 as ffi::c_int as ffi::c_char, 0];
     let mut abcptr: *mut ffi::c_char = c"abc".as_ptr() as *mut ffi::c_char;
     let mut init: [ffi::c_char; 5] =
-        *::core::mem::transmute::<&[u8; 5], &mut [ffi::c_char; 5]>(b"abcd\0");
+        ::core::mem::transmute::<[u8; 5], [ffi::c_char; 5]>(*b"abcd\0");
     let mut too_long: [ffi::c_char; 3] =
-        *::core::mem::transmute::<&[u8; 3], &mut [ffi::c_char; 3]>(b"abc");
-    let mut too_short: [ffi::c_char; 20] = *::core::mem::transmute::<
-        &[u8; 20],
-        &mut [ffi::c_char; 20],
-    >(b"abc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0");
+        ::core::mem::transmute::<[u8; 3], [ffi::c_char; 3]>(*b"abc");
+    let mut too_short: [ffi::c_char; 20] = ::core::mem::transmute::<[u8; 20], [ffi::c_char; 20]>(
+        *b"abc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",
+    );
     let mut past_end: *mut ffi::c_char = &raw mut *(&raw mut simple)
         .cast::<ffi::c_char>()
         .offset(::core::mem::size_of::<[ffi::c_char; 9]>() as isize)

@@ -346,7 +346,7 @@ impl<'c> Translation<'c> {
             main_file,
             extern_crates: RefCell::new(IndexSet::new()),
             global_uses: RefCell::new(IndexSet::new()),
-            cur_file: RefCell::new(None),
+            cur_file: Default::default(),
         }
     }
 
@@ -362,11 +362,7 @@ impl<'c> Translation<'c> {
     }
 
     pub fn cur_file(&self) -> FileId {
-        if let Some(cur_file) = *self.cur_file.borrow() {
-            cur_file
-        } else {
-            self.main_file
-        }
+        self.cur_file.get().unwrap_or(self.main_file)
     }
 
     /// helper function to get the current file item store
@@ -403,7 +399,6 @@ impl<'c> Translation<'c> {
                 "non_camel_case_types",
                 "non_snake_case",
                 "dead_code",
-                "mutable_transmutes",
                 "unused_mut",
                 "unused_assignments",
                 "unused_unsafe",
@@ -483,7 +478,7 @@ impl<'c> Translation<'c> {
         ctx: ExprContext,
         expansions: &[CExprId],
     ) -> TranslationResult<(Box<Expr>, CTypeId)> {
-        let (mut val, ty) = expansions
+        let (val, ty) = expansions
             .iter()
             .try_fold::<Option<(WithStmts<Box<Expr>>, CTypeId)>, _, _>(None, |canonical, &id| {
                 self.can_convert_const_macro_expansion(id)?;
@@ -522,7 +517,6 @@ impl<'c> Translation<'c> {
             })?
             .ok_or_else(|| generic_err!("Could not find a valid type for macro"))?;
 
-        val.set_unsafe();
         val.to_unsafe_pure_expr()
             .map(|val| (val, ty))
             .ok_or_else(|| generic_err!("Macro expansion is not a pure expression"))
@@ -693,7 +687,15 @@ impl<'c> Translation<'c> {
                 let mut init = init?;
 
                 stmts.append(init.stmts_mut());
-                let init = init.into_value();
+                // A `const` context is not "already unsafe" the way code within a `fn` is
+                // (since we translate all `fn`s as `unsafe`). Therefore, in `const` contexts,
+                // expose any underlying unsafety in the initializer with an `unsafe` block.
+                let init = if ctx.is_const {
+                    init.to_unsafe_pure_expr()
+                        .expect("init should not have any statements")
+                } else {
+                    init.into_value()
+                };
 
                 let zeroed = self.implicit_default_expr(typ.ctype, false, false)?;
                 let zeroed = if ctx.is_const {
@@ -991,10 +993,10 @@ impl<'c> Translation<'c> {
             return Ok(mk().ident_expr("None"));
         }
 
-        let pointee = match self.ast_context.resolve_type(type_id).kind {
-            CTypeKind::Pointer(pointee) => pointee,
-            _ => return Err(generic_err!("null_ptr requires a pointer")),
-        };
+        let pointee = self
+            .ast_context
+            .get_pointee_qual_type(type_id)
+            .ok_or(TranslationError::generic("null_ptr requires a pointer"))?;
         let ty = self.convert_type(type_id)?;
         let mut zero = mk().lit_expr(0);
         if is_static && pointee.qualifiers.is_const == false {
@@ -1269,8 +1271,8 @@ impl<'c> Translation<'c> {
         type_id: CTypeId,
         is_static: bool,
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
-        if let Some(file_id) = self.cur_file.borrow().as_ref() {
-            self.import_type(type_id, *file_id);
+        if let Some(file_id) = self.cur_file.get() {
+            self.import_type(type_id, file_id);
         }
 
         // Look up the decl in the cache and return what we find (if we find anything)

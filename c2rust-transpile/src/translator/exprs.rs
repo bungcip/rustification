@@ -174,9 +174,9 @@ impl<'c> Translation<'c> {
 
                 // Import the referenced global decl into our submodule
                 if self.tcfg.reorganize_definitions
-                    && let Some(cur_file) = self.cur_file.borrow().as_ref()
+                    && let Some(cur_file) = self.cur_file.get()
                 {
-                    self.add_import(*cur_file, decl_id, &rustname);
+                    self.add_import(cur_file, decl_id, &rustname);
                     // match decl {
                     //     CDeclKind::Variable { is_defn: false, .. } => {}
                     //     _ => self.add_import(cur_file, decl_id, &rustname),
@@ -223,7 +223,7 @@ impl<'c> Translation<'c> {
                     if let Some(actual_ty) = actual_ty {
                         // If we're casting a concrete function to
                         // a K&R function pointer type, use transmute
-                        if let Some(cur_file) = *self.cur_file.borrow() {
+                        if let Some(cur_file) = self.cur_file.get() {
                             self.import_type(qual_ty.ctype, cur_file);
                         }
                         val = utils::transmute_expr(actual_ty, ty, val);
@@ -613,11 +613,13 @@ impl<'c> Translation<'c> {
                         let is_static_variable = self.ast_context.is_static_variable(arr);
 
                         let lhs = self.convert_expr(ctx.used(), arr, None)?;
-                        Ok(lhs.map(|lhs| {
+                        lhs.and_then(|lhs| {
                             // Don't dereference the offset if we're still within the variable portion
                             if let Some(elt_type_id) = var_elt_type_id {
                                 let mul = self.compute_size_of_expr(elt_type_id);
-                                utils::pointer_offset(lhs, rhs, mul, false, true)
+                                Ok(WithStmts::new_unsafe_val(utils::pointer_offset(
+                                    lhs, rhs, mul, false, true,
+                                )))
                             } else {
                                 let mut expr =
                                     mk().index_expr(lhs, transform::cast_int(rhs, "usize"));
@@ -627,12 +629,14 @@ impl<'c> Translation<'c> {
                                     // i.e: array[0].0
                                     expr = mk().anon_field_expr(expr, 0);
                                 }
-                                expr
+
+                                Ok(WithStmts::new_val(expr))
                             }
-                        }))
+                        })
                     } else {
                         // LHS must be ref decayed for the offset method call's self param
-                        let lhs = self.convert_expr(ctx.used().decay_ref(), *lhs, None)?;
+                        let mut lhs = self.convert_expr(ctx.used().decay_ref(), *lhs, None)?;
+                        lhs.set_unsafe(); // `pointer_offset` is unsafe.
                         lhs.result_map(|lhs| {
                             // stmts.extend(lhs.stmts_mut());
                             // is_unsafe = is_unsafe || lhs.is_unsafe();
@@ -699,7 +703,7 @@ impl<'c> Translation<'c> {
 
                     // Function pointer call
                     _ => {
-                        let callee = self.convert_expr(ctx.used(), func, None)?;
+                        let mut callee = self.convert_expr(ctx.used(), func, None)?;
                         let make_fn_ty = |ret_ty: Box<Type>| {
                             let ret_ty = match *ret_ty {
                                 Type::Tuple(TypeTuple { elems: ref v, .. }) if v.is_empty() => ReturnType::Default,
@@ -717,6 +721,7 @@ impl<'c> Translation<'c> {
                                 // K&R function pointer without arguments
                                 let ret_ty = self.convert_type(ret_ty.ctype)?;
                                 let target_ty = make_fn_ty(ret_ty);
+                                callee.set_unsafe();
                                 callee.map(|fn_ptr| {
                                     let fn_ptr = utils::unwrap_function_pointer(fn_ptr);
                                     utils::transmute_expr(mk().infer_ty(), target_ty, fn_ptr)
@@ -726,6 +731,7 @@ impl<'c> Translation<'c> {
                                 // We have to infer the return type from our expression type
                                 let ret_ty = self.convert_type(call_expr_ty.ctype)?;
                                 let target_ty = make_fn_ty(ret_ty);
+                                callee.set_unsafe();
                                 callee.map(|fn_ptr| {
                                     utils::transmute_expr(mk().infer_ty(), target_ty, fn_ptr)
                                 })
@@ -932,9 +938,12 @@ impl<'c> Translation<'c> {
             Ok(WithStmts::new_val(mk().lit_expr(0)))
         } else if resolved_ty.is_floating_type() {
             match ty_id.get_node(&self.ast_context).kind {
-                CTypeKind::LongDouble => Ok(WithStmts::new_val(
-                    mk().path_expr(vec!["f128", "f128", "ZERO"]),
-                )),
+                CTypeKind::LongDouble => {
+                    self.use_crate(ExternCrate::F128);
+                    Ok(WithStmts::new_val(
+                        mk().path_expr(vec!["f128", "f128", "ZERO"]),
+                    ))
+                }
                 _ => Ok(WithStmts::new_val(mk().lit_expr(mk().float_lit("0.0")))),
             }
         } else if let &CTypeKind::Pointer(_) = resolved_ty {
@@ -1111,7 +1120,7 @@ impl<'c> Translation<'c> {
                     self.convert_expr(ctx, lhs, Some(lhs_type_id))?
                         .and_then(|lhs_val| {
                             self.convert_expr(rhs_ctx, rhs, Some(rhs_type_id))?
-                                .result_map(|rhs_val| {
+                                .and_then(|rhs_val| {
                                     let expr_ids = Some((lhs, rhs));
                                     self.convert_binary_operator(
                                         op,

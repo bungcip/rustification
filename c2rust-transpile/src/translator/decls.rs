@@ -323,7 +323,7 @@ impl<'c> Translation<'c> {
                     .borrow()
                     .resolve_decl_name(enum_id)
                     .expect("Enums should already be renamed");
-                if let Some(cur_file) = *self.cur_file.borrow() {
+                if let Some(cur_file) = self.cur_file.get() {
                     self.add_import(cur_file, enum_id, &enum_name);
                 }
                 let ty = mk().path_ty(vec![enum_name]);
@@ -580,7 +580,7 @@ impl<'c> Translation<'c> {
 
                 let static_def = if is_externally_visible {
                     mk_linkage(false, new_name, ident).pub_().extern_("C")
-                } else if self.cur_file.borrow().is_some() {
+                } else if self.cur_file.get().is_some() {
                     mk().pub_()
                 } else {
                     mk()
@@ -978,13 +978,36 @@ impl<'c> Translation<'c> {
                     CStmtKind::Compound(ref stmts) => stmts,
                     _ => panic!("function body expects to be a compound statement"),
                 };
-                body_stmts.append(&mut self.convert_function_body(
-                    ctx,
-                    name,
-                    body_ids,
-                    return_type,
-                    ret,
-                )?);
+                let mut converted_body =
+                    self.convert_function_body(ctx, name, body_ids, return_type, ret)?;
+
+                // If `alloca` was used in the function body, include a variable to hold the
+                // allocations.
+                if let Some(alloca_allocations_name) = self
+                    .function_context
+                    .borrow_mut()
+                    .alloca_allocations_name
+                    .take()
+                {
+                    // let mut alloca_allocations: Vec<Vec<u8>> = Vec::new();
+                    let inner_vec = mk().path_ty(vec![mk().path_segment_with_args(
+                        "Vec",
+                        mk().angle_bracketed_args(vec![mk().ident_ty("u8")]),
+                    )]);
+                    let outer_vec = mk().path_ty(vec![mk().path_segment_with_args(
+                        "Vec",
+                        mk().angle_bracketed_args(vec![inner_vec]),
+                    )]);
+                    let alloca_allocations_stmt = mk().local_stmt(Box::new(mk().local(
+                        mk().mutbl().ident_pat(alloca_allocations_name),
+                        Some(outer_vec),
+                        Some(mk().call_expr(mk().path_expr(vec!["Vec", "new"]), vec![])),
+                    )));
+
+                    body_stmts.push(alloca_allocations_stmt);
+                }
+
+                body_stmts.append(&mut converted_body);
                 let mut block = stmts_block(body_stmts);
                 if let Some(span) = self.get_span(SomeId::Stmt(body)) {
                     block.set_span(span);
@@ -1000,7 +1023,7 @@ impl<'c> Translation<'c> {
                     mk()
                 } else if (is_global && !is_inline) || is_extern_inline {
                     mk_linkage(false, new_name, name).extern_("C").pub_()
-                } else if self.cur_file.borrow().is_some() {
+                } else if self.cur_file.get().is_some() {
                     mk().extern_("C").pub_()
                 } else {
                     mk().extern_("C")
