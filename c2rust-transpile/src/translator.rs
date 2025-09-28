@@ -487,11 +487,7 @@ impl<'c> Translation<'c> {
                     .kind
                     .get_type()
                     .ok_or_else(|| generic_err!("Invalid expression type"))?;
-                let (expr_id, ty) = self
-                    .ast_context
-                    .resolve_expr_type_id(id)
-                    .unwrap_or((id, ty));
-                let expr = self.convert_expr(ctx, expr_id, None)?;
+                let expr = self.convert_expr(ctx, id, None)?;
 
                 // Join ty and cur_ty to the smaller of the two types. If the
                 // types are not cast-compatible, abort the fold.
@@ -1398,16 +1394,28 @@ impl<'c> Translation<'c> {
     }
 
     /// Convert a boolean expression to a boolean for use in && or || or if
-    fn match_bool(&self, target: bool, ty_id: CTypeId, val: Box<Expr>) -> Box<Expr> {
+    fn match_bool(
+        &self,
+        ctx: ExprContext,
+        target: bool,
+        ty_id: CTypeId,
+        val: Box<Expr>,
+    ) -> TranslationResult<Box<Expr>> {
         let ty = &self.ast_context.resolve_type(ty_id).kind;
 
-        if self.ast_context.is_function_pointer(ty_id) {
+        Ok(if self.ast_context.is_function_pointer(ty_id) {
             if target {
                 mk().method_call_expr(val, "is_some", vec![])
             } else {
                 mk().method_call_expr(val, "is_none", vec![])
             }
         } else if ty.is_pointer() {
+            // TODO: `pointer::is_null` becomes stably const in Rust 1.84.
+            if ctx.is_const {
+                return Err(generic_err!(
+                    "cannot check nullity of pointer in `const` context"
+                ));
+            }
             let mut res = mk().method_call_expr(val, "is_null", vec![]);
             if target {
                 res = mk().not_expr(res)
@@ -1433,13 +1441,13 @@ impl<'c> Translation<'c> {
                         | BinOp::Ge(_)
                 )
             {
-                if target {
+                return Ok(if target {
                     // If target == true, just return the argument
-                    return Box::new(transform::unparen(arg).clone());
+                    Box::new(transform::unparen(arg).clone())
                 } else {
                     // If target == false, return !arg
-                    return mk().not_expr(Box::new(transform::unparen(arg).clone()));
-                }
+                    mk().not_expr(Box::new(transform::unparen(arg).clone()))
+                });
             }
 
             let val = if ty.is_enum() {
@@ -1460,7 +1468,7 @@ impl<'c> Translation<'c> {
             } else {
                 mk().binary_expr(BinOp::Eq(Default::default()), val, zero)
             }
-        }
+        })
     }
 
     pub fn with_scope<F, A>(&self, f: F) -> A

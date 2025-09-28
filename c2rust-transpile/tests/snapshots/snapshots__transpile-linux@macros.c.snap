@@ -32,6 +32,8 @@ pub unsafe extern "C" fn size_of_const() -> ffi::c_int {
     return SIZE as ffi::c_int;
 }
 pub const SIZE: usize = ::core::mem::size_of::<[ffi::c_int; 10]>();
+pub const POS: [ffi::c_char; 3] =
+    unsafe { ::core::mem::transmute::<[u8; 3], [ffi::c_char; 3]>(*b"\"]\0") };
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn memcpy_str_literal(mut out: *mut ffi::c_char) {
     memcpy(

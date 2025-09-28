@@ -497,7 +497,7 @@ impl<'c> Translation<'c> {
                         |NamedReference {
                              rvalue: lhs_val, ..
                          }| {
-                            let cond = self.match_bool(true, ty.ctype, lhs_val.clone());
+                            let cond = self.match_bool(ctx, true, ty.ctype, lhs_val.clone())?;
                             let ite = mk().ifte_expr(
                                 cond,
                                 mk().block(vec![mk().expr_stmt(lhs_val)]),
@@ -1197,22 +1197,30 @@ impl<'c> Translation<'c> {
                     .kind
                     .get_type()
                     .ok_or_else(|| generic_err!("bad pointer type for condition"))?;
-                Ok(val.map(|e| {
-                    if self.ast_context.is_function_pointer(ptr_type) {
-                        if negated {
-                            mk().method_call_expr(e, "is_some", vec![])
+                val.and_then(|e| {
+                    Ok(WithStmts::new_val(
+                        if self.ast_context.is_function_pointer(ptr_type) {
+                            if negated {
+                                mk().method_call_expr(e, "is_some", vec![])
+                            } else {
+                                mk().method_call_expr(e, "is_none", vec![])
+                            }
                         } else {
-                            mk().method_call_expr(e, "is_none", vec![])
-                        }
-                    } else {
-                        let is_null = mk().method_call_expr(e, "is_null", vec![]);
-                        if negated {
-                            mk().not_expr(is_null)
-                        } else {
-                            is_null
-                        }
-                    }
-                }))
+                            // TODO: `pointer::is_null` becomes stably const in Rust 1.84.
+                            if ctx.is_const {
+                                return Err(generic_err!(
+                                    "cannot check nullity of pointer in `const` context"
+                                ));
+                            }
+                            let is_null = mk().method_call_expr(e, "is_null", vec![]);
+                            if negated {
+                                mk().unary_expr(UnOp::Not(Default::default()), is_null)
+                            } else {
+                                is_null
+                            }
+                        },
+                    ))
+                })
             };
 
         match self.ast_context[cond_id].kind {
@@ -1250,7 +1258,7 @@ impl<'c> Translation<'c> {
                 // a ptr (rhs) (even though the reverse works!). We could also be smarter here and just
                 // specify Yes for that particular case, given enough analysis.
                 let val = self.convert_expr(ctx.used().decay_ref(), cond_id, None)?;
-                Ok(val.map(|e| self.match_bool(target, ty_id, e)))
+                val.result_map(|e| self.match_bool(ctx, target, ty_id, e))
             }
         }
     }

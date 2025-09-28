@@ -1,0 +1,26 @@
+---
+source: c2rust-transpile/tests/snapshots.rs
+expression: cat tests/snapshots/os-specific/sigign.linux.rs
+input_file: c2rust-transpile/tests/snapshots/os-specific/sigign.c
+---
+#![allow(
+    dead_code,
+    non_camel_case_types,
+    non_snake_case,
+    non_upper_case_globals,
+    path_statements,
+    unsafe_op_in_unsafe_fn,
+    unused_assignments,
+    unused_mut,
+    unused_unsafe,
+    unused_variables
+)]
+use core::ffi;
+pub type __sighandler_t = Option<unsafe extern "C" fn(ffi::c_int) -> ()>;
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn foo() {
+    let mut handler: Option<unsafe extern "C" fn(ffi::c_int) -> ()> =
+        ::core::mem::transmute::<isize, Option<unsafe extern "C" fn(ffi::c_int) -> ()>>(
+            1 as ffi::c_int as isize,
+        );
+}

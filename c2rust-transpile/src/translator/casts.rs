@@ -26,6 +26,7 @@ use crate::transform;
 impl<'c> Translation<'c> {
     fn cast_to_function_pointer(
         &self,
+        ctx: ExprContext,
         source_ty: CQualTypeId,
         target_ty: CQualTypeId,
         val: Box<Expr>,
@@ -36,6 +37,11 @@ impl<'c> Translation<'c> {
             // core::ffi don't have a intptr_t type, so we use isize
             let intptr_t = mk().path_ty(vec!["isize"]);
             let intptr = mk().cast_expr(val, intptr_t.clone());
+            if ctx.is_const {
+                return Err(generic_err!(
+                    "cannot transmute integers to Option<fn ...> in `const` context"
+                ));
+            }
             Ok(transmute_expr(intptr_t, target_ty_converted, intptr))
         } else {
             let source_ty_converted = self.convert_type(source_ty.ctype)?;
@@ -71,9 +77,24 @@ impl<'c> Translation<'c> {
 
         let is_const = pointee.qualifiers.is_const;
 
+        // Handle literals by looking at the next level of expr nesting. Avoid doing this
+        // for expressions that will be translated as const macros, because emitting the
+        // name of the const macro only occurs if we process the expr_id with a direct call
+        // to `convert_expr`.
         let expr_kind = expr.map(|e| &self.ast_context.index(e).kind);
+        // NOTE: disabled for now because problem with &raw syntax
+        // let translate_as_macro = expr
+        //     .map(|e| {
+        //         self.convert_const_macro_expansion(ctx, e, None)
+        //             .ok()
+        //             .flatten()
+        //             .is_some()
+        //     })
+        //     .unwrap_or(false);
         match expr_kind {
-            Some(&CExprKind::Literal(_, CLiteral::String(ref bytes, _))) if is_const => {
+            Some(&CExprKind::Literal(_, CLiteral::String(ref bytes, 1))) if is_const =>
+            // if is_const && !translate_as_macro => // NOTE: disabled for now because problem with &raw syntax
+            {
                 // discard val and use the string literal as CStr literal
                 // ex: c"hello".as_ptr()
                 let bytes = bytes.to_owned();
@@ -256,7 +277,7 @@ impl<'c> Translation<'c> {
                     if self.ast_context.is_function_pointer(target_cty.ctype)
                         || self.ast_context.is_function_pointer(source_cty.ctype)
                     {
-                        let val = self.cast_to_function_pointer(source_cty, target_cty, x)?;
+                        let val = self.cast_to_function_pointer(ctx, source_cty, target_cty, x)?;
                         Ok(WithStmts::new_unsafe_val(val))
                     } else if ctx.is_inside_init_list_aop() {
                         // for array-of pointer and static we wrap it inside PointerMut
@@ -282,7 +303,7 @@ impl<'c> Translation<'c> {
                 if self.ast_context.is_function_pointer(target_cty.ctype) =>
             {
                 val.and_then(|x| {
-                    let val = self.cast_to_function_pointer(source_cty, target_cty, x)?;
+                    let val = self.cast_to_function_pointer(ctx, source_cty, target_cty, x)?;
                     Ok(WithStmts::new_unsafe_val(val))
                 })
             }
@@ -292,7 +313,13 @@ impl<'c> Translation<'c> {
             | CastKind::IntegralCast
             | CastKind::FloatingCast
             | CastKind::FloatingToIntegral
-            | CastKind::IntegralToFloating => {
+            | CastKind::IntegralToFloating
+            | CastKind::BooleanToSignedIntegral => {
+                if kind == CastKind::PointerToIntegral && ctx.is_const {
+                    return Err(generic_err!(
+                        "cannot observe pointer values in `const` context",
+                    ));
+                }
                 let target_ty = self.convert_type(target_cty.ctype)?;
                 let source_ty = self.convert_type(source_cty.ctype)?;
 
@@ -343,7 +370,8 @@ impl<'c> Translation<'c> {
                     // unless the cast is to a function pointer then use `transmute`.
                     val.and_then(|x| {
                         if self.ast_context.is_function_pointer(source_cty.ctype) {
-                            let val = self.cast_to_function_pointer(source_cty, target_cty, x)?;
+                            let val =
+                                self.cast_to_function_pointer(ctx, source_cty, target_cty, x)?;
                             Ok(WithStmts::new_unsafe_val(val))
                         } else {
                             Ok(WithStmts::new_val(mk().cast_expr(x, target_ty)))
@@ -397,14 +425,9 @@ impl<'c> Translation<'c> {
                 if let Some(expr) = expr {
                     self.convert_condition(ctx, true, expr)
                 } else {
-                    Ok(val.map(|e| self.match_bool(true, source_cty.ctype, e)))
+                    val.result_map(|e| self.match_bool(ctx, true, source_cty.ctype, e))
                 }
             }
-
-            // I don't know how to actually cause clang to generate this
-            CastKind::BooleanToSignedIntegral => Err(generic_err!(
-                "TODO boolean to signed integral not supported",
-            )),
 
             CastKind::FloatingRealToComplex
             | CastKind::FloatingComplexToIntegralComplex
@@ -492,7 +515,13 @@ impl<'c> Translation<'c> {
             CExprKind::DeclRef(_, decl_id, _) if variants.contains(&decl_id) => {
                 return val.map(|x| match *transform::unparen(&x) {
                     Expr::Cast(ExprCast { ref expr, .. }) => expr.clone(),
-                    _ => panic!("DeclRef {expr:?} of enum {enum_decl:?} is not cast"),
+                    // If this DeclRef expanded to a const macro, we actually need to insert a cast,
+                    // because the translation of a const macro skips implicit casts in its context.
+                    Expr::Path(..) => mk().cast_expr(x, target_ty),
+                    _ => panic!(
+                        "DeclRef {:?} of enum {:?} is not cast: {x:?}",
+                        expr, enum_decl
+                    ),
                 });
             }
 
