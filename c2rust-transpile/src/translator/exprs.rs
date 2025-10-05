@@ -153,16 +153,26 @@ impl<'c> Translation<'c> {
                     .get_decl(&decl_id)
                     .ok_or_else(|| generic_err!("Missing declref {:?}", decl_id))?
                     .kind;
-                if ctx.is_const
-                    && let CDeclKind::Variable {
+                if ctx.is_const {
+                    // TODO Determining which declarations have been declared within the scope of the const macro expr
+                    // vs. which are out-of-scope of the const macro is non-trivial,
+                    // so for now, we don't allow const macros referencing any declarations.
+                    return Err(generic_loc_err!(
+                        self.ast_context.display_loc(src_loc),
+                        "Cannot yet refer to declarations in a const expr",
+                    ));
+
+                    #[allow(unreachable_code)] // TODO temporary (see above).
+                    if let CDeclKind::Variable {
                         has_static_duration: true,
                         ..
                     } = decl
-                {
-                    return Err(generic_loc_err!(
-                        self.ast_context.display_loc(src_loc),
-                        "Cannot refer to static duration variable in a const expression",
-                    ));
+                    {
+                        return Err(generic_loc_err!(
+                            self.ast_context.display_loc(src_loc),
+                            "Cannot refer to static duration variable in a const expression",
+                        ));
+                    }
                 }
 
                 let varname = decl.get_name().expect("expected variable name").to_owned();

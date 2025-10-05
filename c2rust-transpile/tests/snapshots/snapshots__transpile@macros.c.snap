@@ -35,6 +35,11 @@ pub struct fn_ptrs {
 }
 unsafe impl Sync for fn_ptrs {}
 pub type zstd_platform_dependent_type = ffi::c_long;
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct ntlmdata {
+    pub target_info_len: ffi::c_uint,
+}
 pub const UINTPTR_MAX: ffi::c_ulong = 18446744073709551615 as ffi::c_ulong;
 pub const true_0: ffi::c_int = 1 as ffi::c_int;
 pub const LITERAL_INT: ffi::c_int = 0xffff as ffi::c_int;
@@ -56,19 +61,6 @@ pub const NESTED_STRUCT: S = LITERAL_STRUCT;
 pub const PARENS: ffi::c_int = NESTED_INT * (LITERAL_CHAR + true_0);
 pub const WIDENING_CAST: ffi::c_ulonglong = LITERAL_INT as ffi::c_ulonglong;
 pub const CONVERSION_CAST: ffi::c_double = LITERAL_INT as ffi::c_double;
-pub const STMT_EXPR: ffi::c_float = ({
-    let mut builtin: ffi::c_int = (LITERAL_INT as ffi::c_uint).leading_zeros() as i32;
-    let mut indexing: ffi::c_char = NESTED_STR[LITERAL_FLOAT as ffi::c_int as usize];
-    let mut mixed: ffi::c_float = (LITERAL_INT as ffi::c_double
-        + NESTED_FLOAT * LITERAL_CHAR as ffi::c_double
-        - true_0 as ffi::c_double) as ffi::c_float;
-    let mut i: ffi::c_int = 0 as ffi::c_int;
-    while i < builtin {
-        mixed += indexing as ffi::c_float;
-        i += 1;
-    }
-    mixed
-});
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn local_muts() {
     let mut literal_int: ffi::c_int = LITERAL_INT;
@@ -116,7 +108,19 @@ pub unsafe extern "C" fn local_muts() {
         2 as ffi::c_int
     };
     let mut member: ffi::c_int = LITERAL_STRUCT.i;
-    let mut stmt_expr: ffi::c_float = STMT_EXPR;
+    let mut stmt_expr: ffi::c_float = ({
+        let mut builtin_0: ffi::c_int = (LITERAL_INT as ffi::c_uint).leading_zeros() as i32;
+        let mut indexing_0: ffi::c_char = NESTED_STR[LITERAL_FLOAT as ffi::c_int as usize];
+        let mut mixed: ffi::c_float = (LITERAL_INT as ffi::c_double
+            + NESTED_FLOAT * LITERAL_CHAR as ffi::c_double
+            - true_0 as ffi::c_double) as ffi::c_float;
+        let mut i: ffi::c_int = 0 as ffi::c_int;
+        while i < builtin_0 {
+            mixed += indexing_0 as ffi::c_float;
+            i += 1;
+        }
+        mixed
+    });
 }
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn local_consts() {
@@ -165,7 +169,19 @@ pub unsafe extern "C" fn local_consts() {
         2 as ffi::c_int
     };
     let member: ffi::c_int = LITERAL_STRUCT.i;
-    let stmt_expr: ffi::c_float = STMT_EXPR;
+    let stmt_expr: ffi::c_float = ({
+        let mut builtin_0: ffi::c_int = (LITERAL_INT as ffi::c_uint).leading_zeros() as i32;
+        let mut indexing_0: ffi::c_char = NESTED_STR[LITERAL_FLOAT as ffi::c_int as usize];
+        let mut mixed: ffi::c_float = (LITERAL_INT as ffi::c_double
+            + NESTED_FLOAT * LITERAL_CHAR as ffi::c_double
+            - true_0 as ffi::c_double) as ffi::c_float;
+        let mut i: ffi::c_int = 0 as ffi::c_int;
+        while i < builtin_0 {
+            mixed += indexing_0 as ffi::c_float;
+            i += 1;
+        }
+        mixed
+    });
 }
 static global_static_const_literal_int: ffi::c_int = LITERAL_INT;
 static global_static_const_literal_bool: bool = LITERAL_BOOL != 0;
@@ -360,6 +376,20 @@ pub unsafe extern "C" fn use_local_value() -> ffi::c_int {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn use_portable_type(mut len: uintptr_t) -> bool {
     return len <= (UINTPTR_MAX as uintptr_t).wrapping_div(2 as uintptr_t);
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ntlm_v2_blob_len(mut ntlm: *mut ntlmdata) -> ffi::c_uint {
+    return ((44 as ffi::c_int - 16 as ffi::c_int) as ffi::c_uint)
+        .wrapping_add((*ntlm).target_info_len)
+        .wrapping_add(4 as ffi::c_uint);
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn late_init_var() -> ffi::c_int {
+    return ({
+        let mut i: ffi::c_int = 0;
+        i = 1 as ffi::c_int;
+        i
+    });
 }
 unsafe extern "C" fn run_static_initializers() {
     global_static_const_ptr_arithmetic = c"hello"
