@@ -37,7 +37,7 @@ pub struct C2RustUnnamed_0 {
 pub struct NestedStructInStruct {}
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct StructInsider {
+pub struct InsideStruct {
     pub yup: ffi::c_int,
 }
 #[derive(Copy, Clone)]
@@ -66,7 +66,7 @@ pub union NestedStructInUnion {
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct UnionInsider {
+pub struct InsideUnion {
     pub yup: ffi::c_int,
 }
 #[unsafe(no_mangle)]
@@ -78,7 +78,7 @@ pub unsafe extern "C" fn struct_declaration() {
     };
     b.c2rust_unnamed.some_number = 7 as ffi::c_int;
     let mut c: NestedStructInStruct = NestedStructInStruct {};
-    let mut d: StructInsider = StructInsider { yup: 0 };
+    let mut d: InsideStruct = InsideStruct { yup: 0 };
 }
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn union_declaration() {
@@ -89,5 +89,5 @@ pub unsafe extern "C" fn union_declaration() {
     };
     b.c2rust_unnamed.some_number = 99 as ffi::c_int;
     let mut c: NestedStructInUnion = NestedStructInUnion { a: 0 };
-    let mut d: UnionInsider = UnionInsider { yup: 0 };
+    let mut d: InsideUnion = InsideUnion { yup: 0 };
 }

@@ -2,6 +2,7 @@
 
 use std::{ffi::CString, str};
 
+use itertools::intersperse;
 use proc_macro2::{Delimiter, Group, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
 use std::default::Default;
 use std::iter::FromIterator;
@@ -317,46 +318,31 @@ impl Make<TokenStream> for Vec<TokenTree> {
     }
 }
 
-fn comma_separated<T, F>(items: Vec<T>, f: F) -> TokenStream
+fn comma_separated<I, T>(items: I) -> TokenStream
 where
-    F: Fn(&mut TokenStream, T),
+    I: Iterator<Item = T>,
+    T: ToTokens + Clone,
 {
-    let mut tokens = TokenStream::new();
-    let mut first = true;
-
-    for item in items {
-        if first == false {
-            mk().punct_tt(',', Spacing::Alone).to_tokens(&mut tokens);
-        } else {
-            first = false;
-        }
-
-        f(&mut tokens, item);
-    }
-    tokens
+    let items = items.map(|items| items.to_token_stream());
+    let comma = TokenTree::Punct(Punct::new(',', Spacing::Alone)).into_token_stream();
+    intersperse(items, comma).collect()
 }
 
 impl Make<TokenStream> for Vec<&str> {
     fn make(self, _mk: &Builder) -> TokenStream {
-        comma_separated(self, |tokens, s| {
-            mk().ident_tt(s).to_tokens(tokens);
-        })
+        comma_separated(self.iter().map(|&s| Ident::new(s, Span::call_site())))
     }
 }
 
 impl Make<TokenStream> for Vec<u64> {
     fn make(self, _mk: &Builder) -> TokenStream {
-        comma_separated(self, |tokens, s| {
-            mk().lit_tt(s).to_tokens(tokens);
-        })
+        comma_separated(self.iter().map(|&s| Literal::u64_unsuffixed(s)))
     }
 }
 
 impl Make<TokenStream> for Vec<Meta> {
     fn make(self, _mk: &Builder) -> TokenStream {
-        comma_separated(self, |tokens, s| {
-            s.to_tokens(tokens);
-        })
+        comma_separated(self.iter())
     }
 }
 
@@ -2267,12 +2253,9 @@ impl Builder {
     pub fn call_mac<Pa, Tt>(self, func: Pa, arguments: Vec<Tt>) -> Macro
     where
         Pa: Make<Path>,
-        Tt: Make<TokenTree>,
+        Tt: Make<TokenTree> + Clone + ToTokens,
     {
-        let tokens = comma_separated(arguments, |tokens, tt| {
-            let tt = tt.make(&self);
-            tt.to_tokens(tokens);
-        });
+        let tokens = comma_separated(arguments.into_iter());
 
         mk().mac(func, tokens, MacroDelimiter::Paren(Default::default()))
     }

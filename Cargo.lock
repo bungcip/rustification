@@ -132,6 +132,7 @@ version = "0.100.0"
 name = "c2rust-ast-builder"
 version = "0.100.0"
 dependencies = [
+ "itertools 0.14.0",
  "proc-macro2",
  "syn",
 ]
