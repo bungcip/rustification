@@ -40,8 +40,10 @@ pub type zstd_platform_dependent_type = ffi::c_long;
 pub struct ntlmdata {
     pub target_info_len: ffi::c_uint,
 }
-pub const UINTPTR_MAX: ffi::c_ulong = 18446744073709551615 as ffi::c_ulong;
+static fresh2: S = LITERAL_STRUCT;
+static fresh3: S = LITERAL_STRUCT;
 pub const true_0: ffi::c_int = 1 as ffi::c_int;
+pub const UINTPTR_MAX: ffi::c_ulong = 18446744073709551615 as ffi::c_ulong;
 pub const LITERAL_INT: ffi::c_int = 0xffff as ffi::c_int;
 pub const LITERAL_BOOL: ffi::c_int = true_0;
 pub const LITERAL_FLOAT: ffi::c_double = 3.14f64;
@@ -218,7 +220,6 @@ static global_static_const_str_concatenation: [ffi::c_char; 18] =
 static global_static_const_builtin: ffi::c_int =
     (LITERAL_INT as ffi::c_uint).leading_zeros() as i32;
 static mut global_static_const_ref_indexing: *const ffi::c_char = 0 as *const ffi::c_char;
-static fresh2: S = LITERAL_STRUCT;
 static global_static_const_ref_struct: Pointer<S> = Pointer(&raw const fresh2);
 static mut global_static_const_ternary: ffi::c_int = 0;
 static mut global_static_const_member: ffi::c_int = 0;
@@ -286,7 +287,6 @@ pub static global_const_str_concatenation: [ffi::c_char; 18] =
 pub static global_const_builtin: ffi::c_int = (LITERAL_INT as ffi::c_uint).leading_zeros() as i32;
 #[unsafe(no_mangle)]
 pub static mut global_const_ref_indexing: *const ffi::c_char = 0 as *const ffi::c_char;
-static fresh3: S = LITERAL_STRUCT;
 #[unsafe(no_mangle)]
 pub static global_const_ref_struct: Pointer<S> = Pointer(&raw const fresh3);
 #[unsafe(no_mangle)]

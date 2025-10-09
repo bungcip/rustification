@@ -138,7 +138,7 @@ fn parse_constraints(
     let mut constraints = constraints.as_str();
 
     // Convert (simple) constraints to ones rustc understands
-    while constraints != "" {
+    while !constraints.is_empty() {
         let (c, rest) = constraints.split_at(1);
         let c = c.chars().next().unwrap();
         match c {
@@ -161,7 +161,7 @@ fn parse_constraints(
                 if !(is_explicit_reg || is_tied) {
                     // Attempt to parse machine-specific constraints
                     if let Some((machine_constraints, is_mem)) =
-                        translate_machine_constraint(&constraints, arch)
+                        translate_machine_constraint(constraints, arch)
                     {
                         llvm_constraints = machine_constraints.into();
                         mem_only = is_mem;
@@ -552,6 +552,7 @@ fn tied_output_operand_idx(
 /// {0:y} (and wrapping mem-only references in square brackets).
 fn rewrite_asm<F: Fn(&str) -> bool, M: Fn(usize) -> usize>(
     asm: &str,
+    att_syntax: bool,
     input_op_mapper: M,
     is_mem_only: F,
     arch: Arch,
@@ -640,7 +641,10 @@ fn rewrite_asm<F: Fn(&str) -> bool, M: Fn(usize) -> usize>(
             }
             let mem_only = is_mem_only(index_str);
             // Push the reference wrapped in {}, or in [{}] if mem-only
-            out.push_str(if mem_only { "[{" } else { "{" });
+            if mem_only {
+                out.push(if att_syntax { '(' } else { '[' });
+            };
+            out.push('{');
             let idx: usize = index_str
                 .parse()
                 .map_err(|_| generic_err!("could not parse operand idx"))?;
@@ -649,7 +653,10 @@ fn rewrite_asm<F: Fn(&str) -> bool, M: Fn(usize) -> usize>(
                 out.push(':');
                 out.push_str(&new_modifiers);
             }
-            out.push_str(if mem_only { "}]" } else { "}" });
+            out.push('}');
+            if mem_only {
+                out.push(if att_syntax { ')' } else { ']' });
+            };
             // Push the rest of the chunk
             out.push_str(&chunk[end_idx..]);
             continue;
@@ -809,7 +816,7 @@ impl<'c> Translation<'c> {
 
         // Determine whether the assembly is in AT&T syntax
         let att_syntax = match arch {
-            Arch::X86 | Arch::X86_64 => asm_is_att_syntax(&asm),
+            Arch::X86 | Arch::X86_64 => asm_is_att_syntax(asm),
             _ => false,
         };
 
@@ -829,6 +836,7 @@ impl<'c> Translation<'c> {
         // Rewrite arg references in assembly template
         let rewritten_asm = rewrite_asm(
             asm,
+            att_syntax,
             |idx: usize| {
                 new_idx_for_orig(tied_output_operand_idx(idx, outputs.len(), &tied_operands))
             },
@@ -850,7 +858,7 @@ impl<'c> Translation<'c> {
         let rewritten_asm = prolog + &rewritten_asm + &epilog;
 
         // Emit assembly template
-        for line in rewritten_asm.split("\n") {
+        for line in rewritten_asm.split('\n') {
             push_expr(&mut tokens, mk().lit_expr(line.to_string() + "\n"));
         }
 

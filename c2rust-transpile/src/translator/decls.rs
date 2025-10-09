@@ -842,7 +842,7 @@ impl<'c> Translation<'c> {
         // If the definition lives in the same header, there is no need to import it
         // in fact, this would be a hard rust error.
         // We should never import into the main module here, as that happens in make_submodule
-        if (import_file_id == Some(decl_file_id)) || decl_file_id == self.main_file {
+        if import_file_id == Some(decl_file_id) || decl_file_id == self.main_file {
             return;
         }
 

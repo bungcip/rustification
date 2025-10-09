@@ -5,10 +5,6 @@ use crate::translator::utils::prefix_names;
 use indexmap::IndexMap;
 
 pub(crate) fn preprocess_ast(t: &mut Translation) {
-    // Sort the top-level declarations by file and source location so that we
-    // preserve the ordering of all declarations in each file.
-    t.ast_context.sort_top_decls();
-
     t.locate_comments();
 
     // Headers often pull in declarations that are unused;

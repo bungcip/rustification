@@ -1,8 +1,7 @@
 use std::cell::RefCell;
 use std::char;
 use std::collections::HashMap;
-use std::path::{self, PathBuf};
-// To override syn::Result from glob import
+use std::path::{Path, PathBuf};
 
 use self::decls::ConvertedDecl;
 use context::{ExprContext, FuncContext};
@@ -302,7 +301,7 @@ impl<'c> Translation<'c> {
     pub fn new(
         mut ast_context: TypedAstContext,
         tcfg: &'c TranspilerConfig,
-        main_file: &path::Path,
+        main_file: &Path,
     ) -> Self {
         let comment_context = CommentContext::new(&mut ast_context);
         let mut type_converter = TypeConverter::new();
@@ -992,7 +991,7 @@ impl<'c> Translation<'c> {
         let pointee = self
             .ast_context
             .get_pointee_qual_type(type_id)
-            .ok_or(TranslationError::generic("null_ptr requires a pointer"))?;
+            .ok_or_else(|| TranslationError::generic("null_ptr requires a pointer"))?;
         let ty = self.convert_type(type_id)?;
         let mut zero = mk().lit_expr(0);
         if is_static && pointee.qualifiers.is_const == false {

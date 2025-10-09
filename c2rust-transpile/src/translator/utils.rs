@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::path::{self, PathBuf};
+use std::path::{Path, PathBuf};
 
 use c2rust_ast_builder::mk;
 use indexmap::IndexMap;
@@ -205,9 +205,9 @@ pub(crate) fn prefix_names(translation: &mut Translation, prefix: &str) {
 /// disambiguate.
 pub(crate) fn clean_path(
     mod_names: &RefCell<IndexMap<String, PathBuf>>,
-    path: Option<&path::Path>,
+    path: Option<&Path>,
 ) -> String {
-    fn path_to_str(path: &path::Path) -> String {
+    fn path_to_str(path: &Path) -> String {
         path.file_name()
             .unwrap()
             .to_str()
@@ -216,7 +216,7 @@ pub(crate) fn clean_path(
     }
 
     let mut file_path: String = path.map_or("internal".to_string(), path_to_str);
-    let path = path.unwrap_or_else(|| path::Path::new(""));
+    let path = path.unwrap_or_else(|| Path::new(""));
     let mut mod_names = mod_names.borrow_mut();
     if !mod_names.contains_key(&file_path.clone()) {
         mod_names.insert(file_path.clone(), path.to_path_buf());

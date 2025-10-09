@@ -2,14 +2,15 @@ use crate::c_ast::get_node::GetNode;
 use crate::c_ast::iterators::{DFNodes, NodeVisitor, SomeId, immediate_children_all_types};
 use c2rust_ast_exporter::clang_ast::LRValue;
 use indexmap::{IndexMap, IndexSet};
+use itertools::Itertools;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Debug, Display};
-use std::mem;
 use std::ops::Index;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::{iter, mem};
 
 pub use self::conversion::*;
 pub use self::print::Printer;
@@ -47,8 +48,10 @@ pub type CEnumId = CDeclId; // Enum types need to point to 'DeclKind::Enum'
 pub type CEnumConstantId = CDeclId; // Enum's need to point to child 'DeclKind::EnumConstant's
 
 /// AST context containing all of the nodes in the Clang AST.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TypedAstContext {
+    main_file: PathBuf,
+
     /// The C types in the AST.
     c_types: HashMap<CTypeId, CType>,
     /// The C expressions in the AST.
@@ -66,25 +69,27 @@ pub struct TypedAstContext {
     pub c_decls_top: Vec<CDeclId>,
     /// The `main` function, if any.
     pub c_main: Option<CDeclId>,
-    /// The parent of each declaration.
-    pub parents: HashMap<CDeclId, CDeclId>, // record fields and enum constants
+
+    /// record fields and enum constants
+    pub parents: HashMap<CDeclId, CDeclId>,
 
     /// The source files in the AST.
     ///
-    /// Mapping from FileId to SrcFile. Deduplicated by file path.
+    /// Mapping from [`FileId`] to [`SrcFile`]. Deduplicated by file path.
     files: Vec<SrcFile>,
-    /// Mapping from clang file id to translator FileId.
+
+    /// Mapping from clang `fileid` to translator [`FileId`].
     file_map: Vec<FileId>,
 
-    /// Vector of include paths, indexed by FileId. Each include path is the
-    /// sequence of #include statement locations and the file being included at
+    /// Vector of include paths, indexed by [`FileId`]. Each include path is the
+    /// sequence of `#include` statement locations and the file being included at
     /// that location.
     include_map: Vec<Vec<SrcLoc>>,
 
-    /// The names of the labels defined in the C source code.
+    /// Names of the labels defined in the C source code.
     pub label_names: IndexMap<CLabelId, Rc<str>>,
 
-    /// A map from expressions to the stack of macros they were expanded from.
+    /// map expressions to the stack of macros they were expanded from
     pub macro_invocations: IndexMap<CExprId, Vec<CDeclId>>,
 
     /// A map from macro declarations to the expressions they expand to.
@@ -164,7 +169,26 @@ impl TypedAstContext {
     ///
     /// TODO: build the TypedAstContext during initialization, rather than
     /// building an empty one and filling it later.
-    pub fn new(clang_files: &[SrcFile]) -> TypedAstContext {
+    pub fn new(input_path: &Path, clang_files: &[SrcFile]) -> TypedAstContext {
+        let main_file = input_path.to_owned();
+
+        let mut include_map = vec![];
+        for mut cur in clang_files {
+            let mut include_path = vec![];
+            while let Some(include_loc) = &cur.include_loc {
+                include_path.push(*include_loc);
+                cur = &clang_files[include_loc.fileid as usize];
+            }
+            include_path.reverse();
+            // The first include should be from the input file.
+            // If this is false, then we haven't found the full, correct include path.
+            if let Some(root_include_path) = cur.path.as_deref() {
+                assert_eq!(root_include_path, input_path);
+            }
+            include_map.push(include_path);
+        }
+
+        // Deduplicate paths, converting clang `fileid`s to our `FileId`s.
         let mut files: Vec<SrcFile> = vec![];
         let mut file_map: Vec<FileId> = vec![];
         for file in clang_files {
@@ -176,42 +200,12 @@ impl TypedAstContext {
             }
         }
 
-        let mut include_map = vec![];
-        for (fileid, mut cur) in files.iter().enumerate() {
-            let mut include_path = vec![];
-            while let Some(include_loc) = &cur.include_loc {
-                include_path.push(SrcLoc {
-                    fileid: fileid as u64,
-                    line: include_loc.line,
-                    column: include_loc.column,
-                });
-                cur = &clang_files[include_loc.fileid as usize];
-            }
-            include_path.reverse();
-            include_map.push(include_path);
-        }
-
         TypedAstContext {
-            c_types: HashMap::new(),
-            c_exprs: HashMap::new(),
-            c_decls: IndexMap::new(),
-            c_stmts: HashMap::new(),
-
-            c_decls_top: Vec::new(),
-            c_main: None,
+            main_file,
             files,
             file_map,
             include_map,
-            parents: HashMap::new(),
-            macro_invocations: Default::default(),
-            macro_expansions: Default::default(),
-            macro_expansion_text: Default::default(),
-            label_names: Default::default(),
-
-            comments: Vec::new(),
-            prenamed_decls: IndexMap::new(),
-            va_list_kind: BuiltinVaListKind::CharPtrBuiltinVaList,
-            target: String::new(),
+            ..Default::default()
         }
     }
 
@@ -234,7 +228,42 @@ impl TypedAstContext {
         self.files[id].path.as_deref()
     }
 
-    /// Compare two [`SrcLoc`]s based on their import path.
+    /// Lookup the include path for `loc`.
+    /// The first [`SrcLoc`] returned should have been included from the input/main file.
+    pub fn include_path(&self, loc: SrcLoc) -> &[SrcLoc] {
+        let includes = &self.include_map[self.file_map[loc.fileid as usize]][..];
+        if cfg!(debug_assertions) {
+            if let Some(root_include) = includes.first() {
+                let file_id = self.file_map[root_include.fileid as usize];
+                let file = &self.files[file_id];
+                assert_eq!(file.path.as_deref(), Some(self.main_file.as_path()));
+            }
+        }
+        includes
+    }
+
+    pub fn loc_to_string(&self, loc: SrcLoc) -> String {
+        let SrcLoc {
+            fileid,
+            line,
+            column,
+        } = loc;
+        let file_id = self.file_map[fileid as usize];
+        let path = self
+            .get_file_path(file_id)
+            .unwrap_or_else(|| Path::new("?"));
+        let path = path.display();
+        format!("(fileid {fileid}) {path}:{line}:{column}")
+    }
+
+    pub fn loc_to_string_with_include_path(&self, loc: SrcLoc) -> String {
+        iter::once(&loc)
+            .chain(self.include_path(loc))
+            .map(|&loc| self.loc_to_string(loc))
+            .join("\n    included from ")
+    }
+
+    /// Compare two [`SrcLoc`]s based on their include path.
     pub fn compare_src_locs(&self, a: &SrcLoc, b: &SrcLoc) -> Ordering {
         /// Compare without regard to `fileid`.
         fn cmp_pos(a: &SrcLoc, b: &SrcLoc) -> Ordering {
@@ -242,8 +271,8 @@ impl TypedAstContext {
         }
 
         use Ordering::*;
-        let path_a = &self.include_map[self.file_map[a.fileid as usize]][..];
-        let path_b = &self.include_map[self.file_map[b.fileid as usize]][..];
+        let path_a = self.include_path(*a);
+        let path_b = self.include_path(*b);
 
         // Find the first include that does not match between the two
         let common_len = path_a.len().min(path_b.len());
@@ -472,14 +501,11 @@ impl TypedAstContext {
     /// Find underlying expression beneath any implicit casts.
     pub fn beneath_implicit_casts(&self, expr_id: CExprId) -> CExprId {
         let expr = &self.index(expr_id).kind;
-        use CExprKind::*;
-        match expr {
-            ImplicitCast(_, subexpr, _, _, _) => {
-                return self.beneath_implicit_casts(*subexpr);
-            }
-            _ => {}
+        if let CExprKind::ImplicitCast(_, subexpr, _, _, _) = expr {
+            self.beneath_implicit_casts(*subexpr)
+        } else {
+            expr_id
         }
-        expr_id
     }
 
     /// Resolve true expression type, iterating through any casts and variable
@@ -1055,9 +1081,10 @@ impl TypedAstContext {
         }
     }
 
-    /// Sort the top-level declarations in the AST.
-    pub fn sort_top_decls(&mut self) {
-        // Group and sort declarations by file and by position
+    /// Sort the top-level declarations by file and source location
+    /// so that we preserve the ordering of all declarations in each file.
+    /// This preserves the order when we emit the converted declarations.
+    pub fn sort_top_decls_for_emitting(&mut self) {
         let mut decls_top = mem::take(&mut self.c_decls_top);
         decls_top.sort_unstable_by(|a, b| {
             let a = a.get_node(self);
@@ -2600,17 +2627,47 @@ impl CTypeKind {
 mod tests {
     use super::*;
 
+    #[track_caller]
+    fn check_transitivity<T, F, G>(elements: &[T], mut compare: F, fmt: G)
+    where
+        F: FnMut(&T, &T) -> Ordering,
+        G: Fn(&T) -> String,
+    {
+        fn ord_to_str(ord: Ordering) -> &'static str {
+            match ord {
+                Ordering::Less => "<",
+                Ordering::Equal => "==",
+                Ordering::Greater => ">",
+            }
+        }
+
+        let n = elements.len();
+        for i in 0..n {
+            let a = &elements[i];
+            for j in 0..n {
+                let b = &elements[j];
+                for c in elements.iter().take(n) {
+                    let ab = compare(a, b);
+                    let bc = compare(b, c);
+                    let ac = compare(a, c);
+                    if ab == bc {
+                        let [ab, bc, ac] = [ab, bc, ac].map(ord_to_str);
+                        let [a, b, c] =
+                            [a, b, c].map(|e| if ab == ac { String::new() } else { fmt(e) });
+                        assert_eq!(ab, ac, "Total order (transitivity) has been violated: a {ab} b and b {bc} c, but a {ac} c
+a = {a}
+b = {b}
+c = {c}
+");
+                    }
+                }
+            }
+        }
+    }
+
     #[test]
     fn test_compare_src_locs_ord() {
         let ctx = TypedAstContext {
-            c_types: Default::default(),
-            c_exprs: Default::default(),
-            c_stmts: Default::default(),
-            c_decls: Default::default(),
-            c_decls_top: vec![],
-            c_main: None,
-            parents: Default::default(),
-            files: vec![],
             file_map: vec![0, 1, 2, 3, 4, 5, 4, 5],
             include_map: vec![
                 vec![],
@@ -2628,14 +2685,14 @@ mod tests {
                     column: 10,
                 }],
             ],
-            label_names: Default::default(),
-            macro_invocations: Default::default(),
-            macro_expansions: Default::default(),
-            macro_expansion_text: Default::default(),
-            comments: vec![],
-            prenamed_decls: Default::default(),
-            va_list_kind: BuiltinVaListKind::CharPtrBuiltinVaList,
-            target: "".to_string(),
+            files: vec![
+                SrcFile {
+                    path: Some(PathBuf::new()),
+                    include_loc: None,
+                };
+                6
+            ],
+            ..Default::default()
         };
         let locs = &mut [
             SrcLoc {
@@ -2815,32 +2872,13 @@ mod tests {
             },
         ];
 
-        let n = locs.len();
-        for i in 0..n {
-            let a = locs[i];
-            for j in 0..n {
-                let b = locs[j];
-                for k in 0..n {
-                    let c = locs[k];
-                    let ab = ctx.compare_src_locs(&a, &b);
-                    let bc = ctx.compare_src_locs(&b, &c);
-                    let ac = ctx.compare_src_locs(&a, &c);
-                    if ab == bc {
-                        let [ab, bc, ac] = [ab, bc, ac].map(|ord| match ord {
-                            Ordering::Less => "<",
-                            Ordering::Equal => "==",
-                            Ordering::Greater => ">",
-                        });
-                        assert_eq!(
-                            ab, ac,
-                            "Total order (transitivity) has been violated: {a} {ab} {b} and {b} {bc} {c}, but {a} {ac} {c}"
-                        );
-                    }
-                }
-            }
-        }
+        check_transitivity(
+            locs,
+            |a, b| ctx.compare_src_locs(a, b),
+            |loc| format!("{loc}"),
+        );
 
-        // This should not panic
+        // This should not panic.
         locs.sort_unstable_by(|a, b| ctx.compare_src_locs(a, b));
     }
 }

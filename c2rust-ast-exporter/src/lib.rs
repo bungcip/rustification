@@ -11,7 +11,15 @@ use std::io::{Error, ErrorKind};
 use std::path::Path;
 use std::slice;
 
+use crate::clang_ast::BuiltinVaListKind;
+
 pub mod clang_ast;
+
+impl Default for BuiltinVaListKind {
+    fn default() -> Self {
+        Self::CharPtrBuiltinVaList
+    }
+}
 
 /// Get the untyped AST for a given file.
 ///
