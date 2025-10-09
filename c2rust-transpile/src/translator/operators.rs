@@ -131,9 +131,9 @@ impl<'c> Translation<'c> {
         lhs_rhs_ids: Option<(CExprId, CExprId)>,
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
         match op {
-            c_ast::BinOp::Add => return self.convert_addition(lhs_type, rhs_type, lhs, rhs),
+            c_ast::BinOp::Add => self.convert_addition(lhs_type, rhs_type, lhs, rhs),
             c_ast::BinOp::Subtract => {
-                return self.convert_subtraction(ty, lhs_type, rhs_type, lhs, rhs);
+                self.convert_subtraction(ty, lhs_type, rhs_type, lhs, rhs)
             }
 
             c_ast::BinOp::Multiply
@@ -142,7 +142,7 @@ impl<'c> Translation<'c> {
             | c_ast::BinOp::BitXor
             | c_ast::BinOp::ShiftRight
             | c_ast::BinOp::ShiftLeft => {
-                return self.convert_binary_op_with_wrapping(op, lhs, rhs, ctype);
+                self.convert_binary_op_with_wrapping(op, lhs, rhs, ctype)
             }
 
             c_ast::BinOp::EqualEqual
@@ -151,18 +151,18 @@ impl<'c> Translation<'c> {
             | c_ast::BinOp::Greater
             | c_ast::BinOp::GreaterEqual
             | c_ast::BinOp::LessEqual => {
-                return self.convert_comparison_operator(
+                self.convert_comparison_operator(
                     op,
                     lhs_type,
                     rhs_type,
                     lhs,
                     rhs,
                     lhs_rhs_ids,
-                );
+                )
             }
 
             c_ast::BinOp::BitAnd | c_ast::BinOp::BitOr => {
-                return self.convert_binary_op_with_wrapping(op, lhs, rhs, ctype);
+                self.convert_binary_op_with_wrapping(op, lhs, rhs, ctype)
             }
 
             op => unimplemented!("Translation of binary operator {:?}", op),

@@ -232,12 +232,12 @@ impl TypedAstContext {
     /// The first [`SrcLoc`] returned should have been included from the input/main file.
     pub fn include_path(&self, loc: SrcLoc) -> &[SrcLoc] {
         let includes = &self.include_map[self.file_map[loc.fileid as usize]][..];
-        if cfg!(debug_assertions) {
-            if let Some(root_include) = includes.first() {
-                let file_id = self.file_map[root_include.fileid as usize];
-                let file = &self.files[file_id];
-                assert_eq!(file.path.as_deref(), Some(self.main_file.as_path()));
-            }
+        if cfg!(debug_assertions)
+            && let Some(root_include) = includes.first()
+        {
+            let file_id = self.file_map[root_include.fileid as usize];
+            let file = &self.files[file_id];
+            assert_eq!(file.path.as_deref(), Some(self.main_file.as_path()));
         }
         includes
     }

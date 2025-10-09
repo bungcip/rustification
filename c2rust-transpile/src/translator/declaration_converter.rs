@@ -12,7 +12,7 @@ pub(crate) fn convert_decl(
     ctx: ExprContext,
     decl_id: CDeclId,
 ) -> TranslationResult<ConvertedDecl> {
-    let converted_decl = match t.convert_decl(ctx, decl_id) {
+    match t.convert_decl(ctx, decl_id) {
         Err(e) => {
             let k = &t.ast_context.get_decl(&decl_id).map(|x| &x.kind);
             let msg = format!("Skipping declaration {:?} due to error: {}", k, e);
@@ -20,9 +20,7 @@ pub(crate) fn convert_decl(
             Err(e)
         }
         Ok(converted_decl) => Ok(converted_decl),
-    };
-
-    converted_decl
+    }
 }
 
 pub(crate) fn insert_converted_decl(t: &Translation, decl: &CDecl, converted_decl: ConvertedDecl) {
@@ -101,7 +99,7 @@ pub(crate) fn convert_declarations(t: &mut Translation, ctx: ExprContext) {
             }
 
             let decl = t.ast_context.get_decl(&top_id).unwrap();
-            let decl_file_id = t.ast_context.file_id(&decl);
+            let decl_file_id = t.ast_context.file_id(decl);
             if t.tcfg.reorganize_definitions {
                 t.cur_file.set(decl_file_id);
             }
@@ -151,7 +149,7 @@ pub(crate) fn convert_declarations(t: &mut Translation, ctx: ExprContext) {
             NoItem => {}
         };
 
-        if t.tcfg.reorganize_definitions && decl_file_id.map_or(false, |id| id != t.main_file) {
+        if t.tcfg.reorganize_definitions && decl_file_id.is_some_and(|id| id != t.main_file) {
             t.generate_submodule_imports(*top_id, decl_file_id);
         }
     }
