@@ -634,27 +634,43 @@ impl<'c> Translation<'c> {
                 );
 
                 match maybe_replacement {
-                    Ok((replacement, ty)) => {
+                    Ok((replacement, c_type_id)) => {
                         trace!("  to {replacement:?}");
 
-                        let expansion = MacroExpansion { ty };
+                        let expansion = MacroExpansion { ty: c_type_id };
                         self.macro_expansions
                             .borrow_mut()
                             .insert(decl_id, Some(expansion));
-                        let ty = self.convert_type(ty)?;
 
-                        let item = if name == "__ASSERT_FUNCTION" {
-                            // Use a static for __ASSERT_FUNCTION so we can take its address.
+                        let resolved_type = self.ast_context.resolve_type(c_type_id);
+                        let is_const_char_ptr = match &resolved_type.kind {
+                            CTypeKind::Pointer(pointee) if pointee.qualifiers.is_const => {
+                                matches!(
+                                    self.ast_context.resolve_type(pointee.ctype).kind,
+                                    CTypeKind::Char | CTypeKind::SChar | CTypeKind::UChar
+                                )
+                            }
+                            CTypeKind::ConstantArray(ctype, ..) => {
+                                matches!(
+                                    self.ast_context.resolve_type(*ctype).kind,
+                                    CTypeKind::Char | CTypeKind::SChar | CTypeKind::UChar
+                                )
+                            }
+                            _ => false,
+                        };
+
+                        let rust_ty = self.convert_type(c_type_id)?;
+                        let item = if is_const_char_ptr {
+                            // Use a static for pointers to string literals so we can take their address.
                             mk().span(span)
                                 .pub_()
-                                .static_item(name, ty, replacement)
+                                .static_item(name, rust_ty, replacement)
                         } else {
-                            mk().span(span).pub_().const_item(
-                                name,
-                                ty,
-                                replacement,
-                            )
+                            mk().span(span)
+                                .pub_()
+                                .const_item(name, rust_ty, replacement)
                         };
+
                         Ok(ConvertedDecl::Item(item))
                     }
                     Err(e) => {
