@@ -119,5 +119,5 @@ pub unsafe extern "C" fn curl_alpn_spec() {
         init
     };
 }
-pub const ALPN_HTTP_1_1: [ffi::c_char; 10] =
+pub static ALPN_HTTP_1_1: [ffi::c_char; 10] =
     unsafe { ::core::mem::transmute::<[u8; 10], [ffi::c_char; 10]>(*b"http/1.1\0\0") };

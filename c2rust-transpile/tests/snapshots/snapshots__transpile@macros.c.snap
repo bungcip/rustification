@@ -48,7 +48,7 @@ pub const LITERAL_INT: ffi::c_int = 0xffff as ffi::c_int;
 pub const LITERAL_BOOL: ffi::c_int = true_0;
 pub const LITERAL_FLOAT: ffi::c_double = 3.14f64;
 pub const LITERAL_CHAR: ffi::c_int = 'x' as i32;
-pub const LITERAL_STR: [ffi::c_char; 6] =
+pub static LITERAL_STR: [ffi::c_char; 6] =
     unsafe { ::core::mem::transmute::<[u8; 6], [ffi::c_char; 6]>(*b"hello\0") };
 pub const LITERAL_STRUCT: S = {
     let mut init = S { i: 5 as ffi::c_int };
@@ -58,7 +58,7 @@ pub const NESTED_INT: ffi::c_int = LITERAL_INT;
 pub const NESTED_BOOL: ffi::c_int = LITERAL_BOOL;
 pub const NESTED_FLOAT: ffi::c_double = LITERAL_FLOAT;
 pub const NESTED_CHAR: ffi::c_int = LITERAL_CHAR;
-pub const NESTED_STR: [ffi::c_char; 6] = LITERAL_STR;
+pub static NESTED_STR: [ffi::c_char; 6] = LITERAL_STR;
 pub const NESTED_STRUCT: S = LITERAL_STRUCT;
 pub const PARENS: ffi::c_int = NESTED_INT * (LITERAL_CHAR + true_0);
 pub const WIDENING_CAST: ffi::c_ulonglong = LITERAL_INT as ffi::c_ulonglong;
