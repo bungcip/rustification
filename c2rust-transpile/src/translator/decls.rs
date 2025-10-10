@@ -643,11 +643,19 @@ impl<'c> Translation<'c> {
                             .insert(decl_id, Some(expansion));
                         let ty = self.convert_type(ty)?;
 
-                        Ok(ConvertedDecl::Item(mk().span(span).pub_().const_item(
-                            name,
-                            ty,
-                            replacement,
-                        )))
+                        let item = if name == "__ASSERT_FUNCTION" {
+                            // Use a static for __ASSERT_FUNCTION so we can take its address.
+                            mk().span(span)
+                                .pub_()
+                                .static_item(name, ty, replacement)
+                        } else {
+                            mk().span(span).pub_().const_item(
+                                name,
+                                ty,
+                                replacement,
+                            )
+                        };
+                        Ok(ConvertedDecl::Item(item))
                     }
                     Err(e) => {
                         self.macro_expansions.borrow_mut().insert(decl_id, None);
